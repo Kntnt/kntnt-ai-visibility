@@ -1,0 +1,81 @@
+name: Tests
+
+# Run the full gate on every push and pull request targeting main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+
+  lint:
+    name: Lint (PHPCS, WPCS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+          coverage: none
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+      - name: Check coding standards
+        run: composer phpcs
+
+  stan:
+    name: Static analysis (PHPStan max)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+          coverage: none
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+      - name: Run PHPStan
+        run: composer stan
+
+  unit:
+    name: Unit tests (Pest, coverage >= 80%)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+          coverage: pcov
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+      - name: Run the unit suite with coverage
+        run: vendor/bin/pest --testsuite=Unit --coverage --min=80
+
+  e2e:
+    name: e2e smoke (WordPress Playground, PHP 8.5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+          coverage: none
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+      - name: Boot the plugin in WordPress Playground
+        run: bash tests/Integration/playground-smoke.sh

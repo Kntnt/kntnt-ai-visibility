@@ -1,0 +1,12 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: max
+    paths:
+        - classes/
+    # The WordPress stubs and bootstrap constants are supplied by the
+    # phpstan-wordpress extension above; listing them again here would define
+    # the time constants twice.
+    phpVersion: 80500
+    treatPhpDocTypesAsCertain: false

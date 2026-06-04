@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<ruleset name="kntnt-ai-visibility">
+
+	<description>WordPress Coding Standards with the four deliberate deviations documented in docs/coding-standards.md.</description>
+
+	<!-- Scan the production PHP: the namespace classes plus the four root files.
+	     Tests follow the Pest/PSR idiom (camelCase, spaces) by design and are not
+	     WPCS-conformant, so they are intentionally out of scope here. -->
+	<file>classes/</file>
+	<file>kntnt-ai-visibility.php</file>
+	<file>autoloader.php</file>
+	<file>install.php</file>
+	<file>uninstall.php</file>
+
+	<!-- Only PHP files. -->
+	<arg name="extensions" value="php"/>
+
+	<!-- Show sniff codes and progress, with colour. -->
+	<arg value="sp"/>
+	<arg name="colors"/>
+
+	<!-- Baseline: the WordPress Coding Standards. -->
+	<rule ref="WordPress">
+
+		<!--
+			Deliberate deviation 1: modern PHP array syntax.
+			The project uses [ ... ] literals; array() is banned by choice. Both
+			the Generic and Universal short-array sniffs are excluded so the
+			DisallowLongArraySyntax rule added below can enforce the modern
+			syntax without a conflicting sniff.
+		-->
+		<exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+		<exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+
+		<!--
+			Deliberate deviation 2: PSR-4 filenames.
+			WordPress CS expects class-classname.php; the autoloader maps
+			Pascal_Snake_Case class names 1:1 to <Class_Name>.php.
+		-->
+		<exclude name="WordPress.Files.FileName"/>
+
+		<!--
+			Deliberate deviation 3: namespaces over global function prefixes.
+			PHP code lives inside \Kntnt\Ai_Visibility rather than under a
+			kntnt_ function-name prefix. The prefix is still used for identifiers
+			that live in a global registry (hooks, options, transients).
+		-->
+		<exclude name="WordPress.NamingConventions.PrefixAllGlobals"/>
+
+		<!--
+			Deliberate deviation 4: Yoda conditions are not required.
+			Natural order is the default (strict_types removes the original
+			safety motivation); Yoda only when it genuinely improves readability.
+		-->
+		<exclude name="WordPress.PHP.YodaConditions"/>
+
+		<!--
+			The standard forbids vertical alignment of = and => across lines. The
+			MultipleStatementAlignment sniff enforces the opposite; exclude it so
+			the no-alignment rule wins.
+		-->
+		<exclude name="Generic.Formatting.MultipleStatementAlignment"/>
+
+		<!--
+			Paragraph style requires a blank line before the closing brace of a
+			function / method body (and of a class body). PSR2's
+			FunctionClosingBrace and ClassDeclaration sniffs forbid that blank
+			line; the paragraph style takes precedence.
+		-->
+		<exclude name="PSR2.Methods.FunctionClosingBrace"/>
+		<exclude name="PSR2.Classes.ClassDeclaration"/>
+
+		<!--
+			error_log() is the plugin's intentional diagnostic mechanism: the
+			bootstrap logs caught fatals through it.
+		-->
+		<exclude name="WordPress.PHP.DevelopmentFunctions.error_log_error_log"/>
+
+		<!--
+			uninstall.php and Plugin::deactivate() use a direct DELETE query to
+			clear transients — there is no caching layer to go through while the
+			plugin is being torn down.
+		-->
+		<exclude name="WordPress.DB.DirectDatabaseQuery"/>
+
+	</rule>
+
+	<!-- Require short array syntax ([ ]) — never array(). -->
+	<rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+
+	<!-- Allow longer lines — the project caps at 120 cols for code. Over-length
+	     lines are reported as warnings, never hard errors. -->
+	<rule ref="Generic.Files.LineLength">
+		<properties>
+			<property name="lineLimit" value="120"/>
+			<property name="absoluteLineLimit" value="0"/>
+		</properties>
+	</rule>
+
+	<!-- The single-line WordPress plugin-header "Description:" is unavoidably
+	     long; keep line-length findings informative without failing the gate. -->
+	<config name="ignore_warnings_on_exit" value="1"/>
+
+	<!-- Minimum supported versions for the WordPress and PHP compatibility sniffs. -->
+	<config name="minimum_supported_wp_version" value="7.0"/>
+	<config name="testVersion" value="8.5-"/>
+
+</ruleset>

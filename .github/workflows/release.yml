@@ -1,0 +1,47 @@
+name: Release
+
+# A pushed version tag (X.Y.Z) builds the distribution zip and publishes it as
+# the release asset — see docs/adr/0005-automated-tag-release-stable-asset.md.
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+
+  release:
+    name: Build and publish the release asset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+          coverage: none
+
+      - name: Verify the plugin header version matches the tag
+        run: |
+          header_version="$(grep -E '^[[:space:]]*\*[[:space:]]*Version:' kntnt-ai-visibility.php \
+            | head -1 \
+            | sed -E 's/.*Version:[[:space:]]*([0-9A-Za-z.+-]+).*/\1/')"
+          if [[ "$header_version" != "${GITHUB_REF_NAME}" ]]; then
+            echo "::error::Plugin header version ($header_version) does not match tag (${GITHUB_REF_NAME})."
+            exit 1
+          fi
+          echo "Header version matches tag: ${GITHUB_REF_NAME}"
+
+      - name: Build the runtime zip, create the release, and upload the asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # build-release-zip.sh runs `composer install --no-dev --optimize-autoloader`
+        # in a staging directory, strips to the runtime keep-list (incl. vendor/),
+        # and uploads kntnt-ai-visibility.zip — the version-less, stable asset name.
+        run: bash build-release-zip.sh --tag "${GITHUB_REF_NAME}" --create

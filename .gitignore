@@ -1,0 +1,27 @@
+# Dependencies — restored by `composer install`; the release zip ships its own
+# production vendor/ built by build-release-zip.sh.
+/vendor/
+/node_modules/
+
+# Test and tooling caches.
+/.phpunit.cache/
+.phpunit.result.cache
+/coverage/
+*.log
+
+# Release artefact emitted by ./build-release-zip.sh — uploaded to the GitHub
+# release as an asset, not committed.
+/kntnt-ai-visibility.zip
+
+# Local test-environment overrides.
+.env
+.env.testing
+
+# Editor / OS files.
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Composer and npm lock files are committed (kept), so they are NOT ignored.

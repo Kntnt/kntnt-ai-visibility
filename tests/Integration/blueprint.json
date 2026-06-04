@@ -1,0 +1,17 @@
+{
+    "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "preferredVersions": {
+        "php": "8.5",
+        "wp": "latest"
+    },
+    "steps": [
+        {
+            "step": "activatePlugin",
+            "pluginPath": "kntnt-ai-visibility/kntnt-ai-visibility.php"
+        },
+        {
+            "step": "runPHP",
+            "code": "<?php require '/wordpress/wp-content/plugins/kntnt-ai-visibility/tests/Integration/assert-boot.php';"
+        }
+    ]
+}

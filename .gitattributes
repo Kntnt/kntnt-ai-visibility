@@ -1,0 +1,25 @@
+# Normalise line endings: text files use LF in the repository.
+* text=auto eol=lf
+
+# Keep shell scripts and PHP as LF regardless of platform.
+*.sh   text eol=lf
+*.php  text eol=lf
+
+# Development-only paths excluded from `git archive` exports. The release zip is
+# built by build-release-zip.sh, which additionally strips everything outside
+# its runtime keep-list; these export-ignore rules keep source tarballs clean
+# too. composer.json / composer.lock are deliberately NOT ignored — the build's
+# --tag path runs `composer install` against them in a staging directory.
+/.github            export-ignore
+/docs               export-ignore
+/tests              export-ignore
+/.gitignore         export-ignore
+/.gitattributes     export-ignore
+/phpcs.xml.dist     export-ignore
+/phpstan.neon.dist  export-ignore
+/phpunit.xml        export-ignore
+/patchwork.json     export-ignore
+/run-tests.sh       export-ignore
+/build-release-zip.sh export-ignore
+/CLAUDE.md          export-ignore
+/AGENTS.md          export-ignore
