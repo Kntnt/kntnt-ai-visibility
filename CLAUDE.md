@@ -12,6 +12,15 @@ task requires.
 
 @docs/coding-standards.md
 
+## Documentation writing standard
+
+All prose documentation in this repository – `README.md`, `AGENTS.md`, this file,
+`CONTRIBUTING.md`, `CHANGELOG.md`, `CONTEXT.md`, and everything under `docs/` – is
+written in British English following the `kntnt-text-skills:writing-rules en_GB`
+standard: spaced en-dashes ( – ), `-ise`/`-isation` spellings, no Oxford comma,
+and the rest of the en_GB mechanics and style. Apply it when writing or editing
+any Markdown in the repo.
+
 ## When to load which doc
 
 `docs/` holds the authoritative decisions. Load only what the task needs.
