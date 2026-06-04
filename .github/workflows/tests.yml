@@ -16,7 +16,7 @@ jobs:
     name: Lint (PHPCS, WPCS)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
@@ -32,7 +32,7 @@ jobs:
     name: Static analysis (PHPStan max)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
@@ -48,7 +48,7 @@ jobs:
     name: Unit tests (Pest, coverage >= 80%)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
@@ -64,7 +64,7 @@ jobs:
     name: e2e smoke (WordPress Playground, PHP 8.5)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
