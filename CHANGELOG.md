@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - This changelog.
 - `CONTRIBUTING.md` with contribution and pull-request guidance.
 - README sections: *Questions, bugs, and feature requests*, *How you can contribute*, and *Changelog*.
+- Modular architecture and design (a Core plus four feature modules) documented in `docs/architecture.md`, the `CONTEXT.md` glossary and architecture decision records under `docs/adr/`.
 
 ### Changed
 
