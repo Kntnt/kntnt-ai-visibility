@@ -197,6 +197,10 @@ mechanism details (single-flight, TTL/version invalidation, file paths); setting
 field definitions; negotiation edge cases (attachments, pagination); and the
 llms.txt advertising/link-relation (release 2/3).
 
+These are settled for **Release 1** (the Markdown alternate) in
+[`docs/spec/markdown-alternate.md`](spec/markdown-alternate.md); the llms.txt
+advertising/link-relation stays a release 2/3 concern.
+
 ## Decision record
 
 | ADR | Decision |

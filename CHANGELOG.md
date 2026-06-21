@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Modular architecture and design (a Core plus four feature modules) documented in `docs/architecture.md`, the `CONTEXT.md` glossary and architecture decision records under `docs/adr/`.
 - The coding standard is now materialised in the repository under `agents.d/coding-standard/` – one module per language axis (general, PHP, WordPress and Bash) plus a private `manifest.json` snapshot – and loaded on demand rather than held in context every session.
 - On-demand agent guides under `agents.d/`: `writing-standard.md`, `releasing.md` and `testing.md`, each linked from the `AGENTS.md` References index.
+- Step 1.3 specification for Release 1 – the Markdown alternate – with concrete Core-slice and module contracts in `docs/spec/markdown-alternate.md`.
 
 ### Changed
 
