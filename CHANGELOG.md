@@ -12,11 +12,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - `CONTRIBUTING.md` with contribution and pull-request guidance.
 - README sections: *Questions, bugs, and feature requests*, *How you can contribute*, and *Changelog*.
 - Modular architecture and design (a Core plus four feature modules) documented in `docs/architecture.md`, the `CONTEXT.md` glossary and architecture decision records under `docs/adr/`.
+- The coding standard is now materialised in the repository under `agents.d/coding-standard/` – one module per language axis (general, PHP, WordPress and Bash) plus a private `manifest.json` snapshot – and loaded on demand rather than held in context every session.
+- On-demand agent guides under `agents.d/`: `writing-standard.md`, `releasing.md` and `testing.md`, each linked from the `AGENTS.md` References index.
 
 ### Changed
 
 - Documentation now follows British English via the `kntnt-text-skills:writing-rules en_GB` standard; the README uses spaced en-dashes ( – ) throughout.
 - Bumped `actions/checkout` and `actions/setup-node` to v5 (Node 24 runtime).
+- `AGENTS.md` slimmed to an always-loaded canon – authoritative ground rules, the non-obvious project facts and a References index – and `CLAUDE.md` reduced to a single `@AGENTS.md` bridge, cutting the always-loaded agent context by about 95 %.
+- `README.md` and `CONTRIBUTING.md` now point at `agents.d/coding-standard/` for the coding standard and describe the agent-context files accurately.
+
+### Removed
+
+- `docs/coding-standards.md` – the monolithic coding standard, superseded by the on-demand modules under `agents.d/coding-standard/`.
 
 ## [0.1.0] – 2026-06-04
 

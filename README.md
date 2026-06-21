@@ -81,7 +81,7 @@ Pushing a version tag `X.Y.Z` triggers [`.github/workflows/release.yml`](.github
 
 ### Technical documentation
 
-The [`docs/`](docs/) directory is the authoritative technical record: [`docs/Charter.md`](docs/Charter.md) for the product brief, market analysis, and four-step plan; the Architecture Decision Records in [`docs/adr/`](docs/adr/) for the decisions behind the design; and [`docs/coding-standards.md`](docs/coding-standards.md) for the coding standard. [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) give AI coding assistants the project context, architecture, naming conventions, and authoritative decisions, and are equally useful for human contributors.
+The [`docs/`](docs/) directory is the authoritative technical record: [`docs/Charter.md`](docs/Charter.md) for the product brief, market analysis, and four-step plan; the Architecture Decision Records in [`docs/adr/`](docs/adr/) for the decisions behind the design; and [`agents.d/coding-standard/`](agents.d/coding-standard/) for the coding standard. [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) are the entry point for AI coding assistants: `CLAUDE.md` bridges to `AGENTS.md`, which holds the always-loaded canon – authoritative ground rules plus the non-obvious project facts – and a References index that points on demand to the coding standard in [`agents.d/`](agents.d/) and to the documents above. Both are equally readable for human contributors.
 
 ## How you can contribute
 
