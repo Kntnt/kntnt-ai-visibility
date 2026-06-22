@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 use Kntnt\Ai_Visibility\Core\Artifact\Registry as Artifact_Registry_Interface;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
+use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 use Kntnt\Ai_Visibility\Core\Core;
@@ -36,8 +37,9 @@ describe('Core', function (): void {
         $types     = Mockery::mock(Content_Types::class);
         $eligibility = new Eligibility($types);
         $markdown_alternate = new Markdown_Alternate();
+        $single_flight = Mockery::mock(Single_Flight::class);
 
-        $core = new Core($artifacts, $settings, $page, $logger, $cache, $router, $types, $eligibility, $markdown_alternate);
+        $core = new Core($artifacts, $settings, $page, $logger, $cache, $router, $types, $eligibility, $markdown_alternate, $single_flight);
 
         expect($core->artifacts())->toBe($artifacts);
         expect($core->settings())->toBe($settings);
@@ -48,6 +50,7 @@ describe('Core', function (): void {
         expect($core->content_types())->toBe($types);
         expect($core->eligibility())->toBe($eligibility);
         expect($core->markdown_alternate())->toBe($markdown_alternate);
+        expect($core->single_flight())->toBe($single_flight);
     });
 
 });

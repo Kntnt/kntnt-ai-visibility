@@ -284,7 +284,7 @@ final class Plugin {
 		$matrix = new Content_Matrix( static fn(): array => self::content_types_option() );
 		$eligibility = new Eligibility( $matrix );
 		$markdown_alternate = new Markdown_Alternate();
-		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router, $matrix, $eligibility, $markdown_alternate );
+		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router, $matrix, $eligibility, $markdown_alternate, $single_flight );
 
 		// Core owns the single settings section — the matrix and the clear-cache
 		// action beside it; modules contribute only their columns.
@@ -292,8 +292,11 @@ final class Plugin {
 		$settings->register_section( $content_settings->section() );
 		$content_settings->register();
 
-		// Boot the feature modules against Core, in dependency order.
+		// Boot the feature modules against Core, in dependency order. The Markdown
+		// module registers the `.md` column the llms columns depend on, so it boots
+		// first; the llms module then contributes its columns and singletons.
 		( new Markdown\Module() )->boot( $this->core );
+		( new Llms\Module() )->boot( $this->core );
 
 	}
 

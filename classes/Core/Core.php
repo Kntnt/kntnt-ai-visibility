@@ -25,6 +25,7 @@ namespace Kntnt\Ai_Visibility\Core;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Registry as Artifact_Registry;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
+use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 use Kntnt\Ai_Visibility\Core\Settings\Registry as Settings_Registry;
@@ -50,6 +51,7 @@ final readonly class Core {
 	 * @param Content_Types      $content_types The content-type capability matrix.
 	 * @param Eligibility        $eligibility   The eligibility predicate and enumeration.
 	 * @param Markdown_Alternate $markdown_alternate The markdown-alternate identity/URL locator.
+	 * @param Single_Flight      $single_flight The single-flight cache materialiser.
 	 */
 	public function __construct(
 		private Artifact_Registry $artifacts,
@@ -61,6 +63,7 @@ final readonly class Core {
 		private Content_Types $content_types,
 		private Eligibility $eligibility,
 		private Markdown_Alternate $markdown_alternate,
+		private Single_Flight $single_flight,
 	) {}
 
 	/**
@@ -163,6 +166,17 @@ final readonly class Core {
 	 */
 	public function markdown_alternate(): Markdown_Alternate {
 		return $this->markdown_alternate;
+	}
+
+	/**
+	 * Returns the single-flight cache materialiser.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @return Single_Flight
+	 */
+	public function single_flight(): Single_Flight {
+		return $this->single_flight;
 	}
 
 }

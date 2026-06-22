@@ -19,6 +19,7 @@ declare(strict_types=1);
 use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Artifact_Registry;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
+use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Content\Capability_Column;
 use Kntnt\Ai_Visibility\Core\Content\Content_Types;
@@ -64,6 +65,7 @@ beforeEach(function (): void {
         $this->types,
         new Eligibility($this->types),
         new Markdown_Alternate(),
+        Mockery::mock(Single_Flight::class),
     );
 });
 
