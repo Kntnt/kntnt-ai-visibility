@@ -41,16 +41,20 @@ interface Page_Markdown {
 	public function for_post( \WP_Post $post ): string;
 
 	/**
-	 * Materialises the post's Markdown to the cache and returns its identity.
+	 * Materialises the post's Markdown to the cache and returns the bytes.
 	 *
 	 * Idempotent and single-flight (docs/spec §5.5): concurrent misses do not
-	 * all render. A cache hit returns the existing identity without rendering.
+	 * all render. A cache hit returns the cached bytes without rendering. The
+	 * identity is supplied by the caller (the matching provider derives it), so
+	 * this Core service stays free of any one artifact kind's key scheme — a
+	 * refinement of the spec's `materialise( post ): Identity`.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param \WP_Post $post The post to materialise.
-	 * @return Identity The cached artifact's identity.
+	 * @param Identity $identity The cache identity to materialise under.
+	 * @param \WP_Post $post     The post to render on a miss.
+	 * @return string The cached or freshly-rendered Markdown bytes.
 	 */
-	public function materialise( \WP_Post $post ): Identity;
+	public function materialise( Identity $identity, \WP_Post $post ): string;
 
 }

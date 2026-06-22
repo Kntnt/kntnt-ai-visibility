@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - On-demand agent guides under `agents.d/`: `writing-standard.md`, `releasing.md` and `testing.md`, each linked from the `AGENTS.md` References index.
 - Step 1.3 specification for Release 1 – the Markdown alternate – with concrete Core-slice and module contracts in `docs/spec/markdown-alternate.md`.
 - Core foundation for Release 1: the `Module` boot contract and the `Core` service facade; an artifact-provider registry with its identity, request, serve-pattern and link-relation value objects; a file-backed artifact cache and an early, hardened serve router that contains every request inside the cache directory (adversarially tested against path traversal, encoded traversal, null bytes and symlink escape); a zero-config settings registry over the single `kntnt_ai_visibility` option; and a visitor-silent logger.
+- Markdown-alternate generation: the shared Page-Markdown service that renders a post through `the_content`, converts the HTML to GitHub-Flavored Markdown (tables and strikethrough included) with relative URLs absolutised against the site, and assembles the YAML front-matter (`title`, `canonical_url`, `date`, `author`, and conditional `featured_image`, `categories`, `tags`) followed by the page's visible H1 and body, with single-flight caching; plus the Markdown-alternate provider and its eligibility rule (single, public, published, publicly-queryable entries, with the static-home `/index.md`).
 
 ### Changed
 

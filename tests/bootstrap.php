@@ -37,6 +37,18 @@ if (!class_exists('WP_Post')) {
     }
 }
 
+// A minimal stand-in for WordPress's WP_Term, for the same reason as WP_Post.
+if (!class_exists('WP_Term')) {
+    #[\AllowDynamicProperties]
+    class WP_Term
+    {
+        public int $term_id = 0;
+        public string $name = '';
+        public string $slug = '';
+        public string $taxonomy = '';
+    }
+}
+
 // Initialise Patchwork before any plugin class is autoloaded so every class
 // passes through Patchwork's source-transformation pipeline (call interception,
 // internal-function redefinition, and the final-stripping registered below).
