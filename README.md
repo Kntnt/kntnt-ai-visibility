@@ -10,16 +10,16 @@ A WordPress plugin that makes content-rich websites discoverable, visible and re
 
 For content-rich websites – corporate sites, online magazines and blogs – that want to be found and accurately represented by AI agents such as ChatGPT, Claude, Gemini and Perplexity, Kntnt AI Visibility makes your entire site discoverable, visible and readable to those agents, and puts you in control of how your content may be used. Unlike tools that each solve only one piece of the puzzle – and are often built for e-commerce or dependent on a separate SEO plugin – Kntnt AI Visibility is built exclusively for content sites: simple, complete and dependency-free.
 
-### Planned features (1.0)
+### Features
 
-The 1.0 release will provide four features out of the box, without relying on any other plugin:
+Kntnt AI Visibility is built around four capabilities, none of which depends on an SEO or e-commerce plugin. Two are available today; the other two are still to come.
 
-1. **Markdown via content negotiation** – a clean Markdown version of each page, served on the canonical URL through `Accept` negotiation (with a `.md` and `?format=markdown` fallback), using a high-fidelity HTML-to-Markdown converter.
-2. **`llms.txt` and `llms-full.txt`** – automatically generated and kept up to date.
-3. **Link headers** – RFC 8288/9727-compliant headers that advertise the Markdown alternates and the `llms.txt` file for agent discovery.
-4. **Content signals in `robots.txt`** – declare your AI usage preferences.
+1. **Markdown alternates** *(available)* – a clean Markdown version of every page, served on its canonical URL through `Accept` negotiation, and also reachable as a `.md` URL or via `?format=markdown`, produced by a high-fidelity HTML-to-Markdown converter and cached to disk for fast serving.
+2. **`llms.txt` and `llms-full.txt`** *(available)* – `/llms.txt`, a curated index of your key content that links to each page's Markdown, and `/llms-full.txt`, your selected pages concatenated into a single Markdown document. Both are generated on first request and rebuilt as your content changes.
+3. **Link headers** *(planned)* – RFC 8288/9727 headers that advertise the Markdown alternates and `llms.txt` so agents can find them.
+4. **Content signals in `robots.txt`** *(planned)* – declare how AI agents may use your content.
 
-> **Project status:** this repository is at **step 1.1 – the scaffold** (plugin bootstrap, autoloading, build/test/lint tooling, and CI). The features above are implemented in later steps; see [`docs/Charter.md`](docs/Charter.md) for the full plan.
+Which content each file exposes is set on a single settings page – one row per content type, one column per file – and the zero-config defaults work without any setup. See [`docs/Charter.md`](docs/Charter.md) for the full plan.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ The plugin checks the PHP version on activation and aborts with a clear admin no
 ## Installation
 
 1. [Download the latest release ZIP](https://github.com/Kntnt/kntnt-ai-visibility/releases/latest/download/kntnt-ai-visibility.zip).
-2. In your WordPress admin, go to **Plugins → Add New → Upload Plugin**, choose the ZIP, and install it.
+2. In your WordPress admin, go to **Plugins → Add New → Upload Plugin**, choose the ZIP and install it.
 3. Activate the plugin.
 
 The plugin is distributed via GitHub Releases and updates through the standard WordPress plugin-update UI: when a new version is released, it appears on the **Updates** page like any other plugin. (Distribution is GitHub-first by design – see [`docs/adr/0003`](docs/adr/0003-github-is-the-1-0-distribution-channel.md).)
@@ -75,7 +75,7 @@ location ~ \.md$ {
 
 When no cached file exists – the first request after a change, or content that was just invalidated – the request falls through to WordPress, which regenerates and serves it (and writes the cache for next time).
 
-## Questions, bugs, and feature requests
+## Questions, bugs and feature requests
 
 Have a usage question or something to discuss? Please use [Discussions](https://github.com/Kntnt/kntnt-ai-visibility/discussions).
 
@@ -118,11 +118,11 @@ Pushing a version tag `X.Y.Z` triggers [`.github/workflows/release.yml`](.github
 
 ### Technical documentation
 
-The [`docs/`](docs/) directory is the authoritative technical record: [`docs/Charter.md`](docs/Charter.md) for the product brief, market analysis, and four-step plan; the Architecture Decision Records in [`docs/adr/`](docs/adr/) for the decisions behind the design; and [`agents.d/coding-standard/`](agents.d/coding-standard/) for the coding standard. [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) are the entry point for AI coding assistants: `CLAUDE.md` bridges to `AGENTS.md`, which holds the always-loaded canon – authoritative ground rules plus the non-obvious project facts – and a References index that points on demand to the coding standard in [`agents.d/`](agents.d/) and to the documents above. Both are equally readable for human contributors.
+The [`docs/`](docs/) directory is the authoritative technical record: [`docs/Charter.md`](docs/Charter.md) for the product brief, market analysis and four-step plan; the Architecture Decision Records in [`docs/adr/`](docs/adr/) for the decisions behind the design; and [`agents.d/coding-standard/`](agents.d/coding-standard/) for the coding standard. [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) are the entry point for AI coding assistants: `CLAUDE.md` bridges to `AGENTS.md`, which holds the always-loaded canon – authoritative ground rules plus the non-obvious project facts – and a References index that points on demand to the coding standard in [`agents.d/`](agents.d/) and to the documents above. Both are equally readable for human contributors.
 
 ## How you can contribute
 
-Contributions are welcome, large or small – reporting a bug or requesting a feature through an issue, opening a pull request, improving the documentation, or translating the plugin into another language. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to set up the project, the quality gates your change needs to pass, and the pull-request process.
+Contributions are welcome, large or small – reporting a bug or requesting a feature through an issue, opening a pull request, improving the documentation or translating the plugin into another language. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to set up the project, the quality gates your change needs to pass and the pull-request process.
 
 ## License
 

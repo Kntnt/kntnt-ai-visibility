@@ -6,7 +6,7 @@ Thank you for considering a contribution. This plugin aims to make content-rich 
 
 - **Report a bug or request a feature.** [Open an issue](https://github.com/Kntnt/kntnt-ai-visibility/issues), and search the existing issues first to avoid duplicates.
 - **Ask a question or float an idea.** Use [Discussions](https://github.com/Kntnt/kntnt-ai-visibility/discussions) rather than the issue tracker.
-- **Submit a pull request.** Fix a bug, improve the documentation, add a translation, or implement a feature.
+- **Submit a pull request.** Fix a bug, improve the documentation, add a translation or implement a feature.
 
 For anything larger than a small fix, open an issue or a discussion first so the approach can be agreed before you invest the work.
 
@@ -35,9 +35,9 @@ bash run-tests.sh  # Level 1 (Pest) + Level 2 (Playground e2e)
 
 ## Coding and writing standards
 
-- **Code** follows the project coding standard in [`agents.d/coding-standard/`](agents.d/coding-standard/) (general, PHP, WordPress and Bash). Note the four deliberate deviations from the WordPress Coding Standards – `[ ]` arrays, PSR-4 filenames, namespaces over global function prefixes, and no required Yoda conditions – which are enforced in `phpcs.xml.dist` and must not be "corrected" toward upstream WP-CS.
-- **Naming** follows the conventions in [`AGENTS.md`](AGENTS.md): namespace `Kntnt\Ai_Visibility`, slug and text domain `kntnt-ai-visibility`, and the `kntnt_ai_visibility_` prefix for options, transients and hooks.
-- **Documentation** is written in British English following the `kntnt-text-skills:writing-rules en_GB` standard – spaced en-dashes ( – ), `-ise`/`-isation` spellings, and no Oxford comma.
+- **Code** follows the project coding standard in [`agents.d/coding-standard/`](agents.d/coding-standard/) (general, PHP, WordPress and Bash). Note the four deliberate deviations from the WordPress Coding Standards – `[ ]` arrays, PSR-4 filenames, namespaces over global function prefixes and no required Yoda conditions – which are enforced in `phpcs.xml.dist` and must not be "corrected" toward upstream WP-CS.
+- **Naming** follows the conventions in [`AGENTS.md`](AGENTS.md): namespace `Kntnt\Ai_Visibility`, slug and text domain `kntnt-ai-visibility` and the `kntnt_ai_visibility_` prefix for options, transients and hooks.
+- **Documentation** is written in British English following the `kntnt-text-skills:writing-rules en_GB` standard – spaced en-dashes ( – ), `-ise`/`-isation` spellings and no Oxford comma.
 
 ## Pre-1.0 policy
 
