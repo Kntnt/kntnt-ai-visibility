@@ -176,17 +176,64 @@ final class Page_Markdown_Provider implements Provider {
 			return $this->resolve_home();
 		}
 
-		// Otherwise let url_to_postid() resolve the permalink, trying the
-		// trailing-slash and bare forms so nested and dated permalinks work.
+		// Let url_to_postid() resolve the permalink first, trying the
+		// trailing-slash and bare forms so dated and nested post permalinks work.
 		foreach ( [ trailingslashit( $html_path ), untrailingslashit( $html_path ) ] as $candidate ) {
 			$id = url_to_postid( home_url( $candidate ) );
 			if ( $id > 0 ) {
 				$post = get_post( $id );
-				return $post instanceof \WP_Post ? $post : null;
+				if ( $post instanceof \WP_Post ) {
+					return $post;
+				}
 			}
 		}
 
-		return null;
+		// Fall back to a hierarchical page lookup. When a `.md` request steers
+		// WordPress's main query to the front page, url_to_postid() can shadow a
+		// page slug with the post-name rule and return 0; a page's path resolves
+		// the same regardless of the current query (handles nested pages too).
+		$page = get_page_by_path( $slug );
+		if ( $page instanceof \WP_Post ) {
+			return $page;
+		}
+
+		// Last, resolve a published post or custom post type by its final slug
+		// segment — the case the page tree cannot cover when url_to_postid() has
+		// likewise missed in the steered .md context.
+		return $this->resolve_by_slug( $slug );
+
+	}
+
+	/**
+	 * Resolves a published post (any public type) by its final path segment.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param string $slug The trimmed request path (its last segment is the slug).
+	 * @return \WP_Post|null
+	 */
+	private function resolve_by_slug( string $slug ): ?\WP_Post {
+
+		// Posts use a flat `%postname%`, so the last segment is the post slug.
+		$segments = explode( '/', $slug );
+		$name = (string) end( $segments );
+		if ( $name === '' ) {
+			return null;
+		}
+
+		// One published entry of any public type with this slug; eligibility is
+		// re-checked by the caller, so a wrong-type hit is harmless.
+		$posts = get_posts(
+			[
+				'name'           => $name,
+				'post_type'      => 'any',
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+			],
+		);
+		$post = is_array( $posts ) ? ( $posts[0] ?? null ) : null;
+
+		return $post instanceof \WP_Post ? $post : null;
 
 	}
 

@@ -29,6 +29,7 @@ beforeEach(function (): void {
     Functions\when('trailingslashit')->alias(fn(string $s): string => rtrim($s, '/') . '/');
     Functions\when('untrailingslashit')->alias(fn(string $s): string => rtrim($s, '/'));
     Functions\when('get_page_by_path')->justReturn(null);
+    Functions\when('get_posts')->justReturn([]);
     Functions\when('get_option')->justReturn('');
 
     $this->page_markdown = Mockery::mock(Page_Markdown::class);
@@ -82,6 +83,41 @@ describe('Page_Markdown_Provider::match', function (): void {
         Functions\when('url_to_postid')->justReturn(0);
 
         expect($this->provider->match(new Request('GET', '/nope.md')))->toBeNull();
+    });
+
+    it('falls back to the page hierarchy when url_to_postid misses a page', function (): void {
+        // The .md rewrite steers the main query to the front page, where
+        // url_to_postid can shadow a page slug with the post-name rule and return
+        // 0; the hierarchical page lookup resolves it regardless.
+        $page     = new WP_Post();
+        $page->ID = 13;
+        Functions\when('url_to_postid')->justReturn(0);
+        Functions\when('get_page_by_path')->alias(fn(string $path): ?WP_Post => $path === 'about' ? $page : null);
+        Functions\when('get_post')->justReturn($page);
+        Functions\when('get_permalink')->justReturn('https://example.com/about/');
+        $this->eligibility->shouldReceive('is_eligible')->with($page)->andReturnTrue();
+
+        $identity = $this->provider->match(new Request('GET', '/about.md'));
+
+        expect($identity?->source_id)->toBe(13);
+        expect($identity?->key)->toBe('about');
+    });
+
+    it('falls back to a published-post slug lookup when url_to_postid and the page tree miss', function (): void {
+        // A post in the steered .md context: url_to_postid misses and the page
+        // tree has no such page, so the final slug lookup resolves the post.
+        $post     = new WP_Post();
+        $post->ID = 21;
+        Functions\when('url_to_postid')->justReturn(0);
+        Functions\when('get_page_by_path')->justReturn(null);
+        Functions\when('get_posts')->alias(fn(array $args): array => ($args['name'] ?? '') === 'hello-md' ? [$post] : []);
+        Functions\when('get_permalink')->justReturn('https://example.com/hello-md/');
+        $this->eligibility->shouldReceive('is_eligible')->with($post)->andReturnTrue();
+
+        $identity = $this->provider->match(new Request('GET', '/hello-md.md'));
+
+        expect($identity?->source_id)->toBe(21);
+        expect($identity?->key)->toBe('hello-md');
     });
 
     it('returns null when the resolved post is ineligible', function (): void {

@@ -45,9 +45,16 @@ function kntnt_eligibility(array $configured = []): Eligibility
 }
 
 beforeEach(function (): void {
-    // Defaults: post and page are viewable publicly-queryable types.
-    Functions\when('get_post_types')->justReturn(['post' => 'post', 'page' => 'page']);
-    Functions\when('is_post_type_viewable')->alias(fn(string $type): bool => in_array($type, ['post', 'page'], true));
+    // Model WordPress reality: pages are public and viewable but NOT
+    // publicly_queryable, so a default keyed on publicly_queryable would wrongly
+    // exclude them. get_post_types() respects its query so the test catches that.
+    Functions\when('get_post_types')->alias(function (array $args = [], string $output = 'names'): array {
+        if (($args['publicly_queryable'] ?? null) === true) {
+            return ['post' => 'post', 'attachment' => 'attachment'];
+        }
+        return ['post' => 'post', 'page' => 'page', 'attachment' => 'attachment'];
+    });
+    Functions\when('is_post_type_viewable')->alias(fn(string $type): bool => in_array($type, ['post', 'page', 'attachment'], true));
     Functions\when('apply_filters')->alias(fn(string $hook, mixed $value): mixed => $value);
 });
 

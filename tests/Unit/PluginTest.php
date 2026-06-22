@@ -96,6 +96,29 @@ describe('Plugin', function (): void {
         expect(Plugin::get_version())->toBe('');
     });
 
+    it('builds the cache directory under the uploads base', function (): void {
+        Functions\when('wp_upload_dir')->justReturn(['basedir' => '/var/www/uploads']);
+
+        expect(Plugin::cache_dir())->toBe('/var/www/uploads/kntnt-ai-visibility-cache');
+    });
+
+    it('runs the early serve router and falls through on a non-markdown request', function (): void {
+        // A plain GET / is not a cache-grade artifact request, so the router
+        // resolves nothing and serve_early() returns without serving or exiting.
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI']    = '/';
+        Functions\when('wp_unslash')->returnArg();
+        Functions\when('esc_url_raw')->returnArg();
+        Functions\when('sanitize_text_field')->returnArg();
+        Functions\when('sanitize_key')->returnArg();
+        Functions\when('wp_parse_url')->alias(static fn(string $url, int $component = -1): mixed => parse_url($url, $component));
+
+        Plugin::get_instance(KNTNT_TEST_PLUGIN_FILE)->serve_early();
+
+        // Reaching here means the router fell through cleanly (no exit, no throw).
+        expect(true)->toBeTrue();
+    });
+
     it('flushes rewrite rules and clears the cache on deactivation', function (): void {
         // Point the cache at a directory that does not exist, so flush_all() is a
         // no-op and the test never touches the real filesystem.

@@ -118,20 +118,22 @@ run_unit() {
 	fi
 }
 
-# Level 2: WordPress Playground end-to-end smoke test.
+# Level 2: WordPress Playground end-to-end tests — a fast boot smoke test
+# followed by the behavioural test that drives the real `.md` request lifecycle.
 run_e2e() {
 	echo ""
-	echo "═══ Level 2: Playground e2e smoke test ═══"
+	echo "═══ Level 2: Playground e2e (boot smoke + behavioural) ═══"
 	local args=()
 	[[ "$VERBOSE" == true ]] && args+=(--verbose)
-	if bash "$SCRIPT_DIR/tests/Integration/playground-smoke.sh" "${args[@]}"; then
+	if bash "$SCRIPT_DIR/tests/Integration/playground-smoke.sh" "${args[@]}" \
+		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e.sh" "${args[@]}"; then
 		E2E_EXIT=0
 	else
 		E2E_EXIT=$?
 		echo "" >&2
-		echo "Playground could not boot the plugin. Per docs/adr/0004, this is NOT" >&2
-		echo "auto-resolved with a DDEV fallback — raise it to the maintainer with" >&2
-		echo "the options (DDEV / lower the converter to PHP 8.4 / other)." >&2
+		echo "Playground could not run the plugin's behaviour. Per docs/adr/0004, this" >&2
+		echo "is NOT auto-resolved with a DDEV fallback — raise it to the maintainer" >&2
+		echo "with the options (DDEV / lower the converter to PHP 8.4 / other)." >&2
 	fi
 }
 

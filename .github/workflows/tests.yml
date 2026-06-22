@@ -61,7 +61,7 @@ jobs:
         run: vendor/bin/pest --testsuite=Unit --coverage --min=80
 
   e2e:
-    name: e2e smoke (WordPress Playground, PHP 8.5)
+    name: e2e (WordPress Playground, PHP 8.5)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -79,3 +79,5 @@ jobs:
         run: composer install --no-interaction --no-progress
       - name: Boot the plugin in WordPress Playground
         run: bash tests/Integration/playground-smoke.sh
+      - name: Exercise the Markdown alternate over HTTP
+        run: bash tests/Integration/playground-e2e.sh
