@@ -35,9 +35,12 @@ if (!class_exists(Kntnt\Ai_Visibility\Plugin::class)) {
 }
 
 // The singleton must expose the header version, proving the bootstrap ran.
+// Compare against the header read independently rather than a hardcoded
+// literal, so a version bump never breaks this assertion.
+$expected = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin, false, false)['Version'];
 $version = Kntnt\Ai_Visibility\Plugin::get_version();
-if ($version !== '0.2.0') {
-    throw new RuntimeException('Unexpected plugin version: ' . $version);
+if ($version === '' || $version !== $expected) {
+    throw new RuntimeException("Plugin version mismatch: get_version()='{$version}', header='{$expected}'");
 }
 
 // Reaching this line means every check above passed. The harness treats a
