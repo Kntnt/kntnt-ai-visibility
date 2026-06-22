@@ -167,7 +167,7 @@ The module is thin: it registers a `Page_Markdown_Provider` and a settings secti
 
 A request resolves to a Markdown alternate iff it resolves to a **single, public, published** entry:
 
-- **Post type:** every **`publicly_queryable`** post type by default (not an allow-list — diverges from the reference's hard-coded `post, page`). Overridable via a settings field and a filter.
+- **Post type:** every **front-end-viewable** post type by default — `is_post_type_viewable()`, the same predicate as the eligibility hard guard, so the default set is exactly what can pass. This deliberately keys on viewability rather than `publicly_queryable`: the built-in `page` type is public and viewable but **not** `publicly_queryable`, so a `publicly_queryable`-keyed default would exclude pages and break the per-page feature (the reference hard-coded `post, page`). The default is therefore posts, pages and any publicly-queryable CPT, minus attachments — not an allow-list. Overridable via a settings field and a filter.
 - **Status:** `publish` only. Drafts, pending, private, scheduled → no `.md` (404 / fall through).
 - **Password-protected:** `403` with a plain-text body (e.g. `This content is password protected.`).
 - **Home:** `/index.md` **iff the front page is a static page** (`show_on_front === 'page'`); resolve a real page slugged `index` first, then `page_on_front`.
@@ -235,7 +235,7 @@ On both the cache-serve path (router) and the PHP path:
 
 The framework is not an empty shell — the Markdown module contributes a real section (ADR-0010):
 
-- **Post-type override** — default = all `publicly_queryable`; let the owner narrow/extend it.
+- **Post-type override** — default = all front-end-viewable types (`is_post_type_viewable()`, which includes pages); let the owner narrow/extend it.
 - **Archives/taxonomies opt-in** — default **off**; turning it on widens scope beyond singular content (the provider gains those identities).
 - **Clear-cache action** — a button that calls `Store::flush_all()` / bumps the cache-version.
 

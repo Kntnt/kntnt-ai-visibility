@@ -156,10 +156,11 @@ A page's Markdown alternate is reachable four ways
 The HTML stays `rel="canonical"`; the `.md` is advertised as `rel="alternate"`
 and carries `rel="canonical"` back, avoiding duplicate-content confusion.
 
-**Default scope:** every singular entry of a `publicly_queryable` post type gets
-an alternate; the home gets `/index.md` if and only if the front page is a static
-page; blog index, archives and search get none by default (widening is a later
-opt-in).
+**Default scope:** every singular entry of a front-end-viewable post type
+(`is_post_type_viewable()`, which includes the built-in `page` — not the
+narrower `publicly_queryable`) gets an alternate; the home gets `/index.md` if
+and only if the front page is a static page; blog index, archives and search get
+none by default (widening is a later opt-in).
 
 ## Configuration
 

@@ -1,6 +1,6 @@
 # Zero-config defaults, a Core settings registry, one option
 
-The plugin works **untouched**: the defaults in [ADR-0009](0009-markdown-alternate-serving-strategy.md) (every `publicly_queryable` post type, static-home `index.md`, no archives) need no configuration. Settings exist only to **override** defaults, never to set the plugin up.
+The plugin works **untouched**: the defaults in [ADR-0009](0009-markdown-alternate-serving-strategy.md) (every front-end-viewable post type, static-home `index.md`, no archives) need no configuration. Settings exist only to **override** defaults, never to set the plugin up.
 
 ## Mechanism
 
