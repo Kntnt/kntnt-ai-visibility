@@ -15,6 +15,28 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+// A minimal stand-in for WordPress's WP_Post. Defined in the PHPUnit bootstrap
+// (not an autoloaded file) so it is available to the unit tests but never loaded
+// by PHPStan, which gets the real WP_Post from the WordPress stubs. WP_Post is a
+// plain data object; this mirrors the subset of public properties the plugin
+// reads. A live WordPress install replaces it with the real class.
+if (!class_exists('WP_Post')) {
+    #[\AllowDynamicProperties]
+    class WP_Post
+    {
+        public int $ID = 0;
+        public string $post_title = '';
+        public string $post_content = '';
+        public string $post_status = 'publish';
+        public string $post_type = 'post';
+        public string $post_date = '1970-01-01 00:00:00';
+        public string $post_modified = '1970-01-01 00:00:00';
+        public string $post_password = '';
+        public int $post_author = 0;
+        public string $post_name = '';
+    }
+}
+
 // Initialise Patchwork before any plugin class is autoloaded so every class
 // passes through Patchwork's source-transformation pipeline (call interception,
 // internal-function redefinition, and the final-stripping registered below).
