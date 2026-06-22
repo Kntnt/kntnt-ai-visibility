@@ -247,7 +247,28 @@ if [[ -n "$OUTPUT_FILE" ]]; then
 fi
 
 if [[ "$RELEASE_ACTION" == "create" ]]; then
-	gh release create "$TAG" --generate-notes --repo "$REPO"
+
+	# Source the release body from the matching CHANGELOG.md section rather than
+	# GitHub's auto-generated digest (docs/adr/0011). The tag is v-prefixed; the
+	# changelog heading carries the bare version, so strip the leading `v`.
+	version="${TAG#v}"
+	notes_file="$TMPDIR/release-notes.md"
+	awk -v ver="$version" '
+		index($0, "## [" ver "]") == 1 { capture = 1; next }
+		capture && /^## \[/ { exit }
+		capture && /^\[[^][]+\]:[[:space:]]/ { exit }
+		capture { print }
+	' "$SCRIPT_DIR/CHANGELOG.md" > "$notes_file"
+
+	# Use the changelog notes when the section had real content; otherwise fall
+	# back to auto-generated notes so a release is never published note-less.
+	if grep -q '[^[:space:]]' "$notes_file"; then
+		printf '\n**Full changelog:** https://github.com/%s/blob/%s/CHANGELOG.md\n' "$REPO" "$TAG" >> "$notes_file"
+		gh release create "$TAG" --title "$TAG" --notes-file "$notes_file" --repo "$REPO"
+	else
+		echo "Warning: no CHANGELOG section for ${version}; using auto-generated notes." >&2
+		gh release create "$TAG" --title "$TAG" --generate-notes --repo "$REPO"
+	fi
 	echo "Created release: $TAG"
 fi
 

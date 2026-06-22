@@ -81,3 +81,5 @@ jobs:
         run: bash tests/Integration/playground-smoke.sh
       - name: Exercise the Markdown alternate over HTTP
         run: bash tests/Integration/playground-e2e.sh
+      - name: Exercise a subdirectory install over HTTP
+        run: bash tests/Integration/playground-e2e-subdir.sh

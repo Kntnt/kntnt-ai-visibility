@@ -12,7 +12,9 @@
 # trailing slash, and path-traversal payloads that never leak; then `/llms.txt`
 # (text/plain, the curated index, no canonical/Vary), `/llms-full.txt` (the
 # concatenated Pages-only full text), the early-router cache hit with a stable
-# ETag and a conditional 304, HEAD, and traversal/evasion against the singletons.
+# ETag and a conditional 304, HEAD, traversal/evasion against the singletons, and
+# an invalidation round-trip (publishing a page bumps the cache version, the
+# rebuilt /llms.txt reflects the change, and the orphaned old aggregate is pruned).
 #
 # Per docs/adr/0004 there is NO DDEV fallback: a failure is raised to the
 # maintainer, not worked around by switching runtimes.
@@ -277,6 +279,44 @@ for payload in "/llms.txt/../../wp-config.php" "/llms.txt%00" "/llms.txt.md" "/L
 	body_lacks 'DB_NAME' "evasion ${payload} leaks no DB credentials"
 	body_lacks 'Full text: /llms-full.txt' "evasion ${payload} is not served as llms.txt"
 done
+
+echo ""
+echo "Scenario 14: invalidation round-trip — a content change bumps the version and prunes the old aggregate"
+# The aggregate is cached at the current version (one file in the kind dir), and
+# does not yet list the page we are about to publish.
+TOKEN="kntnt-e2e-secret"
+do_req "${BASE}/llms.txt"
+ETAG_BEFORE="$(grep -i '^ETag:' "$HDR" | tr -d '\r\n' | awk '{print $2}')"
+body_lacks 'Fresh Page' "the page to publish is absent from /llms.txt before publishing"
+do_req "${BASE}/?kntnt_e2e=cache_count&kind=llms-txt&token=${TOKEN}"
+body_has 'COUNT 1' "exactly one llms-txt aggregate file is cached before the change"
+
+# Publish a new page through the test-only endpoint; this fires save_post /
+# transition_post_status, so the llms invalidation bumps the cache version.
+do_req "${BASE}/?kntnt_e2e=publish&type=page&title=Fresh+Page&slug=fresh-page&token=${TOKEN}"
+body_has 'PUBLISHED' "the test endpoint published the new page"
+
+# The bump makes the next /llms.txt miss in the early router and rebuild lazily;
+# poll until the rebuilt index reflects the new page (also rides out the WASM
+# SQLite cold-query flake on the fresh enumeration).
+reflected=false
+for _ in $(seq 1 20); do
+	do_req "${BASE}/llms.txt"
+	if grep -qF -- 'Fresh Page' "$BODYF"; then
+		reflected=true
+		break
+	fi
+	sleep 1
+done
+[[ "$reflected" == true ]] && ok "the rebuilt /llms.txt reflects the published page" || no "/llms.txt never reflected the published page"
+ETAG_AFTER="$(grep -i '^ETag:' "$HDR" | tr -d '\r\n' | awk '{print $2}')"
+[[ -n "$ETAG_BEFORE" && -n "$ETAG_AFTER" && "$ETAG_BEFORE" != "$ETAG_AFTER" ]] && ok "the ETag changed after the content change" || no "the ETag did not change across the bump ($ETAG_BEFORE vs $ETAG_AFTER)"
+
+# After the rebuild the handler pruned the orphaned previous version, so the kind
+# directory again holds exactly one aggregate file (this is task 1's behaviour;
+# without pruning there would be two).
+do_req "${BASE}/?kntnt_e2e=cache_count&kind=llms-txt&token=${TOKEN}"
+body_has 'COUNT 1' "the stale previous-version aggregate was pruned (still one file)"
 
 echo ""
 echo "═══ e2e summary: ${PASS} passed, ${FAIL} failed ═══"

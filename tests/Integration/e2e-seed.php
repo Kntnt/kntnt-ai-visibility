@@ -8,8 +8,9 @@
  * password-protected page and a draft, plus a published post. Explicit excerpts
  * give the llms.txt index deterministic descriptions to assert. It switches the
  * site to pretty permalinks and flushes the rewrite cache so the Markdown `.md`
- * and the llms singleton rules resolve. This file lives under tests/ and never
- * ships in the release zip.
+ * and the llms singleton rules resolve, and installs the test-only e2e mu-plugin
+ * (e2e-mu-helper.php) so the behavioural test can mutate content mid-run. This
+ * file lives under tests/ and never ships in the release zip.
  *
  * @package Tests\Integration
  * @since   0.1.0
@@ -72,5 +73,14 @@ wp_insert_post([
 // Flush so the page rules and the plugin's `.md` rules both persist for the
 // HTTP requests the e2e makes.
 flush_rewrite_rules(true);
+
+// Install the test-only mu-plugin so its mid-run mutation and cache-inspection
+// endpoints are present on every later HTTP request (mu-plugins auto-load, no
+// activation needed); it drives the cache-invalidation scenario.
+$mu_dir = WP_CONTENT_DIR . '/mu-plugins';
+if (!is_dir($mu_dir)) {
+    wp_mkdir_p($mu_dir);
+}
+copy(__DIR__ . '/e2e-mu-helper.php', $mu_dir . '/e2e-mu-helper.php');
 
 echo "KNTNT_E2E_SEED_OK\n";

@@ -75,6 +75,8 @@ location ~ \.md$ {
 
 When no cached file exists – the first request after a change, or content that was just invalidated – the request falls through to WordPress, which regenerates and serves it (and writes the cache for next time).
 
+The two llms.txt singletons – `/llms.txt` and `/llms-full.txt` – are cached and early-served the same way: a warm request streams straight from its cache file and skips the rest of the WordPress lifecycle, exactly like a `.md`. The no-PHP static tier above is *not* practical for them, though, because their cache filename carries a version stamp – `…/kntnt-ai-visibility-cache/llms-txt/llms-v{N}.md` and `…/llms-full/llms-full-v{N}.md`, where `N` is the current cache-version (bumped whenever content changes) – and a static `try_files` rule cannot resolve that `N`. So the singletons stay early-served from the PHP cache; only the per-page `.md` files are eligible for the server-only tier above.
+
 ## Questions, bugs and feature requests
 
 Have a usage question or something to discuss? Please use [Discussions](https://github.com/Kntnt/kntnt-ai-visibility/discussions).

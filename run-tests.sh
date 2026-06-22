@@ -118,15 +118,18 @@ run_unit() {
 	fi
 }
 
-# Level 2: WordPress Playground end-to-end tests — a fast boot smoke test
-# followed by the behavioural test that drives the real `.md` request lifecycle.
+# Level 2: WordPress Playground end-to-end tests — a fast boot smoke test, the
+# behavioural test that drives the real `.md`/llms request lifecycle, and a
+# second boot under a `/sub` subdirectory that proves the artifacts resolve and
+# stay contained when WordPress lives under a path.
 run_e2e() {
 	echo ""
-	echo "═══ Level 2: Playground e2e (boot smoke + behavioural) ═══"
+	echo "═══ Level 2: Playground e2e (boot smoke + behavioural + subdirectory) ═══"
 	local args=()
 	[[ "$VERBOSE" == true ]] && args+=(--verbose)
 	if bash "$SCRIPT_DIR/tests/Integration/playground-smoke.sh" "${args[@]}" \
-		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e.sh" "${args[@]}"; then
+		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e.sh" "${args[@]}" \
+		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e-subdir.sh" "${args[@]}"; then
 		E2E_EXIT=0
 	else
 		E2E_EXIT=$?

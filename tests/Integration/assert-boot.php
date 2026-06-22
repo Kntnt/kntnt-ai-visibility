@@ -36,7 +36,7 @@ if (!class_exists(Kntnt\Ai_Visibility\Plugin::class)) {
 
 // The singleton must expose the header version, proving the bootstrap ran.
 $version = Kntnt\Ai_Visibility\Plugin::get_version();
-if ($version !== '0.1.0') {
+if ($version !== '0.2.0') {
     throw new RuntimeException('Unexpected plugin version: ' . $version);
 }
 
