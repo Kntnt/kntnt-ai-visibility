@@ -103,4 +103,46 @@ describe('File_Store', function (): void {
         expect(true)->toBeTrue();
     });
 
+    it('prunes stale siblings in the kind directory but keeps the current key', function (): void {
+        $this->store->write(new Identity('llms-txt', 'llms-v7', 0), 'old');
+        $this->store->write(new Identity('llms-txt', 'llms-v8', 0), 'new');
+
+        $this->store->prune_siblings(new Identity('llms-txt', 'llms-v8', 0));
+
+        expect(is_file($this->base . '/llms-txt/llms-v7.md'))->toBeFalse();
+        expect(is_file($this->base . '/llms-txt/llms-v8.md'))->toBeTrue();
+    });
+
+    it('never touches the per-page markdown-alternate files when pruning an aggregate', function (): void {
+        $this->store->write(new Identity('markdown-alternate', 'about', 1), 'about');
+        $this->store->write(new Identity('markdown-alternate', 'a/b/c', 2), 'nested');
+        $this->store->write(new Identity('llms-txt', 'llms-v7', 0), 'old');
+        $this->store->write(new Identity('llms-txt', 'llms-v8', 0), 'new');
+
+        $this->store->prune_siblings(new Identity('llms-txt', 'llms-v8', 0));
+
+        expect(is_file($this->base . '/markdown-alternate/about.md'))->toBeTrue();
+        expect(is_file($this->base . '/markdown-alternate/a/b/c.md'))->toBeTrue();
+        expect(is_file($this->base . '/llms-txt/llms-v7.md'))->toBeFalse();
+    });
+
+    it('treats prune of an absent kind directory as a no-op', function (): void {
+        $this->store->prune_siblings(new Identity('llms-full', 'llms-full-v1', 0));
+
+        expect(true)->toBeTrue();
+    });
+
+    it('refuses to prune outside the cache base for a traversing kind', function (): void {
+        // A sentinel sibling of the cache base; a '..' kind resolves to the base's
+        // parent, which fails the containment check, so the sentinel must survive.
+        $sentinel = dirname($this->base) . '/kntnt-prune-sentinel-' . uniqid('', true) . '.md';
+        file_put_contents($sentinel, 'keep me');
+        $this->store->write(new Identity('llms-txt', 'llms-v8', 0), 'new');
+
+        $this->store->prune_siblings(new Identity('..', 'whatever', 0));
+
+        expect(is_file($sentinel))->toBeTrue();
+        unlink($sentinel);
+    });
+
 });

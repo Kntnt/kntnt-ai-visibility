@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 
+- The llms request handler now prunes the stale, version-stamped aggregate cache files that a cache-version bump orphans (for example `llms-txt/llms-v7.md` after a bump to v8), instead of leaving them until the TTL safety net or a cache flush removes them; pruning is scoped to the one aggregate directory and contained within the cache base, so it never touches the per-page `.md` cache.
 - Activation now registers the `.md` and the `/llms.txt` / `/llms-full.txt` rewrite rules and flushes them once; deactivation flushes the rewrite rules and clears the file cache while preserving the settings option; uninstall deletes the `kntnt_ai_visibility` option and the cache-version option and removes the file cache directory — replacing the scaffold's transient-based cleanup, since the cache is files under uploads rather than transients.
 
 - Documentation now follows British English via the `kntnt-text-skills:writing-rules en_GB` standard; the README uses spaced en-dashes ( – ) throughout.

@@ -97,4 +97,21 @@ interface Store {
 	 */
 	public function flush_all(): void;
 
+	/**
+	 * Deletes the other cache files in the identity's kind directory.
+	 *
+	 * Prunes the orphaned, version-stamped aggregates a cache-version bump leaves
+	 * behind (e.g. `llms-txt/llms-v7.md` after a bump to v8): every file directly
+	 * in the identity's kind directory except the identity's own file is removed
+	 * (docs/spec/llms-txt.md §5.5, an optional optimisation). It is scoped to the
+	 * one kind directory and contained within the cache base, so it never touches
+	 * the nested, non-version-stamped `markdown-alternate/` files.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @param Identity $identity The identity whose file is kept; its kind directory is pruned.
+	 * @return void
+	 */
+	public function prune_siblings( Identity $identity ): void;
+
 }

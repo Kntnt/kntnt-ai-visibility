@@ -150,6 +150,11 @@ final class Request_Handler {
 			return;
 		}
 
+		// Prune the stale, version-stamped aggregates a cache-version bump orphaned
+		// (e.g. llms-v7.md after a bump to v8); scoped to this kind directory, it
+		// never touches the per-page markdown-alternate cache (spec §5.5).
+		$this->cache->prune_siblings( $identity );
+
 		// Serve with the matched pattern's Content-Type; the singletons have no
 		// canonical back-link.
 		$response = $this->router->headers_for( $path, $request, $provider->serve_pattern()->content_type );

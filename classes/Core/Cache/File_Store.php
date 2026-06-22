@@ -178,6 +178,44 @@ final class File_Store implements Store {
 	}
 
 	/**
+	 * Deletes the other cache files in the identity's kind directory.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @param Identity $identity The identity whose file is kept; its kind directory is pruned.
+	 * @return void
+	 */
+	public function prune_siblings( Identity $identity ): void {
+
+		// Resolve the kind directory and refuse to act unless it lies strictly
+		// inside the cache base — the realpath containment the serve router uses,
+		// so a stray kind can never reach files outside the cache tree (and the
+		// nested markdown-alternate/ files, in their own kind dir, stay untouched).
+		$base = realpath( $this->base() );
+		$dir = realpath( $this->base() . '/' . $identity->kind );
+		if ( $base === false || $dir === false || ! str_starts_with( $dir, $base . '/' ) ) {
+			return;
+		}
+
+		// Delete every sibling cache file directly in this one kind directory
+		// except the identity's own current file. Non-recursive by design: the
+		// aggregate kind directories are flat, and a concurrent reader of a stale
+		// version is a benign race — the old version is stale anyway, and an
+		// already-open handle survives the unlink.
+		$keep = $dir . '/' . $identity->key . '.md';
+		$siblings = glob( $dir . '/*.md' );
+		if ( $siblings === false ) {
+			return;
+		}
+		foreach ( $siblings as $path ) {
+			if ( $path !== $keep && is_file( $path ) ) {
+				unlink( $path );
+			}
+		}
+
+	}
+
+	/**
 	 * Returns the resolved, cached base directory.
 	 *
 	 * @since 0.1.0
