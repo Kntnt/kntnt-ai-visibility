@@ -15,6 +15,13 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+// WordPress time constants the plugin uses at construction (e.g. the cache TTL
+// default). WordPress defines these at runtime; the unit suite mocks WordPress
+// at the Core boundary, so define the handful the production code reads.
+if (!defined('WEEK_IN_SECONDS')) {
+    define('WEEK_IN_SECONDS', 7 * 24 * 60 * 60);
+}
+
 // A minimal stand-in for WordPress's WP_Post. Defined in the PHPUnit bootstrap
 // (not an autoloaded file) so it is available to the unit tests but never loaded
 // by PHPStan, which gets the real WP_Post from the WordPress stubs. WP_Post is a

@@ -76,13 +76,6 @@
 		-->
 		<exclude name="WordPress.PHP.DevelopmentFunctions.error_log_error_log"/>
 
-		<!--
-			uninstall.php and Plugin::deactivate() use a direct DELETE query to
-			clear transients — there is no caching layer to go through while the
-			plugin is being torn down.
-		-->
-		<exclude name="WordPress.DB.DirectDatabaseQuery"/>
-
 	</rule>
 
 	<!-- Require short array syntax ([ ]) — never array(). -->

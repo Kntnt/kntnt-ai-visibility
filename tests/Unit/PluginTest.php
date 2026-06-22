@@ -24,13 +24,22 @@ describe('Plugin', function (): void {
     beforeEach(function (): void {
         kntnt_test_reset_plugin();
 
-        // Record every hook the constructor registers, and provide the global
-        // add_filter the namespaced constructor falls back to.
+        // Record every hook the constructor and its module boot register, and
+        // provide the global add_filter/add_action the namespaced code falls
+        // back to. The constructor now builds the Core service graph and boots
+        // the Markdown module, so stub the few WordPress helpers that path calls.
         $GLOBALS['kntnt_test_added_filters'] = [];
-        Functions\when('add_filter')->alias(function (string $hook, $callback): bool {
+        $GLOBALS['kntnt_test_added_actions'] = [];
+        Functions\when('add_filter')->alias(function (string $hook, $callback = null): bool {
             $GLOBALS['kntnt_test_added_filters'][$hook] = $callback;
             return true;
         });
+        Functions\when('add_action')->alias(function (string $hook, $callback = null): bool {
+            $GLOBALS['kntnt_test_added_actions'][$hook] = $callback;
+            return true;
+        });
+        Functions\when('apply_filters')->alias(static fn(string $hook, mixed $value = null): mixed => $value);
+        Functions\when('__')->returnArg();
     });
 
     afterEach(function (): void {
@@ -45,6 +54,15 @@ describe('Plugin', function (): void {
         expect($second)->toBe($first);
         expect(Plugin::get_plugin_file())->toBe(KNTNT_TEST_PLUGIN_FILE);
         expect($GLOBALS['kntnt_test_added_filters'])->toHaveKey('pre_set_site_transient_update_plugins');
+    });
+
+    it('boots the Markdown module on construction', function (): void {
+        Plugin::get_instance(KNTNT_TEST_PLUGIN_FILE);
+
+        // The module's request handler and discovery register these hooks, so
+        // their presence proves the Core graph was built and the module booted.
+        expect($GLOBALS['kntnt_test_added_actions'])->toHaveKey('template_redirect');
+        expect($GLOBALS['kntnt_test_added_actions'])->toHaveKey('wp_head');
     });
 
     it('derives the slug from the main-file name', function (): void {
@@ -78,17 +96,16 @@ describe('Plugin', function (): void {
         expect(Plugin::get_version())->toBe('');
     });
 
-    it('clears the plugin transients on deactivation', function (): void {
-        $wpdb          = Mockery::mock();
-        $wpdb->options = 'wp_options';
-        $wpdb->shouldReceive('esc_like')->andReturnUsing(static fn(string $s): string => $s);
-        $wpdb->shouldReceive('prepare')->once()->andReturn('PREPARED DELETE');
-        $wpdb->shouldReceive('query')->once()->with('PREPARED DELETE')->andReturn(2);
-        $GLOBALS['wpdb'] = $wpdb;
+    it('flushes rewrite rules and clears the cache on deactivation', function (): void {
+        // Point the cache at a directory that does not exist, so flush_all() is a
+        // no-op and the test never touches the real filesystem.
+        Functions\when('wp_upload_dir')->justReturn(['basedir' => sys_get_temp_dir() . '/kntnt-aiv-absent-' . uniqid()]);
+        Functions\expect('flush_rewrite_rules')->once();
 
         Plugin::deactivate();
 
-        // Mockery's once() expectations assert the prepared query ran exactly once.
+        // Mockery's once() expectation asserts the rewrite flush ran exactly once;
+        // the settings option is deliberately left untouched for reactivation.
         expect(true)->toBeTrue();
     });
 

@@ -16,6 +16,15 @@ declare( strict_types = 1 );
 
 namespace Kntnt\Ai_Visibility;
 
+use Kntnt\Ai_Visibility\Core\Artifact\Artifact_Registry;
+use Kntnt\Ai_Visibility\Core\Cache\File_Store;
+use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
+use Kntnt\Ai_Visibility\Core\Core;
+use Kntnt\Ai_Visibility\Core\Front_Matter;
+use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
+use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
+use Kntnt\Ai_Visibility\Core\Plugin_Logger;
+use Kntnt\Ai_Visibility\Core\Settings\Settings;
 use LogicException;
 
 /**
@@ -63,6 +72,18 @@ final class Plugin {
 	 * @var array<mixed>|null
 	 */
 	private static ?array $plugin_data = null;
+
+	/**
+	 * The Core service facade the feature modules are booted against.
+	 *
+	 * Built once in the constructor and consumed by serve_early(), which runs
+	 * the early cache router before WordPress routing.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @var Core
+	 */
+	private readonly Core $core;
 
 	/**
 	 * Returns (and on the first call, creates) the singleton instance.
@@ -189,10 +210,12 @@ final class Plugin {
 	}
 
 	/**
-	 * Clears the plugin's transient caches on deactivation.
+	 * Cleans up on deactivation: rewrite rules and the file cache.
 	 *
-	 * Removes the Markdown render cache (and any future module caches) while
-	 * preserving persistent options, so reactivation keeps the site's settings.
+	 * Drops the Markdown `.md` rewrite rules so a deactivated plugin leaves no
+	 * dangling routes, and clears the file cache (docs/adr/0007). The settings
+	 * option is deliberately preserved so reactivation keeps the site's
+	 * configuration; only uninstall removes it (docs/spec §7).
 	 *
 	 * @since 0.1.0
 	 *
@@ -200,22 +223,11 @@ final class Plugin {
 	 */
 	public static function deactivate(): void {
 
-		// Remove every transient the plugin may have cached, including timeouts.
-		// The %i placeholder safely interpolates the table identifier and keeps
-		// prepare()'s format a literal string.
-		global $wpdb;
-		// phpcs:ignore Generic.Commenting.DocComment.MissingShort -- inline @var for the WP global.
-		/** @var \wpdb $wpdb */
-		$sql = $wpdb->prepare(
-			'DELETE FROM %i WHERE option_name LIKE %s OR option_name LIKE %s',
-			$wpdb->options,
-			$wpdb->esc_like( '_transient_kntnt_ai_visibility_' ) . '%',
-			$wpdb->esc_like( '_transient_timeout_kntnt_ai_visibility_' ) . '%',
-		);
-		if ( is_string( $sql ) ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is the $wpdb->prepare() result above.
-			$wpdb->query( $sql );
-		}
+		// Remove the plugin's rewrite rules from the rewrite cache.
+		flush_rewrite_rules();
+
+		// Clear the cached Markdown files; the settings option stays put.
+		( new File_Store( static fn(): string => self::cache_dir() ) )->flush_all();
 
 	}
 
@@ -224,8 +236,10 @@ final class Plugin {
 	 *
 	 * Instantiated once by get_instance(). The Updater is wired here because
 	 * GitHub-hosted self-updates are core infrastructure (see docs/adr/0003),
-	 * not a content module. The four content modules are wired in below as they
-	 * are implemented in later steps.
+	 * not a content module. It then builds the Core service graph and boots the
+	 * feature modules in dependency order; Release 1 ships one — the Markdown
+	 * alternate. The remaining three (llms.txt, Link headers, Content Signals)
+	 * are booted alongside it as they land.
 	 *
 	 * @since 0.1.0
 	 */
@@ -233,11 +247,64 @@ final class Plugin {
 
 		// Wire the GitHub-release update checker into the WordPress update
 		// transient so installs can self-update from the project's releases.
-		// The four content modules — (a) Markdown alternate, (b) llms.txt,
-		// (c) Link headers, (d) Content Signals — are wired in below this line
-		// as they land in later steps; the 1.1 scaffold ships only the updater.
 		$updater = new Updater();
 		add_filter( 'pre_set_site_transient_update_plugins', [ $updater, 'check_for_updates' ] );
+
+		// Build the Core service graph — the shared services modules depend on
+		// (docs/adr/0006). The cache base directory resolves lazily on first use,
+		// so an ordinary HTML request pays nothing here. The TTL safety net is
+		// filterable and bounds staleness from changes no hook catches.
+		$logger = new Plugin_Logger( null, defined( 'WP_DEBUG' ) && WP_DEBUG );
+		$settings = new Settings();
+		$settings->register();
+		$artifacts = new Artifact_Registry();
+		$store = new File_Store( static fn(): string => self::cache_dir() );
+		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $store, $logger, static fn(): string => home_url() );
+		$ttl = apply_filters( 'kntnt_ai_visibility_cache_ttl', WEEK_IN_SECONDS );
+		$router = new Serve_Router( $store, $artifacts, $logger, is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS );
+		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router );
+
+		// Boot the feature modules against Core, in dependency order.
+		( new Markdown\Module() )->boot( $this->core );
+
+	}
+
+	/**
+	 * Serves a cache-grade artifact from the file cache, as early as possible.
+	 *
+	 * Called from the main plugin file right after bootstrap — before WordPress
+	 * routing — so a cache hit emits its headers and bytes and exits, skipping
+	 * the WordPress lifecycle entirely (docs/adr/0007). On a miss it returns and
+	 * WordPress proceeds; the matching provider then generates and serves lazily.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @return void
+	 */
+	public function serve_early(): void {
+		$this->core->router()->serve( Request_Factory::from_globals() );
+	}
+
+	/**
+	 * Returns the absolute path to the Core-owned artifact cache directory.
+	 *
+	 * The single source of truth for the cache location, shared by the file
+	 * store, deactivation cleanup and uninstall (docs/adr/0007).
+	 *
+	 * @since 0.1.0
+	 *
+	 * @return string The cache directory path, without a trailing slash.
+	 */
+	public static function cache_dir(): string {
+
+		// Resolve the uploads base, falling back to the content directory when
+		// the uploads array is unavailable (e.g. very early in the lifecycle).
+		$uploads = wp_upload_dir();
+		$base = is_array( $uploads ) && isset( $uploads['basedir'] ) && is_string( $uploads['basedir'] )
+			? $uploads['basedir']
+			: WP_CONTENT_DIR . '/uploads';
+
+		return $base . '/kntnt-ai-visibility-cache';
 
 	}
 

@@ -88,11 +88,14 @@ register_activation_hook(
 );
 register_deactivation_hook( __FILE__, [ \Kntnt\Ai_Visibility\Plugin::class, 'deactivate' ] );
 
-// Bootstrap the plugin singleton inside a safety net. A fatal error during
-// initialisation would otherwise take down the whole site; the try/catch logs
-// it and surfaces an admin notice while the rest of WordPress keeps running.
+// Bootstrap the plugin singleton inside a safety net, then run the early serve
+// router before WordPress routing: a cache-grade `.md` hit emits its bytes and
+// exits here, skipping the WordPress lifecycle (docs/adr/0007); a miss returns
+// and WordPress proceeds. A fatal error during initialisation would otherwise
+// take down the whole site; the try/catch logs it and surfaces an admin notice
+// while the rest of WordPress keeps running.
 try {
-	\Kntnt\Ai_Visibility\Plugin::get_instance( __FILE__ );
+	\Kntnt\Ai_Visibility\Plugin::get_instance( __FILE__ )->serve_early();
 } catch ( \Throwable $e ) {
 	error_log(
 		sprintf(

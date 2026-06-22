@@ -10,7 +10,10 @@
  * The cache store is exposed alongside the four services named in the design
  * note because a provider must write its artifact on a cache miss and read it
  * back to serve (docs/spec §3.4) — the store is the Core service that ownership
- * requires.
+ * requires. The serve router is exposed for the same reason: the Markdown
+ * module's request handler builds its cache-grade response headers through the
+ * router so the first PHP serve and every later router serve agree on the
+ * validators (docs/spec §4.4).
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -21,6 +24,7 @@ declare( strict_types = 1 );
 namespace Kntnt\Ai_Visibility\Core;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Registry as Artifact_Registry;
+use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Settings\Registry as Settings_Registry;
 
@@ -41,6 +45,7 @@ final readonly class Core {
 	 * @param Page_Markdown     $page_markdown The shared page-to-Markdown service.
 	 * @param Logger            $logger        The diagnostics logger.
 	 * @param Store             $cache         The artifact cache store.
+	 * @param Serve_Router      $router        The early, contained serve router.
 	 */
 	public function __construct(
 		private Artifact_Registry $artifacts,
@@ -48,6 +53,7 @@ final readonly class Core {
 		private Page_Markdown $page_markdown,
 		private Logger $logger,
 		private Store $cache,
+		private Serve_Router $router,
 	) {}
 
 	/**
@@ -103,6 +109,17 @@ final readonly class Core {
 	 */
 	public function cache(): Store {
 		return $this->cache;
+	}
+
+	/**
+	 * Returns the early, contained serve router.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @return Serve_Router
+	 */
+	public function router(): Serve_Router {
+		return $this->router;
 	}
 
 }

@@ -14,6 +14,7 @@
 declare(strict_types=1);
 
 use Kntnt\Ai_Visibility\Core\Artifact\Registry as Artifact_Registry_Interface;
+use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Core;
 use Kntnt\Ai_Visibility\Core\Logger;
@@ -28,14 +29,16 @@ describe('Core', function (): void {
         $page      = Mockery::mock(Page_Markdown::class);
         $logger    = Mockery::mock(Logger::class);
         $cache     = Mockery::mock(Store::class);
+        $router    = Mockery::mock(Serve_Router::class);
 
-        $core = new Core($artifacts, $settings, $page, $logger, $cache);
+        $core = new Core($artifacts, $settings, $page, $logger, $cache, $router);
 
         expect($core->artifacts())->toBe($artifacts);
         expect($core->settings())->toBe($settings);
         expect($core->page_markdown())->toBe($page);
         expect($core->logger())->toBe($logger);
         expect($core->cache())->toBe($cache);
+        expect($core->router())->toBe($router);
     });
 
 });

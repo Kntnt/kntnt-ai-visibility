@@ -14,6 +14,7 @@
 
 declare(strict_types=1);
 
+use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
@@ -30,6 +31,23 @@ beforeEach(function (): void {
         Mockery::mock(Serve_Router::class),
         Mockery::mock(Logger::class)->shouldIgnoreMissing(),
     );
+});
+
+describe('Request_Handler::register_rewrite_rules', function (): void {
+
+    it('registers the index and catch-all .md rewrite rules', function (): void {
+        $rules = [];
+        Functions\when('add_rewrite_rule')->alias(function (string $regex, string $query, string $after) use (&$rules): void {
+            $rules[$regex] = $query;
+        });
+
+        Request_Handler::register_rewrite_rules();
+
+        expect($rules)->toHaveKey('^index\.md$');
+        expect($rules)->toHaveKey('^(.+?)\.md$');
+        expect($rules['^(.+?)\.md$'])->toBe('index.php?markdown_request=1');
+    });
+
 });
 
 describe('Request_Handler::negotiate', function (): void {

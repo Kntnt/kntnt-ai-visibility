@@ -74,7 +74,7 @@ final class Request_Handler {
 	 * @return void
 	 */
 	public function register(): void {
-		add_action( 'init', [ $this, 'register_rewrites' ] );
+		add_action( 'init', [ self::class, 'register_rewrite_rules' ] );
 		add_filter( 'query_vars', [ $this, 'register_query_vars' ] );
 		add_action( 'template_redirect', [ $this, 'handle' ], 0 );
 	}
@@ -84,13 +84,15 @@ final class Request_Handler {
 	 *
 	 * Both forms route to a marker query var so WordPress loads rather than 404s;
 	 * the target post is resolved from the request path by the provider, which
-	 * handles nested and dated permalinks for free.
+	 * handles nested and dated permalinks for free. Static and side-effect-only
+	 * so activation (install.php) can register the same rules before flushing,
+	 * keeping the activation and runtime rule sets identical (docs/spec §7).
 	 *
 	 * @since 0.1.0
 	 *
 	 * @return void
 	 */
-	public function register_rewrites(): void {
+	public static function register_rewrite_rules(): void {
 		add_rewrite_rule( '^index\.md$', 'index.php?markdown_request=1', 'top' );
 		add_rewrite_rule( '^(.+?)\.md$', 'index.php?markdown_request=1', 'top' );
 	}
