@@ -261,7 +261,13 @@ final class Plugin {
 		$store = new File_Store( static fn(): string => self::cache_dir() );
 		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $store, $logger, static fn(): string => home_url() );
 		$ttl = apply_filters( 'kntnt_ai_visibility_cache_ttl', WEEK_IN_SECONDS );
-		$router = new Serve_Router( $store, $artifacts, $logger, is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS );
+		$router = new Serve_Router(
+			$store,
+			$artifacts,
+			$logger,
+			is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS,
+			base_path: static fn(): string => rtrim( (string) wp_parse_url( (string) home_url( '/' ), PHP_URL_PATH ), '/' ),
+		);
 		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router );
 
 		// Boot the feature modules against Core, in dependency order.

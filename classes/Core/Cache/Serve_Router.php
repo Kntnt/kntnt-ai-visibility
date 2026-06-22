@@ -64,15 +64,26 @@ final class Serve_Router {
 	private $clock;
 
 	/**
+	 * Returns the WordPress home base path to strip from a request path.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @var callable(): string
+	 */
+	private $base_path;
+
+	/**
 	 * Binds the router to its store, provider registry, logger and TTL.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param Store                                       $store    The cache store.
-	 * @param \Kntnt\Ai_Visibility\Core\Artifact\Registry $registry The provider registry (serve allowlist).
-	 * @param Logger|null                                 $logger   Optional logger for refused requests.
-	 * @param int                                         $ttl      Max cache-file age in seconds; 0 disables the safety net.
-	 * @param (callable(): int)|null                      $clock    Returns the current Unix time; defaults to time().
+	 * @param Store                                       $store     The cache store.
+	 * @param \Kntnt\Ai_Visibility\Core\Artifact\Registry $registry  The provider registry (serve allowlist).
+	 * @param Logger|null                                 $logger    Optional logger for refused requests.
+	 * @param int                                         $ttl       Max cache-file age in seconds; 0 disables the safety net.
+	 * @param (callable(): int)|null                      $clock     Returns the current Unix time; defaults to time().
+	 * @param (callable(): string)|null                   $base_path Returns the home base path (e.g. '/blog') to strip on a
+	 *                                                               subdirectory install; defaults to '' (root install).
 	 */
 	public function __construct(
 		private readonly Store $store,
@@ -80,8 +91,10 @@ final class Serve_Router {
 		private readonly ?Logger $logger = null,
 		private readonly int $ttl = 0,
 		?callable $clock = null,
+		?callable $base_path = null,
 	) {
 		$this->clock = $clock ?? static fn (): int => time();
+		$this->base_path = $base_path ?? static fn (): string => '';
 	}
 
 	/**
@@ -261,6 +274,10 @@ final class Serve_Router {
 	 */
 	private function identify( string $path ): ?Identity {
 
+		// Take the path relative to the WordPress home so a subdirectory install
+		// (e.g. /blog/about.md) derives the same key as a root install.
+		$path = $this->strip_base( $path );
+
 		// Find the first registered serve shape whose suffix the path carries.
 		foreach ( $this->registry->serve_patterns() as $pattern ) {
 			if ( $pattern->suffix === '' || ! str_ends_with( $path, $pattern->suffix ) ) {
@@ -304,12 +321,42 @@ final class Serve_Router {
 			return '';
 		}
 
-		// Strip the `.md`, treat the home key specially, and re-add the slash.
+		// Strip the home base and the `.md`, treat the home key specially, re-add
+		// the slash, then re-prepend the base so the canonical is correct on a
+		// subdirectory install too.
 		$scheme = is_ssl() ? 'https' : 'http';
-		$key = substr( $path, 1, strlen( $path ) - 1 - strlen( '.md' ) );
+		$base = rtrim( ( $this->base_path )(), '/' );
+		$stripped = $this->strip_base( $path );
+		$key = substr( $stripped, 1, strlen( $stripped ) - 1 - strlen( '.md' ) );
 		$relative = $key === 'index' ? '/' : '/' . $key . '/';
 
-		return $scheme . '://' . $host . $relative;
+		return $scheme . '://' . $host . $base . $relative;
+
+	}
+
+	/**
+	 * Strips the WordPress home base path from a request path.
+	 *
+	 * On a root install the base is empty and the path passes through; on a
+	 * subdirectory install it removes the configured prefix (e.g. `/blog`). The
+	 * base comes from site configuration, never the request, and the stripped
+	 * remainder still passes the strict key whitelist and the realpath
+	 * containment check — so this opens no traversal surface.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param string $path The raw request path.
+	 * @return string The path relative to the WordPress home (leading slash kept).
+	 */
+	private function strip_base( string $path ): string {
+
+		// Remove the base prefix only when the path actually sits under it.
+		$base = rtrim( ( $this->base_path )(), '/' );
+		if ( $base !== '' && str_starts_with( $path, $base . '/' ) ) {
+			return substr( $path, strlen( $base ) );
+		}
+
+		return $path;
 
 	}
 

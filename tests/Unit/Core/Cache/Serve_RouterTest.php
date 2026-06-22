@@ -84,6 +84,32 @@ describe('Serve_Router::resolve — legitimate requests', function (): void {
 
 });
 
+describe('Serve_Router::resolve — subdirectory install', function (): void {
+
+    it('strips the home base path before deriving the key', function (): void {
+        $store = new File_Store(fn(): string => $this->base);
+        $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
+        $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+        $router = new Serve_Router($store, $registry, null, 0, null, fn(): string => '/blog');
+
+        expect($router->resolve(kntnt_get('/blog/about/team.md')))
+            ->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
+        expect($router->resolve(kntnt_get('/blog/index.md')))
+            ->toBe(realpath($this->base . '/markdown-alternate/index.md'));
+    });
+
+    it('still rejects traversal once the base is stripped', function (): void {
+        $store = new File_Store(fn(): string => $this->base);
+        $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
+        $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+        $router = new Serve_Router($store, $registry, null, 0, null, fn(): string => '/blog');
+
+        expect($router->resolve(kntnt_get('/blog/../../../etc/passwd.md')))->toBeNull();
+        expect($router->resolve(kntnt_get('/blog/about%2f..%2fsecret.md')))->toBeNull();
+    });
+
+});
+
 describe('Serve_Router::resolve — refusals', function (): void {
 
     it('returns null on a cache miss for a clean but absent key', function (): void {

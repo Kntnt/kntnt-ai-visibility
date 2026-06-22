@@ -111,6 +111,7 @@ describe('Plugin', function (): void {
         Functions\when('esc_url_raw')->returnArg();
         Functions\when('sanitize_text_field')->returnArg();
         Functions\when('sanitize_key')->returnArg();
+        Functions\when('home_url')->justReturn('https://example.com/');
         Functions\when('wp_parse_url')->alias(static fn(string $url, int $component = -1): mixed => parse_url($url, $component));
 
         Plugin::get_instance(KNTNT_TEST_PLUGIN_FILE)->serve_early();

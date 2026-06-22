@@ -38,6 +38,43 @@ The plugin checks the PHP version on activation and aborts with a clear admin no
 
 The plugin is distributed via GitHub Releases and updates through the standard WordPress plugin-update UI: when a new version is released, it appears on the **Updates** page like any other plugin. (Distribution is GitHub-first by design – see [`docs/adr/0003`](docs/adr/0003-github-is-the-1-0-distribution-channel.md).)
 
+## Serving cached Markdown directly (optional)
+
+The plugin already serves each Markdown alternate efficiently: it writes a cache file on the first request and, on every later request, an early router streams that file from disk and skips the rest of the WordPress lifecycle. For maximum performance you can go one step further and let your web server serve the cached file *without invoking PHP at all*, falling back to WordPress only when no cache file exists yet. This is entirely optional – the plugin works fully without it – and it is left to the server owner because the configuration is server-specific (see [`docs/adr/0007`](docs/adr/0007-file-cached-artifacts-early-contained-router.md)).
+
+The mapping is direct: a request for `/<path>.md` is served from `wp-content/uploads/kntnt-ai-visibility-cache/markdown-alternate/<path>.md` when that file exists (for example `/about/team.md` → `…/markdown-alternate/about/team.md`, and the home `/index.md` → `…/markdown-alternate/index.md`). Only public, published content is ever cached, so serving these files directly is safe.
+
+The snippets below are **starting points to adapt and test** against your own setup – adjust the cache path if your uploads directory is non-standard, and make sure the rules run *before* your existing WordPress/PHP handling.
+
+**nginx** – inside your site's `server` block:
+
+```nginx
+location ~ \.md$ {
+    default_type text/markdown;
+    charset utf-8;
+    charset_types text/markdown;
+    try_files /wp-content/uploads/kntnt-ai-visibility-cache/markdown-alternate$uri /index.php?$args;
+}
+```
+
+**Apache** – in the WordPress root `.htaccess`, *above* the `# BEGIN WordPress` block (requires `mod_rewrite` and `mod_headers`):
+
+```apache
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} \.md$
+    RewriteCond %{DOCUMENT_ROOT}/wp-content/uploads/kntnt-ai-visibility-cache/markdown-alternate%{REQUEST_URI} -f
+    RewriteRule ^(.+)$ /wp-content/uploads/kntnt-ai-visibility-cache/markdown-alternate/$1 [L]
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "\.md$">
+        ForceType "text/markdown; charset=utf-8"
+    </FilesMatch>
+</IfModule>
+```
+
+When no cached file exists – the first request after a change, or content that was just invalidated – the request falls through to WordPress, which regenerates and serves it (and writes the cache for next time).
+
 ## Questions, bugs, and feature requests
 
 Have a usage question or something to discuss? Please use [Discussions](https://github.com/Kntnt/kntnt-ai-visibility/discussions).

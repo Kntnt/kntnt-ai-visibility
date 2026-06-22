@@ -167,9 +167,12 @@ final class Page_Markdown_Provider implements Provider {
 	 */
 	private function resolve_post( string $path ): ?\WP_Post {
 
-		// Reduce a `.md` request to its HTML path; a canonical path passes through.
+		// Reduce a `.md` request to its HTML path, taken relative to the
+		// WordPress home so resolution works identically on a subdirectory
+		// install (a canonical path passes through unchanged on a root install).
 		$html_path = str_ends_with( $path, '.md' ) ? substr( $path, 0, -3 ) : $path;
-		$slug = trim( (string) wp_parse_url( $html_path, PHP_URL_PATH ), '/' );
+		$relative = $this->home_relative( (string) wp_parse_url( $html_path, PHP_URL_PATH ) );
+		$slug = trim( $relative, '/' );
 
 		// The slug-less root, or an explicit /index, resolves to the home entry.
 		if ( $slug === '' || $slug === 'index' ) {
@@ -178,7 +181,8 @@ final class Page_Markdown_Provider implements Provider {
 
 		// Let url_to_postid() resolve the permalink first, trying the
 		// trailing-slash and bare forms so dated and nested post permalinks work.
-		foreach ( [ trailingslashit( $html_path ), untrailingslashit( $html_path ) ] as $candidate ) {
+		// The home-relative path keeps home_url() from doubling the base prefix.
+		foreach ( [ trailingslashit( $relative ), untrailingslashit( $relative ) ] as $candidate ) {
 			$id = url_to_postid( home_url( $candidate ) );
 			if ( $id > 0 ) {
 				$post = get_post( $id );
@@ -278,12 +282,41 @@ final class Page_Markdown_Provider implements Provider {
 	 */
 	private function key_for( \WP_Post $post ): string {
 
-		// The key is the permalink path without surrounding slashes; the
-		// slug-less root maps to the 'index' key the router serves at /index.md.
-		$path = (string) wp_parse_url( (string) get_permalink( $post ), PHP_URL_PATH );
+		// The key is the permalink path relative to the WordPress home, without
+		// surrounding slashes; the slug-less home maps to the 'index' key the
+		// router serves at /index.md. Keeping the key home-relative means the same
+		// key is derived on root and subdirectory installs (and the router strips
+		// the same base before serving).
+		$path = $this->home_relative( (string) wp_parse_url( (string) get_permalink( $post ), PHP_URL_PATH ) );
 		$key = trim( $path, '/' );
 
 		return $key === '' ? 'index' : $key;
+
+	}
+
+	/**
+	 * Strips the WordPress home base path from a path.
+	 *
+	 * On a root install the base is empty and the path passes through; on a
+	 * subdirectory install (e.g. WordPress at `/blog/`) it removes the `/blog`
+	 * prefix, so keys and resolution are relative to the site root and the home
+	 * collapses to `index` on both. The base comes from `home_url()` (site
+	 * configuration), never the request, so it opens no traversal surface.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param string $path A path that may carry the install's base prefix.
+	 * @return string The path relative to the WordPress home (leading slash kept).
+	 */
+	private function home_relative( string $path ): string {
+
+		// Remove the base prefix only when the path actually sits under it.
+		$base = rtrim( (string) wp_parse_url( (string) home_url( '/' ), PHP_URL_PATH ), '/' );
+		if ( $base !== '' && str_starts_with( $path, $base . '/' ) ) {
+			return substr( $path, strlen( $base ) );
+		}
+
+		return $path;
 
 	}
 

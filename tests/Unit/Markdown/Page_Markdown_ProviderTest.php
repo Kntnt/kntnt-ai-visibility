@@ -130,6 +130,43 @@ describe('Page_Markdown_Provider::match', function (): void {
         expect($this->provider->match(new Request('GET', '/draft.md')))->toBeNull();
     });
 
+    it('derives a home-relative key on a subdirectory install', function (): void {
+        // WordPress at /blog/: keys must be relative to the home so the router
+        // (which strips the same base) and the provider agree.
+        $page     = new WP_Post();
+        $page->ID = 30;
+        Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/blog' . $path);
+        Functions\when('url_to_postid')->justReturn(0);
+        Functions\when('get_page_by_path')->alias(fn(string $p): ?WP_Post => $p === 'about' ? $page : null);
+        Functions\when('get_post')->justReturn($page);
+        Functions\when('get_permalink')->justReturn('https://example.com/blog/about/');
+        $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
+
+        $identity = $this->provider->match(new Request('GET', '/blog/about.md'));
+
+        expect($identity?->key)->toBe('about');
+        expect($identity?->source_id)->toBe(30);
+    });
+
+    it('resolves /blog/index.md to the home on a subdirectory install', function (): void {
+        $front     = new WP_Post();
+        $front->ID = 31;
+        Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/blog' . $path);
+        Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'show_on_front' => 'page',
+            'page_on_front' => 31,
+            default         => '',
+        });
+        Functions\when('get_post')->justReturn($front);
+        Functions\when('get_permalink')->justReturn('https://example.com/blog/');
+        $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
+
+        $identity = $this->provider->match(new Request('GET', '/blog/index.md'));
+
+        expect($identity?->key)->toBe('index');
+        expect($identity?->source_id)->toBe(31);
+    });
+
     it('resolves /index.md to the static front page', function (): void {
         $front     = new WP_Post();
         $front->ID = 2;
