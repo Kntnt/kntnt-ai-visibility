@@ -20,6 +20,7 @@ use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 use Kntnt\Ai_Visibility\Core\Core;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Logger;
+use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
 use Kntnt\Ai_Visibility\Core\Settings\Registry as Settings_Registry_Interface;
 
@@ -34,8 +35,9 @@ describe('Core', function (): void {
         $router    = Mockery::mock(Serve_Router::class);
         $types     = Mockery::mock(Content_Types::class);
         $eligibility = new Eligibility($types);
+        $markdown_alternate = new Markdown_Alternate();
 
-        $core = new Core($artifacts, $settings, $page, $logger, $cache, $router, $types, $eligibility);
+        $core = new Core($artifacts, $settings, $page, $logger, $cache, $router, $types, $eligibility, $markdown_alternate);
 
         expect($core->artifacts())->toBe($artifacts);
         expect($core->settings())->toBe($settings);
@@ -45,6 +47,7 @@ describe('Core', function (): void {
         expect($core->router())->toBe($router);
         expect($core->content_types())->toBe($types);
         expect($core->eligibility())->toBe($eligibility);
+        expect($core->markdown_alternate())->toBe($markdown_alternate);
     });
 
 });

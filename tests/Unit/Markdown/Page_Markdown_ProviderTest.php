@@ -20,6 +20,7 @@ use Kntnt\Ai_Visibility\Core\Artifact\Discovery_Context;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Eligibility;
+use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
 use Kntnt\Ai_Visibility\Markdown\Page_Markdown_Provider;
 
@@ -34,7 +35,7 @@ beforeEach(function (): void {
 
     $this->page_markdown = Mockery::mock(Page_Markdown::class);
     $this->eligibility   = Mockery::mock(Eligibility::class);
-    $this->provider      = new Page_Markdown_Provider($this->page_markdown, $this->eligibility);
+    $this->provider      = new Page_Markdown_Provider($this->page_markdown, $this->eligibility, new Markdown_Alternate());
 });
 
 describe('Page_Markdown_Provider::serve_pattern', function (): void {

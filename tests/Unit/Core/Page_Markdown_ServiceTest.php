@@ -19,6 +19,7 @@ declare(strict_types=1);
 use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
+use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Front_Matter;
 use Kntnt\Ai_Visibility\Core\Logger;
 use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
@@ -28,6 +29,7 @@ beforeEach(function (): void {
     $this->logger = Mockery::mock(Logger::class)->shouldIgnoreMissing();
     $this->base   = sys_get_temp_dir() . '/kntnt-pm-' . uniqid('', true);
     $this->store  = new File_Store(fn(): string => $this->base);
+    $this->single_flight = new Single_Flight($this->store, sys_get_temp_dir());
 });
 
 afterEach(function (): void {
@@ -53,7 +55,7 @@ describe('Page_Markdown_Service::for_post', function (): void {
         $front = Mockery::mock(Front_Matter::class);
         $front->shouldReceive('build')->andReturn("---\ntitle: \"My Title\"\n---\n");
 
-        $this->service = new Page_Markdown_Service($front, $this->store, $this->logger, fn(): string => 'https://example.com');
+        $this->service = new Page_Markdown_Service($front, $this->single_flight, $this->logger, fn(): string => 'https://example.com');
     });
 
     it('assembles front-matter, the visible H1, then the converted body', function (): void {
@@ -98,7 +100,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
         Functions\when('get_the_title')->justReturn('T');
         $front = Mockery::mock(Front_Matter::class);
         $front->shouldReceive('build')->andReturn("---\ntitle: \"T\"\n---\n");
-        $service = new Page_Markdown_Service($front, $this->store, $this->logger, fn(): string => 'https://example.com');
+        $service = new Page_Markdown_Service($front, $this->single_flight, $this->logger, fn(): string => 'https://example.com');
 
         $identity = new Identity('markdown-alternate', 'hello', 1);
         $post = new WP_Post();
@@ -117,7 +119,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
         // expectations, so calling build() would also fail.
         $identity = new Identity('markdown-alternate', 'cached', 2);
         $this->store->write($identity, 'CACHED BYTES');
-        $service = new Page_Markdown_Service(Mockery::mock(Front_Matter::class), $this->store, $this->logger, fn(): string => 'https://example.com');
+        $service = new Page_Markdown_Service(Mockery::mock(Front_Matter::class), $this->single_flight, $this->logger, fn(): string => 'https://example.com');
 
         $post = new WP_Post();
 

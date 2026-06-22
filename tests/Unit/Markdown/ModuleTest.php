@@ -25,6 +25,7 @@ use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 use Kntnt\Ai_Visibility\Core\Core;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Logger;
+use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
 use Kntnt\Ai_Visibility\Core\Settings\Registry as Settings_Registry;
 use Kntnt\Ai_Visibility\Markdown\Module;
@@ -62,6 +63,7 @@ beforeEach(function (): void {
         Mockery::mock(Serve_Router::class),
         $this->types,
         new Eligibility($this->types),
+        new Markdown_Alternate(),
     );
 });
 

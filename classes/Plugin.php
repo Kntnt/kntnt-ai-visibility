@@ -20,11 +20,13 @@ use Kntnt\Ai_Visibility\Core\Artifact\Artifact_Registry;
 use Kntnt\Ai_Visibility\Core\Cache\Cache_Version;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
+use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Content\Content_Matrix;
 use Kntnt\Ai_Visibility\Core\Content\Content_Settings;
 use Kntnt\Ai_Visibility\Core\Core;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Front_Matter;
+use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
 use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
 use Kntnt\Ai_Visibility\Core\Plugin_Logger;
@@ -263,7 +265,8 @@ final class Plugin {
 		$settings->register();
 		$artifacts = new Artifact_Registry();
 		$store = new File_Store( static fn(): string => self::cache_dir() );
-		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $store, $logger, static fn(): string => home_url() );
+		$single_flight = new Single_Flight( $store );
+		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $single_flight, $logger, static fn(): string => home_url() );
 		$ttl = apply_filters( 'kntnt_ai_visibility_cache_ttl', WEEK_IN_SECONDS );
 		$router = new Serve_Router(
 			$store,
@@ -271,6 +274,7 @@ final class Plugin {
 			$logger,
 			is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS,
 			base_path: static fn(): string => rtrim( (string) wp_parse_url( (string) home_url( '/' ), PHP_URL_PATH ), '/' ),
+			cache_version: static fn(): int => ( new Cache_Version() )->current(),
 		);
 
 		// The content-type matrix and the eligibility predicate are Core concepts
@@ -279,7 +283,8 @@ final class Plugin {
 		// `content_types` slice of the single option.
 		$matrix = new Content_Matrix( static fn(): array => self::content_types_option() );
 		$eligibility = new Eligibility( $matrix );
-		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router, $matrix, $eligibility );
+		$markdown_alternate = new Markdown_Alternate();
+		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router, $matrix, $eligibility, $markdown_alternate );
 
 		// Core owns the single settings section — the matrix and the clear-cache
 		// action beside it; modules contribute only their columns.

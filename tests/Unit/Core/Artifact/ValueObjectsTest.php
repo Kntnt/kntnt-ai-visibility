@@ -72,11 +72,31 @@ describe('Request', function (): void {
 
 describe('Serve_Pattern', function (): void {
 
-    it('declares the kind and suffix a provider serves', function (): void {
-        $pattern = new Serve_Pattern('markdown-alternate', '.md');
+    it('suffix() declares a suffix-matched, canonical, markdown shape', function (): void {
+        $pattern = Serve_Pattern::suffix('markdown-alternate', '.md');
 
+        expect($pattern->match)->toBe('suffix');
         expect($pattern->kind)->toBe('markdown-alternate');
         expect($pattern->suffix)->toBe('.md');
+        expect($pattern->content_type)->toBe('text/markdown; charset=utf-8');
+        expect($pattern->canonical)->toBeTrue();
+        expect($pattern->versioned)->toBeFalse();
+    });
+
+    it('exact() declares an exact-path, non-canonical, versioned plain-text singleton', function (): void {
+        $pattern = Serve_Pattern::exact('llms-txt', '/llms.txt', 'llms');
+
+        expect($pattern->match)->toBe('exact');
+        expect($pattern->kind)->toBe('llms-txt');
+        expect($pattern->path)->toBe('/llms.txt');
+        expect($pattern->key)->toBe('llms');
+        expect($pattern->content_type)->toBe('text/plain; charset=utf-8');
+        expect($pattern->canonical)->toBeFalse();
+        expect($pattern->versioned)->toBeTrue();
+    });
+
+    it('exact() can opt out of version-stamping', function (): void {
+        expect(Serve_Pattern::exact('k', '/p', 'key', versioned: false)->versioned)->toBeFalse();
     });
 
 });

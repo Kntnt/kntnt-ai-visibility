@@ -31,7 +31,7 @@ beforeEach(function (): void {
 
     $store = new File_Store(fn(): string => $this->base);
     $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
-    $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+    $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
     $this->router = new Serve_Router($store, $registry);
 
     // Derive validators from the file as written, so the assertions do not
@@ -64,9 +64,15 @@ describe('Serve_Router::headers_for', function (): void {
     });
 
     it('adds a canonical back-link when given a canonical URL', function (): void {
-        $response = $this->router->headers_for($this->file, new Request('GET', '/about.md'), 'https://example.com/about/');
+        $response = $this->router->headers_for($this->file, new Request('GET', '/about.md'), 'text/markdown; charset=utf-8', 'https://example.com/about/');
 
         expect($response['headers']['Link'])->toBe('<https://example.com/about/>; rel="canonical"');
+    });
+
+    it('serves the Content-Type the matched pattern declares', function (): void {
+        $response = $this->router->headers_for($this->file, new Request('GET', '/llms.txt'), 'text/plain; charset=utf-8');
+
+        expect($response['headers']['Content-Type'])->toBe('text/plain; charset=utf-8');
     });
 
     it('omits the body for a HEAD request', function (): void {

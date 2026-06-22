@@ -22,7 +22,7 @@ declare( strict_types = 1 );
 namespace Kntnt\Ai_Visibility\Core;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
-use Kntnt\Ai_Visibility\Core\Cache\Store;
+use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\HtmlToMarkdown\Converter\Converter;
 use Kntnt\HtmlToMarkdown\Converter\Options;
 use Kntnt\HtmlToMarkdown\Plugin\Base\BasePlugin;
@@ -47,18 +47,18 @@ final class Page_Markdown_Service implements Page_Markdown {
 	private $domain_provider;
 
 	/**
-	 * Binds the service to its front-matter builder, cache, logger and domain.
+	 * Binds the service to its front-matter builder, single-flight, logger and domain.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param Front_Matter            $front_matter    The front-matter builder.
-	 * @param Store                   $cache           The artifact cache store.
+	 * @param Single_Flight           $single_flight   The single-flight cache materialiser.
 	 * @param Logger                  $logger          The diagnostics logger.
 	 * @param callable(): string|null $domain_provider Resolves the absolutising domain; defaults to home_url().
 	 */
 	public function __construct(
 		private readonly Front_Matter $front_matter,
-		private readonly Store $cache,
+		private readonly Single_Flight $single_flight,
 		private readonly Logger $logger,
 		?callable $domain_provider = null,
 	) {
@@ -99,26 +99,9 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): string {
 
-		// Serve an existing cache file without rendering.
-		$cached = $this->cache->read( $identity );
-		if ( $cached !== null ) {
-			return $cached;
-		}
-
-		// Single-flight: hold a per-identity lock so concurrent misses do not all
-		// render. Re-check the cache once the lock is held, then render and store.
-		$lock = $this->acquire_lock( $identity );
-		try {
-			$cached = $this->cache->read( $identity );
-			if ( $cached !== null ) {
-				return $cached;
-			}
-			$bytes = $this->for_post( $post );
-			$this->cache->write( $identity, $bytes );
-			return $bytes;
-		} finally {
-			$this->release_lock( $lock );
-		}
+		// Single-flight: serve the cache when warm, else render once under a
+		// per-identity lock and store. The lock and re-check live in Single_Flight.
+		return $this->single_flight->once( $identity, fn(): string => $this->for_post( $post ) );
 
 	}
 
@@ -141,48 +124,6 @@ final class Page_Markdown_Service implements Page_Markdown {
 			$this->logger->error( 'Markdown conversion failed', [ 'error' => $exception->getMessage() ] );
 			return '';
 		}
-
-	}
-
-	/**
-	 * Acquires a per-identity advisory lock for single-flight generation.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param Identity $identity The identity being generated.
-	 * @return resource|null The locked handle, or null when locking is unavailable.
-	 */
-	private function acquire_lock( Identity $identity ) {
-
-		// Lock outside the cache tree (in the system temp dir) so locking never
-		// depends on the cache directory already existing.
-		$path = sys_get_temp_dir() . '/kntnt-aiv-' . md5( $identity->kind . '/' . $identity->key ) . '.lock';
-		$handle = fopen( $path, 'c' );
-		if ( $handle === false ) {
-			return null;
-		}
-		flock( $handle, LOCK_EX );
-
-		return $handle;
-
-	}
-
-	/**
-	 * Releases a lock acquired by acquire_lock().
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param resource|null $handle The locked handle, or null.
-	 * @return void
-	 */
-	private function release_lock( $handle ): void {
-
-		// Nothing to release when locking was unavailable.
-		if ( $handle === null ) {
-			return;
-		}
-		flock( $handle, LOCK_UN );
-		fclose( $handle );
 
 	}
 

@@ -21,6 +21,7 @@ namespace Kntnt\Ai_Visibility\Core\Cache;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
+use Kntnt\Ai_Visibility\Core\Artifact\Serve_Pattern;
 use Kntnt\Ai_Visibility\Core\Http\Conditional_Request;
 use Kntnt\Ai_Visibility\Core\Logger;
 
@@ -73,17 +74,31 @@ final class Serve_Router {
 	private $base_path;
 
 	/**
+	 * Returns the current cache version, for version-stamped exact-path keys.
+	 *
+	 * Invoked lazily — only when an exact, versioned pattern actually matches — so
+	 * an ordinary request (HTML, asset, `.md`) never reads the cache-version option.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @var callable(): int
+	 */
+	private $cache_version;
+
+	/**
 	 * Binds the router to its store, provider registry, logger and TTL.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param Store                                       $store     The cache store.
-	 * @param \Kntnt\Ai_Visibility\Core\Artifact\Registry $registry  The provider registry (serve allowlist).
-	 * @param Logger|null                                 $logger    Optional logger for refused requests.
-	 * @param int                                         $ttl       Max cache-file age in seconds; 0 disables the safety net.
-	 * @param (callable(): int)|null                      $clock     Returns the current Unix time; defaults to time().
-	 * @param (callable(): string)|null                   $base_path Returns the home base path (e.g. '/blog') to strip on a
-	 *                                                               subdirectory install; defaults to '' (root install).
+	 * @param Store                                       $store         The cache store.
+	 * @param \Kntnt\Ai_Visibility\Core\Artifact\Registry $registry      The provider registry (serve allowlist).
+	 * @param Logger|null                                 $logger        Optional logger for refused requests.
+	 * @param int                                         $ttl           Max cache-file age in seconds; 0 disables the safety net.
+	 * @param (callable(): int)|null                      $clock         Returns the current Unix time; defaults to time().
+	 * @param (callable(): string)|null                   $base_path     Returns the home base path (e.g. '/blog') to strip on a
+	 *                                                                   subdirectory install; defaults to '' (root install).
+	 * @param (callable(): int)|null                      $cache_version Returns the cache version for version-stamped exact
+	 *                                                                   paths; invoked only on an exact-versioned match. Defaults to 1.
 	 */
 	public function __construct(
 		private readonly Store $store,
@@ -92,9 +107,11 @@ final class Serve_Router {
 		private readonly int $ttl = 0,
 		?callable $clock = null,
 		?callable $base_path = null,
+		?callable $cache_version = null,
 	) {
 		$this->clock = $clock ?? static fn (): int => time();
 		$this->base_path = $base_path ?? static fn (): string => '';
+		$this->cache_version = $cache_version ?? static fn (): int => 1;
 	}
 
 	/**
@@ -108,9 +125,9 @@ final class Serve_Router {
 	 * @since 0.1.0
 	 *
 	 * @param Request $request The untrusted request.
-	 * @return string|null The safe absolute cache path, or null to fall through.
+	 * @return Resolved|null The matched pattern and safe absolute cache path, or null to fall through.
 	 */
-	public function resolve( Request $request ): ?string {
+	public function resolve( Request $request ): ?Resolved {
 
 		// Only idempotent reads are ever served from the cache.
 		if ( $request->method !== 'GET' && $request->method !== 'HEAD' ) {
@@ -124,11 +141,12 @@ final class Serve_Router {
 		}
 
 		// Match the path against the allowlist of registered serve shapes and
-		// derive a validated key; an unmatched or malformed shape falls through.
-		$identity = $this->identify( $path );
-		if ( $identity === null ) {
+		// derive a validated identity; an unmatched or malformed shape falls through.
+		$match = $this->identify( $path );
+		if ( $match === null ) {
 			return null;
 		}
+		[ $identity, $pattern ] = $match;
 
 		// Build the candidate path from the validated key, then realpath-contain
 		// it strictly inside the cache base — the backstop against traversal and
@@ -149,7 +167,7 @@ final class Serve_Router {
 			return null;
 		}
 
-		return $real;
+		return new Resolved( $real, $pattern );
 
 	}
 
@@ -170,13 +188,15 @@ final class Serve_Router {
 	public function serve( Request $request ): bool {
 
 		// Fall through whenever the request is not a contained cache hit.
-		$path = $this->resolve( $request );
-		if ( $path === null ) {
+		$resolved = $this->resolve( $request );
+		if ( $resolved === null ) {
 			return false;
 		}
 
-		// Build the response and emit its status and headers.
-		$response = $this->headers_for( $path, $request, $this->canonical_for( $request->path ) );
+		// Build the response from the matched pattern: its Content-Type, and a
+		// canonical back-link only when the pattern declares one (i.e. for `.md`).
+		$canonical = $resolved->pattern->canonical ? $this->canonical_for( $request->path ) : '';
+		$response = $this->headers_for( $resolved->path, $request, $resolved->pattern->content_type, $canonical );
 		http_response_code( $response['status'] );
 		foreach ( $response['headers'] as $name => $value ) {
 			header( "{$name}: {$value}" );
@@ -184,7 +204,7 @@ final class Serve_Router {
 
 		// Stream the body unless this is a 304 or a HEAD request.
 		if ( $response['send_body'] ) {
-			readfile( $path );
+			readfile( $resolved->path );
 		}
 
 		exit;
@@ -202,10 +222,11 @@ final class Serve_Router {
 	 *
 	 * @param string  $path          The cache file path.
 	 * @param Request $request       The request (for method and conditionals).
+	 * @param string  $content_type  The Content-Type to serve (from the matched pattern).
 	 * @param string  $canonical_url The HTML canonical URL, or '' to omit the link.
 	 * @return array{status: int, headers: array<string, string>, send_body: bool}
 	 */
-	public function headers_for( string $path, Request $request, string $canonical_url = '' ): array {
+	public function headers_for( string $path, Request $request, string $content_type = self::CONTENT_TYPE, string $canonical_url = '' ): array {
 
 		// Derive validators from the file: a content ETag and the modified time.
 		$last_modified = (int) filemtime( $path );
@@ -233,7 +254,7 @@ final class Serve_Router {
 				'send_body' => false,
 			];
 		}
-		$headers['Content-Type'] = self::CONTENT_TYPE;
+		$headers['Content-Type'] = $content_type;
 		$headers['Content-Length'] = (string) filesize( $path );
 
 		return [
@@ -264,37 +285,80 @@ final class Serve_Router {
 	}
 
 	/**
-	 * Matches a path against the allowlist and returns a validated identity.
+	 * Matches a path against the allowlist and returns a validated identity + pattern.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param string $path The request path (leading slash, query already stripped).
-	 * @return Identity|null A validated identity, or null when no shape matches
-	 *                      or the derived key is unsafe.
+	 * @return array{0: Identity, 1: Serve_Pattern}|null The validated identity and the
+	 *               pattern that matched, or null when no shape matches or the key is unsafe.
 	 */
-	private function identify( string $path ): ?Identity {
+	private function identify( string $path ): ?array {
 
 		// Take the path relative to the WordPress home so a subdirectory install
-		// (e.g. /blog/about.md) derives the same key as a root install.
+		// (e.g. /blog/about.md or /blog/llms.txt) derives the same key as root.
 		$path = $this->strip_base( $path );
 
-		// Find the first registered serve shape whose suffix the path carries.
+		// Find the first registered serve shape the path matches, by its mode.
 		foreach ( $this->registry->serve_patterns() as $pattern ) {
-			if ( $pattern->suffix === '' || ! str_ends_with( $path, $pattern->suffix ) ) {
-				continue;
+			$key = $pattern->match === 'exact'
+				? $this->exact_key( $path, $pattern )
+				: $this->suffix_key( $path, $pattern );
+			if ( $key !== null ) {
+				return [ new Identity( $pattern->kind, $key ), $pattern ];
 			}
-
-			// Strip the leading slash and the suffix to get the candidate key,
-			// then accept it only if it passes the strict whitelist.
-			$key = substr( $path, 1, strlen( $path ) - 1 - strlen( $pattern->suffix ) );
-			if ( preg_match( self::SAFE_KEY, $key ) !== 1 ) {
-				return null;
-			}
-
-			return new Identity( $pattern->kind, $key );
 		}
 
 		return null;
+
+	}
+
+	/**
+	 * Derives a validated key for a suffix-matched pattern, or null.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @param string        $path    The home-relative request path.
+	 * @param Serve_Pattern $pattern The suffix pattern.
+	 * @return string|null The validated key, or null when the path does not match or the key is unsafe.
+	 */
+	private function suffix_key( string $path, Serve_Pattern $pattern ): ?string {
+
+		// The path must carry the suffix; strip the leading slash and the suffix to
+		// get the candidate key, then accept it only if it passes the whitelist.
+		if ( $pattern->suffix === '' || ! str_ends_with( $path, $pattern->suffix ) ) {
+			return null;
+		}
+		$key = substr( $path, 1, strlen( $path ) - 1 - strlen( $pattern->suffix ) );
+
+		return preg_match( self::SAFE_KEY, $key ) === 1 ? $key : null;
+
+	}
+
+	/**
+	 * Derives a validated key for an exact-path pattern, or null.
+	 *
+	 * The home-relative path must equal the pattern's path exactly (case-sensitive);
+	 * the key is the pattern's fixed base key plus, when versioned, the cache-version
+	 * stamp — no byte of the URL ever reaches the key. The cache-version callback is
+	 * read only here, after an exact path match, so an ordinary request never reads it.
+	 * The derived key is still validated against the whitelist as defence-in-depth.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @param string        $path    The home-relative request path.
+	 * @param Serve_Pattern $pattern The exact pattern.
+	 * @return string|null The validated key, or null when the path does not match exactly.
+	 */
+	private function exact_key( string $path, Serve_Pattern $pattern ): ?string {
+
+		// Exact, case-sensitive path match; only then read the cache version.
+		if ( $path !== $pattern->path ) {
+			return null;
+		}
+		$key = $pattern->key . ( $pattern->versioned ? '-v' . ( $this->cache_version )() : '' );
+
+		return preg_match( self::SAFE_KEY, $key ) === 1 ? $key : null;
 
 	}
 

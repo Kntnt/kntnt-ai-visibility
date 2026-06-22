@@ -41,14 +41,15 @@ final readonly class Core {
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param Artifact_Registry $artifacts     The artifact-provider registry.
-	 * @param Settings_Registry $settings      The settings registry.
-	 * @param Page_Markdown     $page_markdown The shared page-to-Markdown service.
-	 * @param Logger            $logger        The diagnostics logger.
-	 * @param Store             $cache         The artifact cache store.
-	 * @param Serve_Router      $router        The early, contained serve router.
-	 * @param Content_Types     $content_types The content-type capability matrix.
-	 * @param Eligibility       $eligibility   The eligibility predicate and enumeration.
+	 * @param Artifact_Registry  $artifacts     The artifact-provider registry.
+	 * @param Settings_Registry  $settings      The settings registry.
+	 * @param Page_Markdown      $page_markdown The shared page-to-Markdown service.
+	 * @param Logger             $logger        The diagnostics logger.
+	 * @param Store              $cache         The artifact cache store.
+	 * @param Serve_Router       $router        The early, contained serve router.
+	 * @param Content_Types      $content_types The content-type capability matrix.
+	 * @param Eligibility        $eligibility   The eligibility predicate and enumeration.
+	 * @param Markdown_Alternate $markdown_alternate The markdown-alternate identity/URL locator.
 	 */
 	public function __construct(
 		private Artifact_Registry $artifacts,
@@ -59,6 +60,7 @@ final readonly class Core {
 		private Serve_Router $router,
 		private Content_Types $content_types,
 		private Eligibility $eligibility,
+		private Markdown_Alternate $markdown_alternate,
 	) {}
 
 	/**
@@ -150,6 +152,17 @@ final readonly class Core {
 	 */
 	public function eligibility(): Eligibility {
 		return $this->eligibility;
+	}
+
+	/**
+	 * Returns the markdown-alternate identity/URL locator.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @return Markdown_Alternate
+	 */
+	public function markdown_alternate(): Markdown_Alternate {
+		return $this->markdown_alternate;
 	}
 
 }

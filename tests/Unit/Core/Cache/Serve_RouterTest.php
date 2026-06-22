@@ -35,7 +35,7 @@ beforeEach(function (): void {
 
     // A registry whose only allowlisted shape is the Markdown `.md` suffix.
     $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
-    $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+    $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
 
     $this->router = new Serve_Router($store, $registry);
 });
@@ -64,22 +64,23 @@ function kntnt_get(string $path): Request
 describe('Serve_Router::resolve — legitimate requests', function (): void {
 
     it('resolves a clean .md request to the contained cache file', function (): void {
-        $path = $this->router->resolve(kntnt_get('/about/team.md'));
+        $resolved = $this->router->resolve(kntnt_get('/about/team.md'));
 
-        // resolve() returns the canonical realpath; compare like for like.
-        expect($path)->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
+        // resolve() returns the matched pattern and the canonical realpath.
+        expect($resolved?->path)->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
+        expect($resolved?->pattern->canonical)->toBeTrue();
     });
 
     it('resolves /index.md to the home cache file', function (): void {
-        $path = $this->router->resolve(kntnt_get('/index.md'));
+        $resolved = $this->router->resolve(kntnt_get('/index.md'));
 
-        expect($path)->toBe(realpath($this->base . '/markdown-alternate/index.md'));
+        expect($resolved?->path)->toBe(realpath($this->base . '/markdown-alternate/index.md'));
     });
 
     it('resolves a HEAD request like a GET', function (): void {
-        $path = $this->router->resolve(new Request('HEAD', '/about/team.md'));
+        $resolved = $this->router->resolve(new Request('HEAD', '/about/team.md'));
 
-        expect($path)->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
+        expect($resolved?->path)->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
     });
 
 });
@@ -89,19 +90,19 @@ describe('Serve_Router::resolve — subdirectory install', function (): void {
     it('strips the home base path before deriving the key', function (): void {
         $store = new File_Store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
-        $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+        $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         $router = new Serve_Router($store, $registry, null, 0, null, fn(): string => '/blog');
 
-        expect($router->resolve(kntnt_get('/blog/about/team.md')))
+        expect($router->resolve(kntnt_get('/blog/about/team.md'))?->path)
             ->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
-        expect($router->resolve(kntnt_get('/blog/index.md')))
+        expect($router->resolve(kntnt_get('/blog/index.md'))?->path)
             ->toBe(realpath($this->base . '/markdown-alternate/index.md'));
     });
 
     it('still rejects traversal once the base is stripped', function (): void {
         $store = new File_Store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
-        $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+        $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         $router = new Serve_Router($store, $registry, null, 0, null, fn(): string => '/blog');
 
         expect($router->resolve(kntnt_get('/blog/../../../etc/passwd.md')))->toBeNull();
@@ -162,7 +163,7 @@ describe('Serve_Router::resolve — refusals', function (): void {
     it('treats a cache file older than the TTL as a miss', function (): void {
         $store = new File_Store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
-        $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+        $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         // A clock 200s ahead of the file, with a 100s TTL, makes the file stale.
         $mtime = (int) filemtime($this->base . '/markdown-alternate/about/team.md');
         $router = new Serve_Router($store, $registry, null, 100, fn(): int => $mtime + 200);
@@ -173,11 +174,11 @@ describe('Serve_Router::resolve — refusals', function (): void {
     it('serves a cache file within the TTL', function (): void {
         $store = new File_Store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
-        $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+        $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         $mtime = (int) filemtime($this->base . '/markdown-alternate/about/team.md');
         $router = new Serve_Router($store, $registry, null, 100, fn(): int => $mtime + 50);
 
-        expect($router->resolve(kntnt_get('/about/team.md')))->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
+        expect($router->resolve(kntnt_get('/about/team.md'))?->path)->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
     });
 
     it('refuses a symlink that escapes the cache base', function (): void {

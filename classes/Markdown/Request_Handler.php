@@ -292,7 +292,7 @@ final class Request_Handler {
 			$this->logger->warning( 'Cache file missing after materialise', [ 'key' => $identity->key ] );
 			return;
 		}
-		$response = $this->router->headers_for( $path, $request, (string) get_permalink( $post ) );
+		$response = $this->router->headers_for( $path, $request, self::CONTENT_TYPE, (string) get_permalink( $post ) );
 		$this->send( $response['status'], $response['headers'] );
 		if ( $response['send_body'] ) {
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a Core-owned cache file is the point of the serve path.

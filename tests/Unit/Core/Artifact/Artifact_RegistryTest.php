@@ -47,7 +47,7 @@ function kntnt_test_provider(string $kind, string $suffix = '.md'): Provider
 
         public function serve_pattern(): Serve_Pattern
         {
-            return new Serve_Pattern($this->kind, $this->suffix);
+            return Serve_Pattern::suffix($this->kind, $this->suffix);
         }
     };
 }

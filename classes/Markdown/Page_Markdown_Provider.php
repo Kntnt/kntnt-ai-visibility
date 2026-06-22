@@ -30,6 +30,7 @@ use Kntnt\Ai_Visibility\Core\Artifact\Provider;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Artifact\Serve_Pattern;
 use Kntnt\Ai_Visibility\Core\Eligibility;
+use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
 
 /**
@@ -38,15 +39,6 @@ use Kntnt\Ai_Visibility\Core\Page_Markdown;
  * @since 0.1.0
  */
 final class Page_Markdown_Provider implements Provider {
-
-	/**
-	 * The artifact kind this provider produces.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @var string
-	 */
-	private const KIND = 'markdown-alternate';
 
 	/**
 	 * The content type every Markdown alternate is served with.
@@ -58,16 +50,18 @@ final class Page_Markdown_Provider implements Provider {
 	private const CONTENT_TYPE = 'text/markdown; charset=utf-8';
 
 	/**
-	 * Binds the provider to the page-markdown service and eligibility rule.
+	 * Binds the provider to the page-markdown service, eligibility and locator.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param Page_Markdown $page_markdown The shared page-to-Markdown service.
-	 * @param Eligibility   $eligibility   The eligibility rule.
+	 * @param Page_Markdown      $page_markdown      The shared page-to-Markdown service.
+	 * @param Eligibility        $eligibility        The eligibility rule.
+	 * @param Markdown_Alternate $markdown_alternate The Core markdown-alternate identity/URL locator.
 	 */
 	public function __construct(
 		private readonly Page_Markdown $page_markdown,
 		private readonly Eligibility $eligibility,
+		private readonly Markdown_Alternate $markdown_alternate,
 	) {}
 
 	/**
@@ -78,7 +72,7 @@ final class Page_Markdown_Provider implements Provider {
 	 * @return Serve_Pattern
 	 */
 	public function serve_pattern(): Serve_Pattern {
-		return new Serve_Pattern( self::KIND, '.md' );
+		return Serve_Pattern::suffix( Markdown_Alternate::KIND, '.md' );
 	}
 
 	/**
@@ -114,7 +108,7 @@ final class Page_Markdown_Provider implements Provider {
 	 * @return Identity
 	 */
 	public function identity_for_post( \WP_Post $post ): Identity {
-		return new Identity( self::KIND, $this->key_for( $post ), $post->ID );
+		return $this->markdown_alternate->identity_for( $post );
 	}
 
 	/**
@@ -154,7 +148,7 @@ final class Page_Markdown_Provider implements Provider {
 			return [];
 		}
 
-		return [ new Link_Relation( $this->md_url( $context->post ), 'alternate', 'text/markdown' ) ];
+		return [ new Link_Relation( $this->markdown_alternate->url_for( $context->post ), 'alternate', 'text/markdown' ) ];
 
 	}
 
@@ -172,7 +166,7 @@ final class Page_Markdown_Provider implements Provider {
 		// WordPress home so resolution works identically on a subdirectory
 		// install (a canonical path passes through unchanged on a root install).
 		$html_path = str_ends_with( $path, '.md' ) ? substr( $path, 0, -3 ) : $path;
-		$relative = $this->home_relative( (string) wp_parse_url( $html_path, PHP_URL_PATH ) );
+		$relative = $this->markdown_alternate->home_relative( (string) wp_parse_url( $html_path, PHP_URL_PATH ) );
 		$slug = trim( $relative, '/' );
 
 		// The slug-less root, or an explicit /index, resolves to the home entry.
@@ -270,72 +264,6 @@ final class Page_Markdown_Provider implements Provider {
 		}
 
 		return null;
-
-	}
-
-	/**
-	 * Derives the path-safe cache key for a post from its permalink.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param \WP_Post $post The post.
-	 * @return string The cache key; 'index' for the slug-less home.
-	 */
-	private function key_for( \WP_Post $post ): string {
-
-		// The key is the permalink path relative to the WordPress home, without
-		// surrounding slashes; the slug-less home maps to the 'index' key the
-		// router serves at /index.md. Keeping the key home-relative means the same
-		// key is derived on root and subdirectory installs (and the router strips
-		// the same base before serving).
-		$path = $this->home_relative( (string) wp_parse_url( (string) get_permalink( $post ), PHP_URL_PATH ) );
-		$key = trim( $path, '/' );
-
-		return $key === '' ? 'index' : $key;
-
-	}
-
-	/**
-	 * Strips the WordPress home base path from a path.
-	 *
-	 * On a root install the base is empty and the path passes through; on a
-	 * subdirectory install (e.g. WordPress at `/blog/`) it removes the `/blog`
-	 * prefix, so keys and resolution are relative to the site root and the home
-	 * collapses to `index` on both. The base comes from `home_url()` (site
-	 * configuration), never the request, so it opens no traversal surface.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param string $path A path that may carry the install's base prefix.
-	 * @return string The path relative to the WordPress home (leading slash kept).
-	 */
-	private function home_relative( string $path ): string {
-
-		// Remove the base prefix only when the path actually sits under it.
-		$base = rtrim( (string) wp_parse_url( (string) home_url( '/' ), PHP_URL_PATH ), '/' );
-		if ( $base !== '' && str_starts_with( $path, $base . '/' ) ) {
-			return substr( $path, strlen( $base ) );
-		}
-
-		return $path;
-
-	}
-
-	/**
-	 * Builds the absolute `.md` URL advertised for a post.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param \WP_Post $post The post.
-	 * @return string
-	 */
-	private function md_url( \WP_Post $post ): string {
-
-		// The home alternate lives at /index.md; every other page appends `.md`
-		// to its permalink (minus the trailing slash).
-		return $this->key_for( $post ) === 'index'
-			? home_url( '/index.md' )
-			: rtrim( (string) get_permalink( $post ), '/' ) . '.md';
 
 	}
 

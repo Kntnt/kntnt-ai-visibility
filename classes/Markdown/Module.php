@@ -57,7 +57,7 @@ final class Module implements Module_Contract {
 
 		// The eligibility-gated provider is the single rule that covers every
 		// eligible page; register it as the artifact source of truth.
-		$provider = new Page_Markdown_Provider( $core->page_markdown(), $core->eligibility() );
+		$provider = new Page_Markdown_Provider( $core->page_markdown(), $core->eligibility(), $core->markdown_alternate() );
 		$core->artifacts()->register( $provider );
 
 		// The PHP serve path: rewrite rules, query vars and the template_redirect
