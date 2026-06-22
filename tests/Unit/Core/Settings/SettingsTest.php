@@ -96,4 +96,19 @@ describe('Settings::sanitize', function (): void {
         ]);
     });
 
+    it('routes a custom section through its own slice sanitiser', function (): void {
+        // A custom section (e.g. the content-type matrix) owns a 2-level slice the
+        // flat field model cannot express, so the registry hands it the whole slice.
+        $settings = new Settings('kntnt_ai_visibility');
+        $settings->register_section(new Section(
+            'content_types',
+            'Content types',
+            sanitize: static fn(mixed $slice): array => ['post' => ['md' => ! empty($slice['post']['md'])]],
+        ));
+
+        $clean = $settings->sanitize(['content_types' => ['post' => ['md' => '1']]]);
+
+        expect($clean)->toBe(['content_types' => ['post' => ['md' => true]]]);
+    });
+
 });

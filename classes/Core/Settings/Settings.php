@@ -130,10 +130,22 @@ final class Settings implements Registry {
 		$clean = [];
 		foreach ( $this->sections as $section_id => $section ) {
 			$section_input = isset( $input[ $section_id ] ) && is_array( $input[ $section_id ] ) ? $input[ $section_id ] : [];
+
+			// A custom section owns its whole slice; hand it the section input and
+			// store what it returns verbatim.
+			if ( $section->sanitize !== null ) {
+				$clean[ $section_id ] = ( $section->sanitize )( $section_input );
+				continue;
+			}
+
+			// A field-based section is sanitised field by field, each missing field
+			// falling back to its default.
+			$section_clean = [];
 			foreach ( $section->fields as $field ) {
 				$submitted = $section_input[ $field->key ] ?? $field->default;
-				$clean[ $section_id ][ $field->key ] = ( $field->sanitize )( $submitted );
+				$section_clean[ $field->key ] = ( $field->sanitize )( $submitted );
 			}
+			$clean[ $section_id ] = $section_clean;
 		}
 
 		return $clean;
@@ -177,11 +189,14 @@ final class Settings implements Registry {
 			],
 		);
 
-		// Compose one Settings-API section per registered module section, then
-		// add each field bound to its section and key.
+		// Compose one Settings-API section per registered module section. A custom
+		// section renders its whole body through its own renderer and registers no
+		// fields; a field-based section adds each field bound to its section and key.
 		foreach ( $this->sections as $section_id => $section ) {
 			$wp_section = "{$this->option_key}_{$section_id}";
-			add_settings_section( $wp_section, $section->title, '__return_null', $this->page_slug );
+			$render = $section->render;
+			$callback = $render !== null ? static fn() => $render() : '__return_null';
+			add_settings_section( $wp_section, $section->title, $callback, $this->page_slug );
 			foreach ( $section->fields as $field ) {
 				add_settings_field(
 					"{$section_id}_{$field->key}",

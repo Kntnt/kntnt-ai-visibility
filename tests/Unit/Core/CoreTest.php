@@ -16,7 +16,9 @@ declare(strict_types=1);
 use Kntnt\Ai_Visibility\Core\Artifact\Registry as Artifact_Registry_Interface;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
+use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 use Kntnt\Ai_Visibility\Core\Core;
+use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Logger;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
 use Kntnt\Ai_Visibility\Core\Settings\Registry as Settings_Registry_Interface;
@@ -30,8 +32,10 @@ describe('Core', function (): void {
         $logger    = Mockery::mock(Logger::class);
         $cache     = Mockery::mock(Store::class);
         $router    = Mockery::mock(Serve_Router::class);
+        $types     = Mockery::mock(Content_Types::class);
+        $eligibility = new Eligibility($types);
 
-        $core = new Core($artifacts, $settings, $page, $logger, $cache, $router);
+        $core = new Core($artifacts, $settings, $page, $logger, $cache, $router, $types, $eligibility);
 
         expect($core->artifacts())->toBe($artifacts);
         expect($core->settings())->toBe($settings);
@@ -39,6 +43,8 @@ describe('Core', function (): void {
         expect($core->logger())->toBe($logger);
         expect($core->cache())->toBe($cache);
         expect($core->router())->toBe($router);
+        expect($core->content_types())->toBe($types);
+        expect($core->eligibility())->toBe($eligibility);
     });
 
 });

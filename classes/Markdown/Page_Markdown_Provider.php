@@ -29,6 +29,7 @@ use Kntnt\Ai_Visibility\Core\Artifact\Link_Relation;
 use Kntnt\Ai_Visibility\Core\Artifact\Provider;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Artifact\Serve_Pattern;
+use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
 
 /**

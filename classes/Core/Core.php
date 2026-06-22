@@ -26,6 +26,7 @@ namespace Kntnt\Ai_Visibility\Core;
 use Kntnt\Ai_Visibility\Core\Artifact\Registry as Artifact_Registry;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
+use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 use Kntnt\Ai_Visibility\Core\Settings\Registry as Settings_Registry;
 
 /**
@@ -46,6 +47,8 @@ final readonly class Core {
 	 * @param Logger            $logger        The diagnostics logger.
 	 * @param Store             $cache         The artifact cache store.
 	 * @param Serve_Router      $router        The early, contained serve router.
+	 * @param Content_Types     $content_types The content-type capability matrix.
+	 * @param Eligibility       $eligibility   The eligibility predicate and enumeration.
 	 */
 	public function __construct(
 		private Artifact_Registry $artifacts,
@@ -54,6 +57,8 @@ final readonly class Core {
 		private Logger $logger,
 		private Store $cache,
 		private Serve_Router $router,
+		private Content_Types $content_types,
+		private Eligibility $eligibility,
 	) {}
 
 	/**
@@ -120,6 +125,31 @@ final readonly class Core {
 	 */
 	public function router(): Serve_Router {
 		return $this->router;
+	}
+
+	/**
+	 * Returns the content-type capability matrix.
+	 *
+	 * Modules register their capability column on it in boot(); consumers read
+	 * which types get which artifact through it (docs/spec/llms-txt.md §3.1).
+	 *
+	 * @since 0.2.0
+	 *
+	 * @return Content_Types
+	 */
+	public function content_types(): Content_Types {
+		return $this->content_types;
+	}
+
+	/**
+	 * Returns the eligibility predicate and enumeration.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @return Eligibility
+	 */
+	public function eligibility(): Eligibility {
+		return $this->eligibility;
 	}
 
 }

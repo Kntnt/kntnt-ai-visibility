@@ -26,6 +26,7 @@ Precedence over any conflicting skill, README or other doc unless the user overr
 - `agents.d/testing.md` — when running or changing the test suites
 - `docs/architecture.md` — designed architecture: Core plus four deep modules, artifact model, request lifecycle
 - `docs/spec/markdown-alternate.md` — concrete Release-1 contracts (Core slice + Markdown module); read before implementing
+- `docs/spec/llms-txt.md` — concrete Release-2 contracts (llms.txt module + Core extensions: content-type matrix, exact-path router); read before implementing
 - `docs/Charter.md` — product brief, market and the four-step plan
 - `docs/adr/` — the authoritative decisions (ADR-0001 … 0010)
 - `CONTEXT.md` — domain glossary

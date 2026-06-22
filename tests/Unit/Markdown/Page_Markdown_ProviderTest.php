@@ -19,8 +19,8 @@ use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Discovery_Context;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
+use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
-use Kntnt\Ai_Visibility\Markdown\Eligibility;
 use Kntnt\Ai_Visibility\Markdown\Page_Markdown_Provider;
 
 beforeEach(function (): void {

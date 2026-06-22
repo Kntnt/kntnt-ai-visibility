@@ -17,9 +17,13 @@ declare( strict_types = 1 );
 namespace Kntnt\Ai_Visibility;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Artifact_Registry;
+use Kntnt\Ai_Visibility\Core\Cache\Cache_Version;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
+use Kntnt\Ai_Visibility\Core\Content\Content_Matrix;
+use Kntnt\Ai_Visibility\Core\Content\Content_Settings;
 use Kntnt\Ai_Visibility\Core\Core;
+use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Front_Matter;
 use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
 use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
@@ -268,7 +272,20 @@ final class Plugin {
 			is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS,
 			base_path: static fn(): string => rtrim( (string) wp_parse_url( (string) home_url( '/' ), PHP_URL_PATH ), '/' ),
 		);
-		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router );
+
+		// The content-type matrix and the eligibility predicate are Core concepts
+		// the modules contribute columns to and read their type sets from
+		// (docs/spec/llms-txt.md §2). The matrix reads its saved cells from the
+		// `content_types` slice of the single option.
+		$matrix = new Content_Matrix( static fn(): array => self::content_types_option() );
+		$eligibility = new Eligibility( $matrix );
+		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router, $matrix, $eligibility );
+
+		// Core owns the single settings section — the matrix and the clear-cache
+		// action beside it; modules contribute only their columns.
+		$content_settings = new Content_Settings( $matrix, $store, new Cache_Version() );
+		$settings->register_section( $content_settings->section() );
+		$content_settings->register();
 
 		// Boot the feature modules against Core, in dependency order.
 		( new Markdown\Module() )->boot( $this->core );
@@ -311,6 +328,36 @@ final class Plugin {
 			: WP_CONTENT_DIR . '/uploads';
 
 		return $base . '/kntnt-ai-visibility-cache';
+
+	}
+
+	/**
+	 * Reads the saved content-type matrix slice from the single option.
+	 *
+	 * The matrix lives under `content_types` in the `kntnt_ai_visibility` option;
+	 * an unsaved install returns an empty matrix so the column defaults apply
+	 * (docs/spec/llms-txt.md §6).
+	 *
+	 * @since 0.2.0
+	 *
+	 * @return array<string, mixed> The saved cells, or an empty matrix.
+	 */
+	private static function content_types_option(): array {
+
+		// Resolve the option, then the namespaced slice, defaulting both to empty.
+		$option = get_option( 'kntnt_ai_visibility', [] );
+		$slice = is_array( $option ) && isset( $option['content_types'] ) ? $option['content_types'] : [];
+
+		// Keep only string-keyed entries (post-type slugs) so the matrix reader
+		// receives a clean type => cells map.
+		$matrix = [];
+		foreach ( is_array( $slice ) ? $slice : [] as $type => $cells ) {
+			if ( is_string( $type ) ) {
+				$matrix[ $type ] = $cells;
+			}
+		}
+
+		return $matrix;
 
 	}
 
