@@ -5,7 +5,7 @@
 # Two levels:
 #   Level 1  PHP unit tests (Pest + Brain Monkey + Mockery + Patchwork).
 #   Level 2  End-to-end smoke test that boots the plugin in WordPress Playground
-#            (WASM PHP 8.5) via @wp-playground/cli — see tests/Integration.
+#            (WASM PHP 8.4) via @wp-playground/cli — see tests/Integration.
 #
 # There is deliberately NO automatic DDEV fallback. If Playground cannot run the
 # behaviour under test, that is raised to the maintainer as a decision, not
@@ -28,7 +28,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PHP_FLOOR="8.5"
+PHP_FLOOR="8.4"
 
 PHP_BIN="${PHP_BIN:-}"
 COMPOSER_BIN="${COMPOSER_BIN:-}"
@@ -84,7 +84,7 @@ resolve_tools() {
 	fi
 }
 
-# Enforce the PHP 8.5 floor — the plugin and its bundled converter require it.
+# Enforce the PHP 8.4 floor — the plugin and its bundled converter require it.
 verify_php_version() {
 	local version
 	version="$("$PHP_BIN" -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;' 2>/dev/null || echo '0.0')"
@@ -136,7 +136,7 @@ run_e2e() {
 		echo "" >&2
 		echo "Playground could not run the plugin's behaviour. Per docs/adr/0004, this" >&2
 		echo "is NOT auto-resolved with a DDEV fallback — raise it to the maintainer" >&2
-		echo "with the options (DDEV / lower the converter to PHP 8.4 / other)." >&2
+		echo "with the options (DDEV / other)." >&2
 	fi
 }
 

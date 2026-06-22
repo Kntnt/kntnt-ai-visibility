@@ -3,7 +3,7 @@
  * Integration e2e: the Markdown alternate behaves correctly in WordPress Playground.
  *
  * Drives the playground-e2e.sh harness, which boots a real Playground HTTP
- * server on PHP 8.5 with the plugin mounted and fixtures seeded, then exercises
+ * server on PHP 8.4 with the plugin mounted and fixtures seeded, then exercises
  * the `.md` request lifecycle over HTTP (real `.md`, `?format=markdown`, `Accept`
  * negotiation, `/index.md`, 404/403/301, traversal payloads). Because it
  * downloads and runs a WASM WordPress build over the network it is skipped
@@ -16,7 +16,7 @@
 
 declare(strict_types=1);
 
-it('serves Markdown alternates correctly in WordPress Playground on PHP 8.5', function (): void {
+it('serves Markdown alternates correctly in WordPress Playground on PHP 8.4', function (): void {
     if (getenv('KNTNT_RUN_PLAYGROUND') !== '1') {
         $this->markTestSkipped('Set KNTNT_RUN_PLAYGROUND=1 (or run `bash run-tests.sh`) to run the Playground e2e.');
     }

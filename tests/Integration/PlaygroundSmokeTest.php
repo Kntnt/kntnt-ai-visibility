@@ -1,6 +1,6 @@
 <?php
 /**
- * Integration smoke test: the plugin boots in WordPress Playground on PHP 8.5.
+ * Integration smoke test: the plugin boots in WordPress Playground on PHP 8.4.
  *
  * This drives the same playground-smoke.sh harness that run-tests.sh Level 2
  * and the CI e2e job use, so the Integration test suite and the shell entry
@@ -14,7 +14,7 @@
 
 declare(strict_types=1);
 
-it('boots the plugin in WordPress Playground on PHP 8.5', function (): void {
+it('boots the plugin in WordPress Playground on PHP 8.4', function (): void {
     if (getenv('KNTNT_RUN_PLAYGROUND') !== '1') {
         $this->markTestSkipped('Set KNTNT_RUN_PLAYGROUND=1 (or run `bash run-tests.sh`) to run the Playground e2e.');
     }

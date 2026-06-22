@@ -2,7 +2,7 @@
 /**
  * Playground end-to-end content seed.
  *
- * Runs inside WordPress Playground (WASM PHP 8.5) at boot, after the plugin is
+ * Runs inside WordPress Playground (WASM PHP 8.4) at boot, after the plugin is
  * activated, to create the fixtures the behavioural e2e (playground-e2e.sh)
  * requests over HTTP: a published page, a slug-`index` home page, a
  * password-protected page and a draft, plus a published post. Explicit excerpts

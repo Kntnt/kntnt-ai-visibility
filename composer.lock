@@ -4,26 +4,26 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9b05743929a85e3653f5106a47a94fd6",
+    "content-hash": "0938bb968fa2f892ae31ea6e33d5317d",
     "packages": [
         {
             "name": "kntnt/html-to-markdown",
-            "version": "v0.1.1",
+            "version": "v0.1.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Kntnt/kntnt-html-to-markdown.git",
-                "reference": "a98ce00450cd8963df5b97b64d3721e8aa7be080"
+                "reference": "7ca18dbc18a8494ef526bbd30d5eedebecc7d29d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Kntnt/kntnt-html-to-markdown/zipball/a98ce00450cd8963df5b97b64d3721e8aa7be080",
-                "reference": "a98ce00450cd8963df5b97b64d3721e8aa7be080",
+                "url": "https://api.github.com/repos/Kntnt/kntnt-html-to-markdown/zipball/7ca18dbc18a8494ef526bbd30d5eedebecc7d29d",
+                "reference": "7ca18dbc18a8494ef526bbd30d5eedebecc7d29d",
                 "shasum": ""
             },
             "require": {
                 "ext-dom": "*",
                 "ext-mbstring": "*",
-                "php": ">=8.5"
+                "php": ">=8.4"
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.64",
@@ -52,7 +52,7 @@
                     "role": "Author of the original Go library"
                 }
             ],
-            "description": "A dependency-free PHP 8.5 library that converts HTML into GitHub Flavored Markdown. A faithful port of the Go library JohannesKaufmann/html-to-markdown (v2).",
+            "description": "A dependency-free PHP 8.4 library that converts HTML into GitHub Flavored Markdown. A faithful port of the Go library JohannesKaufmann/html-to-markdown (v2).",
             "keywords": [
                 "commonmark",
                 "converter",
@@ -62,9 +62,9 @@
             ],
             "support": {
                 "issues": "https://github.com/Kntnt/kntnt-html-to-markdown/issues",
-                "source": "https://github.com/Kntnt/kntnt-html-to-markdown/tree/v0.1.1"
+                "source": "https://github.com/Kntnt/kntnt-html-to-markdown/tree/v0.1.3"
             },
-            "time": "2026-06-04T08:32:02+00:00"
+            "time": "2026-06-22T20:56:32+00:00"
         }
     ],
     "packages-dev": [
@@ -4993,7 +4993,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.5"
+        "php": ">=8.4"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"

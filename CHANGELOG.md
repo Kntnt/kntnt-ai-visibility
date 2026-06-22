@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.2.1] – 2026-06-23
+
+### Changed
+
+- Lowered the minimum PHP version from 8.5 to 8.4. The floor came entirely from the bundled `kntnt/html-to-markdown` converter's use of the PHP-8.5-only `Uri\Rfc3986\Uri` class for relative-URL resolution; the converter now hand-ports RFC 3986 §5.2 reference resolution instead (byte-for-byte-identical output, verified by its golden fixtures), leaving the native `Dom\HTMLDocument` HTML5 parser (PHP 8.4) as the only floor driver. The bundled converter is bumped to `^0.1.3`, and CI, PHPStan's `phpVersion`, the PHPCS `testVersion` and the Playground e2e harness now target PHP 8.4.
+
 ## [0.2.0] – 2026-06-22
 
 ### Added
@@ -53,6 +59,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Tooling: Composer scripts (`test`, `stan`, `phpcs`, `phpcbf`, `build`), a Pest unit suite, PHPStan at level max, PHPCS (WordPress Coding Standards with four documented deviations), and the WordPress Playground end-to-end harness driven by `run-tests.sh`.
 - Continuous integration (`.github/workflows/tests.yml`): lint, static analysis, unit tests with coverage ≥ 80 %, and Playground e2e on PHP 8.5, plus automated tag-to-release builds (`.github/workflows/release.yml`) that publish a version-less `kntnt-ai-visibility.zip` asset.
 
-[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.1.0

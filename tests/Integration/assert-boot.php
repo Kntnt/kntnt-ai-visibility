@@ -2,7 +2,7 @@
 /**
  * Playground end-to-end boot assertion.
  *
- * Runs inside WordPress Playground (WASM PHP 8.5) after the plugin has been
+ * Runs inside WordPress Playground (WASM PHP 8.4) after the plugin has been
  * activated. It loads WordPress, verifies the plugin booted cleanly, and prints
  * a sentinel that the smoke-test harness greps for. Any failure throws, so the
  * Playground run exits non-zero. This file lives under tests/ and is never
@@ -19,9 +19,9 @@ require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 $plugin = 'kntnt-ai-visibility/kntnt-ai-visibility.php';
 
-// The plugin requires PHP 8.5; confirm Playground actually booted on it.
-if (PHP_VERSION_ID < 80500) {
-    throw new RuntimeException('Expected PHP 8.5+, got ' . PHP_VERSION);
+// The plugin requires PHP 8.4; confirm Playground actually booted on it.
+if (PHP_VERSION_ID < 80400) {
+    throw new RuntimeException('Expected PHP 8.4+, got ' . PHP_VERSION);
 }
 
 // Activation must have succeeded — a fatal during load would leave it inactive.

@@ -173,8 +173,8 @@ the programmatic escape hatch. See
 
 ## Runtime foundation
 
-- **PHP 8.5 floor**, inherited from the bundled converter
-  ([ADR-0001](adr/0001-php-8-5-floor.md)); owner-controllable to 8.4 if needed.
+- **PHP 8.4 floor**, inherited from the bundled converter
+  ([ADR-0001](adr/0001-php-8-4-floor.md)); owner-controllable.
 - **`kntnt/html-to-markdown`** bundled unscoped in `vendor/`
   ([ADR-0002](adr/0002-vendor-converter-unscoped.md)).
 - **GitHub distribution** with a self-update `Updater`
@@ -206,7 +206,7 @@ advertising/link-relation stays a release 2/3 concern.
 
 | ADR | Decision |
 |---|---|
-| [0001](adr/0001-php-8-5-floor.md) | PHP 8.5 floor (owner-controllable) |
+| [0001](adr/0001-php-8-4-floor.md) | PHP 8.4 floor (owner-controllable) |
 | [0002](adr/0002-vendor-converter-unscoped.md) | Bundle the converter unscoped |
 | [0003](adr/0003-github-is-the-1-0-distribution-channel.md) | GitHub is the 1.0 channel |
 | [0004](adr/0004-playground-e2e-no-auto-ddev-fallback.md) | Playground e2e, no auto-DDEV |

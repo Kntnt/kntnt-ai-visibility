@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Boots the plugin in WordPress Playground (WASM PHP 8.5) and asserts it loads.
+# Boots the plugin in WordPress Playground (WASM PHP 8.4) and asserts it loads.
 #
 # Mounts the working copy as the plugin, runs blueprint.json (activate plugin +
 # run assert-boot.php), and greps the boot sentinel from the output. The plugin
@@ -34,7 +34,7 @@ if ! command -v npx &>/dev/null; then
 	exit 1
 fi
 
-echo "Booting WordPress Playground (PHP 8.5) with the plugin mounted…"
+echo "Booting WordPress Playground (PHP 8.4) with the plugin mounted…"
 
 # Run the blueprint headlessly, capturing all output. assert-boot.php throws on
 # any failed check, so the exit code is the authoritative signal: zero means
@@ -43,7 +43,7 @@ echo "Booting WordPress Playground (PHP 8.5) with the plugin mounted…"
 set +e
 output="$(
 	npx --yes "@wp-playground/cli@${CLI_VERSION}" run-blueprint \
-		--php=8.5 \
+		--php=8.4 \
 		--mount="${PLUGIN_ROOT}:${MOUNT_TARGET}" \
 		--blueprint="${SCRIPT_DIR}/blueprint.json" 2>&1
 )"
@@ -59,8 +59,8 @@ if [[ $run_exit -ne 0 ]]; then
 fi
 
 if grep -q "$SENTINEL" <<<"$output"; then
-	echo "Playground e2e: plugin booted on PHP 8.5 / WordPress 7.0 (${SENTINEL})."
+	echo "Playground e2e: plugin booted on PHP 8.4 / WordPress 7.0 (${SENTINEL})."
 else
-	echo "Playground e2e: plugin booted on PHP 8.5 / WordPress 7.0 (run exited 0; assert-boot.php checks passed)."
+	echo "Playground e2e: plugin booted on PHP 8.4 / WordPress 7.0 (run exited 0; assert-boot.php checks passed)."
 fi
 exit 0

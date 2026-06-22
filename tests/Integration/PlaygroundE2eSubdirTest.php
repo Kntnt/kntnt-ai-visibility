@@ -3,7 +3,7 @@
  * Integration e2e: the plugin behaves correctly on a subdirectory WordPress install.
  *
  * Drives the playground-e2e-subdir.sh harness, which boots a second Playground
- * HTTP server on PHP 8.5 with WordPress under a `/sub` subpath (set through
+ * HTTP server on PHP 8.4 with WordPress under a `/sub` subpath (set through
  * --site-url) and asserts that both the per-page `.md` and the llms singletons
  * resolve home-relative and stay contained inside the cache base. Like the root
  * e2e it downloads and runs a WASM WordPress build, so it is skipped unless
@@ -16,7 +16,7 @@
 
 declare(strict_types=1);
 
-it('serves artifacts correctly on a subdirectory install in WordPress Playground on PHP 8.5', function (): void {
+it('serves artifacts correctly on a subdirectory install in WordPress Playground on PHP 8.4', function (): void {
     if (getenv('KNTNT_RUN_PLAYGROUND') !== '1') {
         $this->markTestSkipped('Set KNTNT_RUN_PLAYGROUND=1 (or run `bash run-tests.sh`) to run the Playground e2e.');
     }

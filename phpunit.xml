@@ -10,7 +10,7 @@
             <directory>tests/Unit</directory>
         </testsuite>
         <!-- Level 2: end-to-end smoke test that boots the plugin in WordPress
-             Playground on PHP 8.5 (see tests/Integration and run-tests.sh). -->
+             Playground on PHP 8.4 (see tests/Integration and run-tests.sh). -->
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
         </testsuite>

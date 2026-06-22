@@ -53,12 +53,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Booting WordPress Playground (PHP 8.5) under ${BASE} with the plugin mounted…"
+echo "Booting WordPress Playground (PHP 8.4) under ${BASE} with the plugin mounted…"
 
 # Boot with a subdirectory site URL; a single worker is mandatory for the same
 # VFS/SQLite-snapshot reason as the root run.
 npx --yes "@wp-playground/cli@${CLI_VERSION}" server \
-	--php=8.5 \
+	--php=8.4 \
 	--wp=latest \
 	--workers=1 \
 	--port="${PORT}" \
@@ -167,5 +167,5 @@ if [[ "$FAIL" -gt 0 ]]; then
 	cat "$LOG" >&2
 	exit 1
 fi
-echo "Playground subdirectory behavioural e2e passed on PHP 8.5 / WordPress latest."
+echo "Playground subdirectory behavioural e2e passed on PHP 8.4 / WordPress latest."
 exit 0

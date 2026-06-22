@@ -3,9 +3,9 @@
  * Plugin Name:       Kntnt AI Visibility
  * Plugin URI:        https://github.com/Kntnt/kntnt-ai-visibility
  * Description:       Makes content-rich WordPress sites discoverable, visible and readable by AI agents.
- * Version:           0.2.0
+ * Version:           0.2.1
  * Requires at least: 7.0
- * Requires PHP:      8.5
+ * Requires PHP:      8.4
  * Author:            Kntnt
  * Author URI:        https://www.kntnt.com
  * License:           GPL-2.0-or-later
@@ -25,9 +25,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Guards against running on a PHP version older than the 8.5 floor.
+ * Guards against running on a PHP version older than the 8.4 floor.
  *
- * The bundled Markdown converter requires PHP 8.5 (see docs/adr/0001), and the
+ * The bundled Markdown converter requires PHP 8.4 (see docs/adr/0001), and the
  * plugin header already makes WordPress block activation on older installs.
  * This is a second line of defence for environments that load the plugin
  * outside the normal activation path: it shows an admin notice and deactivates
@@ -35,12 +35,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 0.1.0
  *
- * @return bool True when PHP is 8.5 or newer; false when the guard fires.
+ * @return bool True when PHP is 8.4 or newer; false when the guard fires.
  */
 function kntnt_ai_visibility_requirements_check(): bool {
 
 	// Nothing to do when the runtime meets the requirement.
-	if ( version_compare( PHP_VERSION, '8.5', '>=' ) ) {
+	if ( version_compare( PHP_VERSION, '8.4', '>=' ) ) {
 		return true;
 	}
 
@@ -51,7 +51,7 @@ function kntnt_ai_visibility_requirements_check(): bool {
 			$message = sprintf(
 				/* translators: 1: required PHP version, 2: current PHP version. */
 				__( 'Kntnt AI Visibility requires PHP %1$s or later. This server runs PHP %2$s. The plugin has been deactivated.', 'kntnt-ai-visibility' ),
-				'8.5',
+				'8.4',
 				PHP_VERSION,
 			);
 			printf( '<div class="notice notice-error"><p>%s</p></div>', esc_html( $message ) );

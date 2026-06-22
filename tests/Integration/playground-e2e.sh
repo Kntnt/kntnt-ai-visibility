@@ -2,7 +2,7 @@
 #
 # Behavioural end-to-end test of the Markdown alternate in WordPress Playground.
 #
-# Boots a real Playground HTTP server (WASM PHP 8.5) with the plugin mounted and
+# Boots a real Playground HTTP server (WASM PHP 8.4) with the plugin mounted and
 # fixtures seeded (e2e-blueprint.json + e2e-seed.php), then drives the actual
 # request lifecycle over HTTP with curl and asserts the contracts of
 # docs/spec/markdown-alternate.md and docs/spec/llms-txt.md: a real `.md` (200 +
@@ -56,7 +56,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Booting WordPress Playground (PHP 8.5) on ${BASE} with the plugin mounted…"
+echo "Booting WordPress Playground (PHP 8.4) on ${BASE} with the plugin mounted…"
 
 # Start the server in the background; the blueprint activates the plugin and
 # seeds the fixtures before the server begins accepting requests. A single
@@ -64,7 +64,7 @@ echo "Booting WordPress Playground (PHP 8.5) on ${BASE} with the plugin mounted�
 # so with several workers the seeded content and the files this plugin writes to
 # the cache on one request are invisible to the worker handling the next.
 npx --yes "@wp-playground/cli@${CLI_VERSION}" server \
-	--php=8.5 \
+	--php=8.4 \
 	--wp=latest \
 	--workers=1 \
 	--port="${PORT}" \
@@ -325,5 +325,5 @@ if [[ "$FAIL" -gt 0 ]]; then
 	cat "$LOG" >&2
 	exit 1
 fi
-echo "Playground behavioural e2e passed on PHP 8.5 / WordPress latest."
+echo "Playground behavioural e2e passed on PHP 8.4 / WordPress latest."
 exit 0

@@ -18,7 +18,7 @@ cd kntnt-ai-visibility
 composer install
 ```
 
-The plugin requires **PHP 8.5** – the floor comes from the bundled `kntnt/html-to-markdown` converter (see [`docs/adr/0001-php-8-5-floor.md`](docs/adr/0001-php-8-5-floor.md)). The end-to-end tests additionally need Node.js for the WordPress Playground harness.
+The plugin requires **PHP 8.4** – the floor comes from the bundled `kntnt/html-to-markdown` converter (see [`docs/adr/0001-php-8-4-floor.md`](docs/adr/0001-php-8-4-floor.md)). The end-to-end tests additionally need Node.js for the WordPress Playground harness.
 
 ## Quality gates
 
@@ -31,7 +31,7 @@ composer test      # Pest unit suite
 bash run-tests.sh  # Level 1 (Pest) + Level 2 (Playground e2e)
 ```
 
-`composer phpcbf` fixes most coding-standard violations automatically. The Playground e2e layer boots the plugin on PHP 8.5 via `@wp-playground/cli`; there is deliberately **no** automatic DDEV fallback (see [`docs/adr/0004-playground-e2e-no-auto-ddev-fallback.md`](docs/adr/0004-playground-e2e-no-auto-ddev-fallback.md)). If Playground genuinely cannot exercise a behaviour, raise it on the issue tracker rather than wiring in a fallback.
+`composer phpcbf` fixes most coding-standard violations automatically. The Playground e2e layer boots the plugin on PHP 8.4 via `@wp-playground/cli`; there is deliberately **no** automatic DDEV fallback (see [`docs/adr/0004-playground-e2e-no-auto-ddev-fallback.md`](docs/adr/0004-playground-e2e-no-auto-ddev-fallback.md)). If Playground genuinely cannot exercise a behaviour, raise it on the issue tracker rather than wiring in a fallback.
 
 ## Coding and writing standards
 
@@ -47,7 +47,7 @@ While the major version is `0`, the project makes **no backwards-compatibility c
 
 1. Branch from `main` and keep each pull request focused on a single concern.
 2. Make sure the quality gates above pass locally.
-3. Open the pull request against `main`. CI runs lint, static analysis, unit (coverage ≥ 80 %) and e2e jobs on PHP 8.5; all must be green.
+3. Open the pull request against `main`. CI runs lint, static analysis, unit (coverage ≥ 80 %) and e2e jobs on PHP 8.4; all must be green.
 4. Describe what changed and why. Link any related issue.
 
 ## Licence

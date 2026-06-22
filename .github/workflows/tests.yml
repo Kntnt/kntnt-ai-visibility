@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up PHP 8.5
+      - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.4'
           tools: composer
           coverage: none
       - name: Install dependencies
@@ -33,10 +33,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up PHP 8.5
+      - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.4'
           tools: composer
           coverage: none
       - name: Install dependencies
@@ -49,10 +49,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up PHP 8.5
+      - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.4'
           tools: composer
           coverage: pcov
       - name: Install dependencies
@@ -61,14 +61,14 @@ jobs:
         run: vendor/bin/pest --testsuite=Unit --coverage --min=80
 
   e2e:
-    name: e2e (WordPress Playground, PHP 8.5)
+    name: e2e (WordPress Playground, PHP 8.4)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up PHP 8.5
+      - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.4'
           tools: composer
           coverage: none
       - name: Set up Node.js

@@ -1,7 +1,7 @@
 # Kntnt AI Visibility
 
 [![Requires WordPress: 7.0+](https://img.shields.io/badge/WordPress-7.0+-blue.svg)](https://wordpress.org)
-[![Requires PHP: 8.5+](https://img.shields.io/badge/PHP-8.5+-blue.svg)](https://php.net)
+[![Requires PHP: 8.4+](https://img.shields.io/badge/PHP-8.4+-blue.svg)](https://php.net)
 [![License: GPL v2+](https://img.shields.io/badge/License-GPLv2+-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
 
 A WordPress plugin that makes content-rich websites discoverable, visible and readable by AI agents – with zero configuration and no dependency on an SEO or e-commerce plugin.
@@ -25,7 +25,7 @@ Which content each file exposes is set on a single settings page – one row per
 
 | Requirement | Minimum |
 |---|---|
-| PHP | 8.5 |
+| PHP | 8.4 |
 | WordPress | 7.0 |
 
 The plugin checks the PHP version on activation and aborts with a clear admin notice if the requirement is not met. WordPress blocks activation on versions older than 7.0.
@@ -103,7 +103,7 @@ bash run-tests.sh             # Level 1 (Pest) + Level 2 (Playground e2e)
 bash run-tests.sh --unit-only # Level 1 only
 ```
 
-Level 2 boots the plugin in [WordPress Playground](https://wordpress.github.io/wordpress-playground/) on PHP 8.5 via `@wp-playground/cli` (needs Node.js). There is deliberately **no** automatic DDEV fallback – see [`docs/adr/0004`](docs/adr/0004-playground-e2e-no-auto-ddev-fallback.md).
+Level 2 boots the plugin in [WordPress Playground](https://wordpress.github.io/wordpress-playground/) on PHP 8.4 via `@wp-playground/cli` (needs Node.js). There is deliberately **no** automatic DDEV fallback – see [`docs/adr/0004`](docs/adr/0004-playground-e2e-no-auto-ddev-fallback.md).
 
 ### Building a release ZIP locally
 
