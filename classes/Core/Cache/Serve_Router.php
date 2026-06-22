@@ -21,6 +21,7 @@ namespace Kntnt\Ai_Visibility\Core\Cache;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
+use Kntnt\Ai_Visibility\Core\Http\Conditional_Request;
 use Kntnt\Ai_Visibility\Core\Logger;
 
 /**
@@ -54,19 +55,34 @@ final class Serve_Router {
 	private const SAFE_KEY = '~^[A-Za-z0-9]+(?:[/_-][A-Za-z0-9]+)*$~';
 
 	/**
-	 * Binds the router to its store, provider registry and optional logger.
+	 * Clock used for the TTL safety net.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @var callable(): int
+	 */
+	private $clock;
+
+	/**
+	 * Binds the router to its store, provider registry, logger and TTL.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param Store                                       $store    The cache store.
 	 * @param \Kntnt\Ai_Visibility\Core\Artifact\Registry $registry The provider registry (serve allowlist).
 	 * @param Logger|null                                 $logger   Optional logger for refused requests.
+	 * @param int                                         $ttl      Max cache-file age in seconds; 0 disables the safety net.
+	 * @param (callable(): int)|null                      $clock    Returns the current Unix time; defaults to time().
 	 */
 	public function __construct(
 		private readonly Store $store,
 		private readonly \Kntnt\Ai_Visibility\Core\Artifact\Registry $registry,
 		private readonly ?Logger $logger = null,
-	) {}
+		private readonly int $ttl = 0,
+		?callable $clock = null,
+	) {
+		$this->clock = $clock ?? static fn (): int => time();
+	}
 
 	/**
 	 * Resolves an untrusted request to a safe, contained, existing cache path.
@@ -115,8 +131,12 @@ final class Serve_Router {
 			return null;
 		}
 
-		// Serve only a regular file.
-		return is_file( $real ) ? $real : null;
+		// Serve only a regular file that has not aged past the TTL safety net.
+		if ( ! is_file( $real ) || $this->is_expired( $real ) ) {
+			return null;
+		}
+
+		return $real;
 
 	}
 
@@ -177,7 +197,7 @@ final class Serve_Router {
 		// Derive validators from the file: a content ETag and the modified time.
 		$last_modified = (int) filemtime( $path );
 		$etag = '"' . md5_file( $path ) . '"';
-		$not_modified = $this->is_not_modified( $request, $etag, $last_modified );
+		$not_modified = Conditional_Request::is_fresh( $request->if_none_match, $request->if_modified_since, $etag, $last_modified );
 
 		// Headers common to both 200 and 304 responses.
 		$headers = [
@@ -212,6 +232,25 @@ final class Serve_Router {
 	}
 
 	/**
+	 * Reports whether a cache file has aged past the TTL safety net.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param string $path The realpath of the cache file.
+	 * @return bool True when the file is older than the configured TTL.
+	 */
+	private function is_expired( string $path ): bool {
+
+		// A non-positive TTL disables the safety net entirely.
+		if ( $this->ttl <= 0 ) {
+			return false;
+		}
+
+		return ( ( $this->clock )() - (int) filemtime( $path ) ) > $this->ttl;
+
+	}
+
+	/**
 	 * Matches a path against the allowlist and returns a validated identity.
 	 *
 	 * @since 0.1.0
@@ -239,34 +278,6 @@ final class Serve_Router {
 		}
 
 		return null;
-
-	}
-
-	/**
-	 * Decides whether a conditional request may be answered with 304.
-	 *
-	 * @since 0.1.0
-	 *
-	 * @param Request $request       The request carrying the conditional headers.
-	 * @param string  $etag          The current content ETag (quoted).
-	 * @param int     $last_modified The file's modified time.
-	 * @return bool True when the client's copy is still fresh.
-	 */
-	private function is_not_modified( Request $request, string $etag, int $last_modified ): bool {
-
-		// A matching (or wildcard) If-None-Match is authoritative over the date.
-		if ( $request->if_none_match !== '' ) {
-			$candidate = trim( $request->if_none_match );
-			return $candidate === '*' || $candidate === $etag;
-		}
-
-		// Otherwise honour If-Modified-Since when the file is no newer than it.
-		if ( $request->if_modified_since !== '' ) {
-			$since = strtotime( $request->if_modified_since );
-			return $since !== false && $last_modified <= $since;
-		}
-
-		return false;
 
 	}
 

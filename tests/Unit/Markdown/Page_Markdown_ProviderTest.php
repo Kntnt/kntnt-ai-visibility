@@ -151,6 +151,7 @@ describe('Page_Markdown_Provider::advertise', function (): void {
         $post     = new WP_Post();
         $post->ID = 42;
         Functions\when('get_permalink')->justReturn('https://example.com/about/team/');
+        $this->eligibility->shouldReceive('is_eligible')->with($post)->andReturnTrue();
 
         $relations = $this->provider->advertise(new Discovery_Context($post));
 
@@ -158,6 +159,29 @@ describe('Page_Markdown_Provider::advertise', function (): void {
         expect($relations[0]->href)->toBe('https://example.com/about/team.md');
         expect($relations[0]->rel)->toBe('alternate');
         expect($relations[0]->type)->toBe('text/markdown');
+    });
+
+    it('advertises nothing for an ineligible page', function (): void {
+        $post = new WP_Post();
+        $this->eligibility->shouldReceive('is_eligible')->andReturnFalse();
+
+        expect($this->provider->advertise(new Discovery_Context($post)))->toBe([]);
+    });
+
+});
+
+describe('Page_Markdown_Provider::identity_for_post', function (): void {
+
+    it('builds the markdown-alternate identity from the permalink', function (): void {
+        $post     = new WP_Post();
+        $post->ID = 8;
+        Functions\when('get_permalink')->justReturn('https://example.com/news/hello/');
+
+        $identity = $this->provider->identity_for_post($post);
+
+        expect($identity->kind)->toBe('markdown-alternate');
+        expect($identity->key)->toBe('news/hello');
+        expect($identity->source_id)->toBe(8);
     });
 
 });

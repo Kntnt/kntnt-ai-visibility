@@ -133,6 +133,27 @@ describe('Serve_Router::resolve — refusals', function (): void {
         expect($this->router->resolve(kntnt_get("/about/team\0.md")))->toBeNull();
     });
 
+    it('treats a cache file older than the TTL as a miss', function (): void {
+        $store = new File_Store(fn(): string => $this->base);
+        $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
+        $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+        // A clock 200s ahead of the file, with a 100s TTL, makes the file stale.
+        $mtime = (int) filemtime($this->base . '/markdown-alternate/about/team.md');
+        $router = new Serve_Router($store, $registry, null, 100, fn(): int => $mtime + 200);
+
+        expect($router->resolve(kntnt_get('/about/team.md')))->toBeNull();
+    });
+
+    it('serves a cache file within the TTL', function (): void {
+        $store = new File_Store(fn(): string => $this->base);
+        $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
+        $registry->shouldReceive('serve_patterns')->andReturn([new Serve_Pattern('markdown-alternate', '.md')]);
+        $mtime = (int) filemtime($this->base . '/markdown-alternate/about/team.md');
+        $router = new Serve_Router($store, $registry, null, 100, fn(): int => $mtime + 50);
+
+        expect($router->resolve(kntnt_get('/about/team.md')))->toBe(realpath($this->base . '/markdown-alternate/about/team.md'));
+    });
+
     it('refuses a symlink that escapes the cache base', function (): void {
         // A secret outside the cache, reachable only via a symlink planted
         // inside it — realpath() must see through it and the router must refuse.

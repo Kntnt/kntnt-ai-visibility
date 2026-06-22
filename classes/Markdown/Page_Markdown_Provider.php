@@ -96,8 +96,24 @@ final class Page_Markdown_Provider implements Provider {
 			return null;
 		}
 
-		return new Identity( self::KIND, $this->key_for( $post ), $post->ID );
+		return $this->identity_for_post( $post );
 
+	}
+
+	/**
+	 * Builds the cache identity for a post.
+	 *
+	 * Shared by match() and the invalidation hooks so the cache key derivation
+	 * lives in one place. It does not check eligibility — deleting the cache for
+	 * an ineligible post is a harmless no-op.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param \WP_Post $post The post.
+	 * @return Identity
+	 */
+	public function identity_for_post( \WP_Post $post ): Identity {
+		return new Identity( self::KIND, $this->key_for( $post ), $post->ID );
 	}
 
 	/**
@@ -130,7 +146,15 @@ final class Page_Markdown_Provider implements Provider {
 	 * @return list<Link_Relation>
 	 */
 	public function advertise( Discovery_Context $context ): array {
+
+		// Advertise only for pages that actually have an alternate, so a generic
+		// discovery walk over all providers needs no eligibility knowledge of its own.
+		if ( ! $this->eligibility->is_eligible( $context->post ) ) {
+			return [];
+		}
+
 		return [ new Link_Relation( $this->md_url( $context->post ), 'alternate', 'text/markdown' ) ];
+
 	}
 
 	/**
