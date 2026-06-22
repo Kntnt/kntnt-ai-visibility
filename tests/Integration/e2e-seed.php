@@ -5,9 +5,11 @@
  * Runs inside WordPress Playground (WASM PHP 8.5) at boot, after the plugin is
  * activated, to create the fixtures the behavioural e2e (playground-e2e.sh)
  * requests over HTTP: a published page, a slug-`index` home page, a
- * password-protected page and a draft. It switches the site to pretty
- * permalinks and flushes the rewrite cache so the Markdown module's `.md` rules
- * resolve. This file lives under tests/ and never ships in the release zip.
+ * password-protected page and a draft, plus a published post. Explicit excerpts
+ * give the llms.txt index deterministic descriptions to assert. It switches the
+ * site to pretty permalinks and flushes the rewrite cache so the Markdown `.md`
+ * and the llms singleton rules resolve. This file lives under tests/ and never
+ * ships in the release zip.
  *
  * @package Tests\Integration
  * @since   0.1.0
@@ -29,6 +31,7 @@ $pages = [
         'post_name'    => 'about',
         'post_title'   => 'About Us',
         'post_status'  => 'publish',
+        'post_excerpt' => 'The team behind the site.',
         'post_content' => "<h2>Our team</h2>\n<p>Read the <a href=\"/contact/\">contact page</a>.</p>",
     ],
     [
@@ -62,6 +65,7 @@ wp_insert_post([
     'post_name'    => 'hello-md',
     'post_title'   => 'Hello Markdown',
     'post_status'  => 'publish',
+    'post_excerpt' => 'A short post.',
     'post_content' => '<p>A post body.</p>',
 ]);
 

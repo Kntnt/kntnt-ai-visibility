@@ -4,12 +4,15 @@
 #
 # Boots a real Playground HTTP server (WASM PHP 8.5) with the plugin mounted and
 # fixtures seeded (e2e-blueprint.json + e2e-seed.php), then drives the actual
-# `.md` request lifecycle over HTTP with curl and asserts the contracts of
-# docs/spec/markdown-alternate.md: a real `.md` (200 + text/markdown + the
-# front-matter/H1/converted body), `?format=markdown`, `Accept` negotiation
-# (Vary + the steering alternate Link), `/index.md`, a 404 for ineligible
-# content, a 403 for password-protected content, a 301 for a trailing slash, and
-# path-traversal payloads that never leak.
+# request lifecycle over HTTP with curl and asserts the contracts of
+# docs/spec/markdown-alternate.md and docs/spec/llms-txt.md: a real `.md` (200 +
+# text/markdown + the front-matter/H1/converted body), `?format=markdown`,
+# `Accept` negotiation (Vary + the steering alternate Link), `/index.md`, a 404
+# for ineligible content, a 403 for password-protected content, a 301 for a
+# trailing slash, and path-traversal payloads that never leak; then `/llms.txt`
+# (text/plain, the curated index, no canonical/Vary), `/llms-full.txt` (the
+# concatenated Pages-only full text), the early-router cache hit with a stable
+# ETag and a conditional 304, HEAD, and traversal/evasion against the singletons.
 #
 # Per docs/adr/0004 there is NO DDEV fallback: a failure is raised to the
 # maintainer, not worked around by switching runtimes.
@@ -128,6 +131,7 @@ do_req() {
 
 expect_status() { [[ "$STATUS" == "$1" ]] && ok "$2 (status $1)" || no "$2 (expected $1, got $STATUS)"; }
 header_has() { grep -iqF -- "$1" "$HDR" && ok "$2" || no "$2 — header missing: $1"; }
+header_lacks() { ! grep -iqF -- "$1" "$HDR" && ok "$2" || no "$2 — header unexpectedly present: $1"; }
 body_has() { grep -qF -- "$1" "$BODYF" && ok "$2" || no "$2 — body missing: $1"; }
 body_lacks() { ! grep -qF -- "$1" "$BODYF" && ok "$2" || no "$2 — body unexpectedly contains: $1"; }
 
@@ -200,6 +204,78 @@ for payload in "/%2e%2e%2f%2e%2e%2fwp-config.php.md" "/../../wp-config.php.md"; 
 	[[ "$STATUS" != "200" ]] && ok "traversal ${payload} is not served (status $STATUS)" || no "traversal ${payload} returned 200"
 	body_lacks 'DB_PASSWORD' "traversal ${payload} leaks no wp-config"
 	body_lacks 'DB_NAME' "traversal ${payload} leaks no DB credentials"
+done
+
+# Warm the llms aggregate path the same way as the `.md` path: the first cold
+# enumeration query can miss on WASM SQLite, so poll /llms.txt until it serves.
+warm=false
+for _ in $(seq 1 20); do
+	if [[ "$(curl -sS --path-as-is -o /dev/null -w '%{http_code}' "${BASE}/llms.txt")" == "200" ]]; then
+		warm=true
+		break
+	fi
+	sleep 1
+done
+[[ "$warm" == true ]] || no "/llms.txt never warmed up"
+
+echo ""
+echo "Scenario 9: GET /llms.txt — the curated index"
+do_req "${BASE}/llms.txt"
+expect_status 200 "GET /llms.txt is 200"
+header_has 'text/plain; charset=utf-8' "GET /llms.txt is text/plain"
+header_has 'X-Content-Type-Options: nosniff' "GET /llms.txt sends nosniff"
+header_lacks 'rel="canonical"' "GET /llms.txt sends no canonical link"
+header_lacks 'Vary:' "GET /llms.txt sends no Vary"
+body_has 'Full text: /llms-full.txt' "index intro references the full file"
+body_has '## Pages' "index has a Pages section"
+body_has '## Posts' "index has a Posts section"
+body_has '/about.md)' "index links the page .md alternate"
+body_has 'The team behind the site.' "index carries the page excerpt"
+body_has 'Hello Markdown' "index lists the published post"
+body_lacks 'Secret' "password-protected page absent from the index"
+body_lacks 'Draft Item' "draft absent from the index"
+
+echo ""
+echo "Scenario 10: GET /llms-full.txt — the concatenated full text (Pages only)"
+do_req "${BASE}/llms-full.txt"
+expect_status 200 "GET /llms-full.txt is 200"
+header_has 'text/plain; charset=utf-8' "GET /llms-full.txt is text/plain"
+body_has '# About Us' "full file concatenates the page Markdown"
+body_has '## Our team' "full file carries the converted page body"
+body_has 'Welcome home.' "full file includes the home page"
+body_lacks 'A post body.' "the post is absent (Pages only by default)"
+body_lacks 'Members only.' "the password-protected page is absent"
+body_lacks 'Not published.' "the draft is absent"
+
+echo ""
+echo "Scenario 11: early-router cache hit and conditional request"
+do_req "${BASE}/llms.txt"
+ETAG1="$(grep -i '^ETag:' "$HDR" | tr -d '\r\n' | awk '{print $2}')"
+header_has 'ETag:' "GET /llms.txt carries an ETag validator"
+do_req "${BASE}/llms.txt"
+ETAG2="$(grep -i '^ETag:' "$HDR" | tr -d '\r\n' | awk '{print $2}')"
+[[ -n "$ETAG1" && "$ETAG1" == "$ETAG2" ]] && ok "the cached aggregate serves a stable ETag across requests" || no "ETag differed between requests ($ETAG1 vs $ETAG2)"
+do_req "${BASE}/llms.txt" -H "If-None-Match: ${ETAG1}"
+expect_status 304 "a matching If-None-Match yields 304"
+
+echo ""
+echo "Scenario 12: HEAD /llms.txt"
+HEAD_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' -I "${BASE}/llms.txt")"
+[[ "$HEAD_STATUS" == "200" ]] && ok "HEAD /llms.txt is 200" || no "HEAD /llms.txt expected 200, got $HEAD_STATUS"
+
+echo ""
+echo "Scenario 13: traversal and evasion against the singleton paths"
+# The invariant is the security one: the plugin must never serve a file outside
+# the cache base (no wp-config / credential leak) and must never serve the llms
+# singleton for an evasion path. The fall-through status itself is WordPress's
+# call — e.g. `/llms.txt/../../wp-config.php` is normalised to `/wp-config.php`,
+# which WordPress executes (a harmless 200 with no source leak), so status is not
+# asserted; the body invariants are.
+for payload in "/llms.txt/../../wp-config.php" "/llms.txt%00" "/llms.txt.md" "/LLMS.TXT"; do
+	do_req "${BASE}${payload}"
+	body_lacks 'DB_PASSWORD' "evasion ${payload} leaks no wp-config"
+	body_lacks 'DB_NAME' "evasion ${payload} leaks no DB credentials"
+	body_lacks 'Full text: /llms-full.txt' "evasion ${payload} is not served as llms.txt"
 done
 
 echo ""
