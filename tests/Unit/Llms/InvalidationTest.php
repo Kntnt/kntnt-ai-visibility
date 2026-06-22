@@ -54,11 +54,35 @@ describe('Invalidation::on_save', function (): void {
 
 describe('Invalidation::on_transition', function (): void {
 
-    it('bumps the cache version when the transitioned post is servable', function (): void {
+    it('bumps the cache version when a post is published (now servable)', function (): void {
         $this->eligibility->shouldReceive('is_servable')->andReturnTrue();
         $this->version->shouldReceive('bump')->once();
 
         $this->invalidation->on_transition('publish', 'draft', new WP_Post());
+    });
+
+    it('bumps when a published post is unpublished, though it is no longer servable', function (): void {
+        // The post leaves the published state (publish -> draft): is_servable is
+        // false now, but the aggregates must drop it, so the version still bumps.
+        $this->eligibility->shouldReceive('is_servable')->andReturnFalse();
+        $this->version->shouldReceive('bump')->once();
+
+        $this->invalidation->on_transition('draft', 'publish', new WP_Post());
+    });
+
+    it('bumps when a published post is trashed', function (): void {
+        $this->eligibility->shouldReceive('is_servable')->andReturnFalse();
+        $this->version->shouldReceive('bump')->once();
+
+        $this->invalidation->on_transition('trash', 'publish', new WP_Post());
+    });
+
+    it('does not bump for a transition unrelated to the published state', function (): void {
+        // draft -> pending: never servable, never published. No aggregate change.
+        $this->eligibility->shouldReceive('is_servable')->andReturnFalse();
+        $this->version->shouldReceive('bump')->never();
+
+        $this->invalidation->on_transition('pending', 'draft', new WP_Post());
     });
 
 });
