@@ -92,7 +92,7 @@ final class Content_Settings {
 
 		return new Section(
 			self::SECTION_ID,
-			__( 'Content types', 'kntnt-ai-visibility' ),
+			static fn(): string => __( 'Content types', 'kntnt-ai-visibility' ),
 			render: static function () use ( $matrix, $prefix ): void {
 				printf(
 					'<p class="description">%s</p>',

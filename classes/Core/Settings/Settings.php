@@ -196,7 +196,7 @@ final class Settings implements Registry {
 			$wp_section = "{$this->option_key}_{$section_id}";
 			$render = $section->render;
 			$callback = $render !== null ? static fn() => $render() : '__return_null';
-			add_settings_section( $wp_section, $section->title, $callback, $this->page_slug );
+			add_settings_section( $wp_section, $section->title(), $callback, $this->page_slug );
 			foreach ( $section->fields as $field ) {
 				add_settings_field(
 					"{$section_id}_{$field->key}",

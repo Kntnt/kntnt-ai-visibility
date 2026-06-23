@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Fixed
+
+- Resolved the WordPress 6.7+ "translation loading was triggered too early" notice. The settings-matrix column headers and the section heading are now translated lazily, when the settings page renders (after `init`), instead of when the plugin boots — so no translation is requested before `init`.
+
 ## [0.2.1] – 2026-06-23
 
 ### Changed

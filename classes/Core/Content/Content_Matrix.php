@@ -206,7 +206,7 @@ final class Content_Matrix implements Content_Types {
 		// Header: a blank corner cell, then each column's label.
 		echo '<table class="widefat striped"><thead><tr><th scope="col"></th>';
 		foreach ( $this->columns as $column ) {
-			printf( '<th scope="col">%s</th>', esc_html( $column->label ) );
+			printf( '<th scope="col">%s</th>', esc_html( $column->label() ) );
 		}
 		echo '</tr></thead><tbody>';
 

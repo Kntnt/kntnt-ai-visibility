@@ -46,10 +46,10 @@ final class Module implements Module_Contract {
 		// links to it, the full file concatenates it). llms.txt is on by default
 		// for every type; llms-full.txt defaults to Pages only.
 		$core->content_types()->register_column(
-			new Capability_Column( 'llms', __( 'In llms.txt', 'kntnt-ai-visibility' ), 'md', static fn( string $type ): bool => true ),
+			new Capability_Column( 'llms', static fn(): string => __( 'In llms.txt', 'kntnt-ai-visibility' ), 'md', static fn( string $type ): bool => true ),
 		);
 		$core->content_types()->register_column(
-			new Capability_Column( 'llms_full', __( 'In llms-full.txt', 'kntnt-ai-visibility' ), 'md', static fn( string $type ): bool => $type === 'page' ),
+			new Capability_Column( 'llms_full', static fn(): string => __( 'In llms-full.txt', 'kntnt-ai-visibility' ), 'md', static fn( string $type ): bool => $type === 'page' ),
 		);
 
 		// Build the type resolver and the two builders over the Core seams.

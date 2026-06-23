@@ -30,23 +30,52 @@ namespace Kntnt\Ai_Visibility\Core\Settings;
 final readonly class Section {
 
 	/**
+	 * The section heading, resolved lazily via title().
+	 *
+	 * Stored as a string or a `Closure(): string` so a translatable heading can
+	 * be translated when the settings page renders (on an admin hook, after
+	 * `init`) rather than when the section is built at plugin bootstrap — which
+	 * would trip WordPress 6.7's "translation loaded too early" notice.
+	 *
+	 * @since 0.2.1
+	 *
+	 * @var string|(\Closure(): string)
+	 */
+	private string|\Closure $title;
+
+	/**
 	 * Builds a settings section from its id, title and either fields or closures.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param string                                       $id       The section id; namespaces the module's keys.
-	 * @param string                                       $title    The section heading shown on the settings page.
+	 * @param string|(\Closure(): string)                  $title    The section heading, or a closure that
+	 *                                                                returns it — wrap a translatable heading
+	 *                                                                in a closure so it resolves at render time.
 	 * @param Field[]                                      $fields   The fields in this section (empty for a custom section).
 	 * @param (\Closure(): void)|null                      $render   Optional whole-section renderer; echoes the body.
 	 * @param (\Closure(mixed): array<string, mixed>)|null $sanitize Optional slice sanitiser; maps `$input[$id]` to the clean slice.
 	 */
 	public function __construct(
 		public string $id,
-		public string $title,
+		string|\Closure $title,
 		public array $fields = [],
 		public ?\Closure $render = null,
 		public ?\Closure $sanitize = null,
-	) {}
+	) {
+		$this->title = $title;
+	}
+
+	/**
+	 * Resolves the section heading.
+	 *
+	 * @since 0.2.1
+	 *
+	 * @return string The heading text.
+	 */
+	public function title(): string {
+		return $this->title instanceof \Closure ? ( $this->title )() : $this->title;
+	}
 
 	/**
 	 * Returns a field by key, or null when the section has no such field.

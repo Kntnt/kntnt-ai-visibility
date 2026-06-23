@@ -37,24 +37,53 @@ final readonly class Capability_Column {
 	public mixed $default;
 
 	/**
+	 * The column header, resolved lazily via label().
+	 *
+	 * Stored as a string or a `Closure(): string` so a translatable header can be
+	 * wrapped in a closure and translated when the matrix renders (on an admin
+	 * hook, after `init`) rather than when the column is constructed at plugin
+	 * bootstrap — which would trip WordPress 6.7's "translation loaded too early"
+	 * notice.
+	 *
+	 * @since 0.2.1
+	 *
+	 * @var string|(\Closure(): string)
+	 */
+	private string|\Closure $label;
+
+	/**
 	 * Declares one capability column.
 	 *
 	 * @since 0.2.0
 	 *
-	 * @param string                 $key      The column key: 'md' | 'llms' | 'llms_full'.
-	 * @param string                 $label    The column header, e.g. 'Markdown (.md)'.
-	 * @param string                 $requires The key of a column this one depends on,
-	 *                                          or '' when it stands alone. A cell is forced
-	 *                                          off when its required column's cell is off.
-	 * @param callable(string): bool $default  The default for a cell, given the post type.
+	 * @param string                      $key      The column key: 'md' | 'llms' | 'llms_full'.
+	 * @param string|(\Closure(): string) $label  The column header, or a closure that
+	 *                                            returns it — wrap a translatable label in
+	 *                                            a closure so it resolves at render time.
+	 * @param string                      $requires The key of a column this one depends on,
+	 *                                              or '' when it stands alone. A cell is forced
+	 *                                              off when its required column's cell is off.
+	 * @param callable(string): bool      $default  The default for a cell, given the post type.
 	 */
 	public function __construct(
 		public string $key,
-		public string $label,
+		string|\Closure $label,
 		public string $requires,
 		callable $default,
 	) {
+		$this->label = $label;
 		$this->default = $default;
+	}
+
+	/**
+	 * Resolves the column header label.
+	 *
+	 * @since 0.2.1
+	 *
+	 * @return string The header text.
+	 */
+	public function label(): string {
+		return $this->label instanceof \Closure ? ( $this->label )() : $this->label;
 	}
 
 }

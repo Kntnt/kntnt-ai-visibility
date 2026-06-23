@@ -49,7 +49,7 @@ final class Module implements Module_Contract {
 		$core->content_types()->register_column(
 			new Capability_Column(
 				'md',
-				__( 'Markdown (.md)', 'kntnt-ai-visibility' ),
+				static fn(): string => __( 'Markdown (.md)', 'kntnt-ai-visibility' ),
 				'',
 				static fn( string $type ): bool => true,
 			),
