@@ -63,6 +63,17 @@ describe('Content_Settings::section', function (): void {
         expect($clean['post'])->toBe(['md' => false, 'llms' => false, 'llms_full' => false]);
     });
 
+    it('drops a submitted row that is not a registered post type', function (): void {
+        $section = kntnt_content_settings()->section();
+        $clean = ($section->sanitize)([
+            'evil' => ['md' => '1'],
+            'post' => ['md' => '1'],
+        ]);
+        expect($clean)->not->toHaveKey('evil');
+        expect($clean)->toHaveKey('post');
+        expect($clean['post']['md'])->toBeTrue();
+    });
+
     it('renders the matrix checkboxes and the clear-cache button', function (): void {
         Functions\when('admin_url')->alias(static fn(string $p = ''): string => 'https://example.com/wp-admin/' . $p);
         Functions\when('wp_nonce_url')->alias(static fn(string $url, string $a): string => $url . '&_wpnonce=NONCE');

@@ -80,4 +80,17 @@ describe('Single_Flight::once', function (): void {
         expect($bytes)->toBe('CACHED');
     });
 
+    it('still produces and caches when the lock cannot be acquired', function (): void {
+        $identity = new Identity('markdown-alternate', 'nolock', 9);
+        $produced = false;
+        $flight = new Single_Flight($this->store, $this->base . '/does-not-exist');
+        $bytes = $flight->once($identity, function () use (&$produced): string {
+            $produced = true;
+            return 'BYTES';
+        });
+        expect($bytes)->toBe('BYTES');
+        expect($produced)->toBeTrue();
+        expect($this->store->read($identity))->toBe('BYTES');
+    });
+
 });
