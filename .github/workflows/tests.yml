@@ -23,6 +23,14 @@ jobs:
           php-version: '8.4'
           tools: composer
           coverage: none
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.composer/cache
+            vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
       - name: Check coding standards
@@ -39,6 +47,14 @@ jobs:
           php-version: '8.4'
           tools: composer
           coverage: none
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.composer/cache
+            vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
       - name: Run PHPStan
@@ -55,6 +71,14 @@ jobs:
           php-version: '8.4'
           tools: composer
           coverage: pcov
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.composer/cache
+            vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
       - name: Run the unit suite with coverage
@@ -75,6 +99,14 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '20'
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.composer/cache
+            vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
       - name: Boot the plugin in WordPress Playground
