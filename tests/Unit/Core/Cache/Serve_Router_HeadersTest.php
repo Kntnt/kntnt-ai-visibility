@@ -107,6 +107,13 @@ describe('Serve_Router::headers_for', function (): void {
         expect($response['status'])->toBe(304);
     });
 
+    it('omits the ETag on an If-Modified-Since-only 304', function (): void {
+        $request = new Request('GET', '/about.md', if_modified_since: $this->last_modified);
+        $response = $this->router->headers_for($this->file, $request);
+        expect($response['status'])->toBe(304);
+        expect($response['headers'])->not->toHaveKey('ETag');
+    });
+
     it('serves a 200 when If-Modified-Since predates the file', function (): void {
         $request = new Request('GET', '/about.md', if_modified_since: 'Mon, 01 Jan 2001 00:00:00 GMT');
 

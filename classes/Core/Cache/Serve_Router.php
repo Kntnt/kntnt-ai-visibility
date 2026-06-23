@@ -56,6 +56,19 @@ final class Serve_Router {
 	private const SAFE_KEY = '~^[A-Za-z0-9]+(?:[/_-][A-Za-z0-9]+)*$~';
 
 	/**
+	 * Memoized realpath of the cache base directory.
+	 *
+	 * Populated on the first resolve() call and reused on every subsequent
+	 * one, avoiding a redundant realpath() on a fixed directory per request.
+	 * False means realpath() returned false (directory does not exist).
+	 *
+	 * @since 0.2.3
+	 *
+	 * @var string|false|null
+	 */
+	private string|false|null $real_base = null;
+
+	/**
 	 * Clock used for the TTL safety net.
 	 *
 	 * @since 0.1.0
@@ -152,7 +165,8 @@ final class Serve_Router {
 		// it strictly inside the cache base — the backstop against traversal and
 		// symlink escape that survives even if the whitelist were bypassed.
 		$candidate = $this->store->path_for( $identity );
-		$real_base = realpath( $this->store->base_dir() );
+		$this->real_base ??= realpath( $this->store->base_dir() );
+		$real_base = $this->real_base;
 		$real = realpath( $candidate );
 		if ( $real_base === false || $real === false ) {
 			return null;
@@ -228,16 +242,17 @@ final class Serve_Router {
 	 */
 	public function headers_for( string $path, Request $request, string $content_type = self::CONTENT_TYPE, string $canonical_url = '' ): array {
 
-		// Derive validators from the file: a content ETag and the modified time.
+		// Derive validators from the file: a last-modified time and, only when the
+		// client sent an If-None-Match header, a content ETag (md5_file is skipped
+		// on If-Modified-Since-only requests where the body is never read anyway).
 		$last_modified = (int) filemtime( $path );
-		$etag = '"' . md5_file( $path ) . '"';
-		$not_modified = Conditional_Request::is_fresh( $request->if_none_match, $request->if_modified_since, $etag, $last_modified );
+		$etag = $request->if_none_match !== '' ? '"' . md5_file( $path ) . '"' : null;
+		$not_modified = Conditional_Request::is_fresh( $request->if_none_match, $request->if_modified_since, $etag ?? '', $last_modified );
 
 		// Headers common to both 200 and 304 responses.
 		$headers = [
 			'X-Content-Type-Options' => 'nosniff',
 			'Last-Modified'          => gmdate( 'D, d M Y H:i:s', $last_modified ) . ' GMT',
-			'ETag'                   => $etag,
 		];
 
 		// The .md points back at its HTML canonical to avoid duplicate content.
@@ -245,15 +260,23 @@ final class Serve_Router {
 			$headers['Link'] = '<' . $canonical_url . '>; rel="canonical"';
 		}
 
-		// A fresh client gets a bodyless 304; otherwise a full 200 with content
-		// type and length. HEAD never carries a body.
+		// A fresh client gets a bodyless 304; an If-None-Match 304 echoes the ETag
+		// back, but an If-Modified-Since-only 304 skips it (no file read needed).
 		if ( $not_modified ) {
+			if ( $etag !== null ) {
+				$headers['ETag'] = $etag;
+			}
 			return [
 				'status'    => 304,
 				'headers'   => $headers,
 				'send_body' => false,
 			];
 		}
+
+		// Full 200: compute the ETag now if we skipped it above, then add all
+		// content headers. HEAD never carries a body even on a 200.
+		$etag ??= '"' . md5_file( $path ) . '"';
+		$headers['ETag'] = $etag;
 		$headers['Content-Type'] = $content_type;
 		$headers['Content-Length'] = (string) filesize( $path );
 
