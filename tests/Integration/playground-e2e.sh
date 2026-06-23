@@ -319,6 +319,44 @@ do_req "${BASE}/?kntnt_e2e=cache_count&kind=llms-txt&token=${TOKEN}"
 body_has 'COUNT 1' "the stale previous-version aggregate was pruned (still one file)"
 
 echo ""
+echo "Scenario 15: RFC 8288 Link headers on HTML responses"
+
+# Singular page: must carry the per-page .md alternate AND both llms relations.
+do_req "${BASE}/about/"
+expect_status 200 "GET /about/ (HTML) is 200"
+header_has 'rel="alternate"' "singular page carries a Link rel=alternate header"
+header_has 'type="text/markdown"' "singular page .md alternate is type text/markdown"
+header_has 'rel="related"' "singular page carries a Link rel=related header for llms"
+header_has '/llms.txt' "singular page Link header references /llms.txt"
+header_has '/llms-full.txt' "singular page Link header references /llms-full.txt"
+header_has 'type="text/plain"' "llms Link headers are type text/plain"
+
+# Non-singular page (blog index): site-wide llms relations only, no .md per-page header.
+do_req "${BASE}/"
+expect_status 200 "GET / (blog index) is 200"
+header_has 'rel="related"' "blog index carries rel=related Link headers"
+header_has '/llms.txt' "blog index Link header references /llms.txt"
+header_has '/llms-full.txt' "blog index Link header references /llms-full.txt"
+
+# HEAD on a singular page: same Link headers as GET.
+STATUS="$(curl -sS -I --path-as-is -D "$HDR" -o "$BODYF" -w '%{http_code}' "${BASE}/about/" 2>/dev/null)"
+[[ "$STATUS" == "200" ]] && ok "HEAD /about/ is 200" || no "HEAD /about/ expected 200, got $STATUS"
+header_has 'rel="related"' "HEAD /about/ carries Link rel=related headers"
+
+# Warm artifact hit (early router): the early router exits before WordPress, so
+# no Link headers should appear on the raw .md or /llms.txt response.
+do_req "${BASE}/about.md"
+expect_status 200 "GET /about.md (warm artifact) is 200"
+# The canonical Link header on .md is the steering one (from the early router),
+# not an RFC 8288 Link header from the emitter — assert only the absence of
+# rel="related" to confirm the WordPress send_headers hook never fired.
+header_lacks 'rel="related"' "GET /about.md (early-router hit) carries no rel=related Link header"
+
+do_req "${BASE}/llms.txt"
+expect_status 200 "GET /llms.txt (warm artifact) is 200"
+header_lacks 'rel="related"' "GET /llms.txt (early-router hit) carries no rel=related Link header"
+
+echo ""
 echo "═══ e2e summary: ${PASS} passed, ${FAIL} failed ═══"
 if [[ "$FAIL" -gt 0 ]]; then
 	echo "Some assertions failed. Server log follows:" >&2
