@@ -193,14 +193,9 @@ runs on WordPress Playground – never an automatic DDEV fallback
 
 ## Deferred to the spec (1.3)
 
-Exact provider method signatures; the Markdown front-matter/metadata shape; cache
-mechanism details (single-flight, TTL/version invalidation, file paths); settings
-field definitions; negotiation edge cases (attachments, pagination); and the
-llms.txt advertising/link-relation (release 2/3).
+Exact provider method signatures; the Markdown front-matter/metadata shape; cache mechanism details (single-flight, TTL/version invalidation, file paths); settings field definitions; and negotiation edge cases (attachments, pagination).
 
-These are settled for **Release 1** (the Markdown alternate) in
-[`docs/spec/markdown-alternate.md`](spec/markdown-alternate.md); the llms.txt
-advertising/link-relation stays a release 2/3 concern.
+These are settled for **Release 1** (the Markdown alternate) in [`docs/spec/markdown-alternate.md`](spec/markdown-alternate.md) and for **Release 2** (llms.txt + llms-full.txt, the content-type matrix and the exact-path router) in [`docs/spec/llms-txt.md`](spec/llms-txt.md), both now implemented. Only the site-wide RFC 8288 `Link`-header advertising (module c, Release 3) and the `robots.txt` content signals (module d, Release 4) remain deferred.
 
 ## Decision record
 
