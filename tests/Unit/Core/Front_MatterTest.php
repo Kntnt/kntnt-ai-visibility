@@ -95,4 +95,29 @@ describe('Front_Matter', function (): void {
         expect($yaml)->toContain('title: "The \\"Best\\" Guide"');
     });
 
+    it('escapes a newline in a title', function (): void {
+        Functions\when('get_the_title')->justReturn("Line one\nLine two");
+
+        $yaml = (new Front_Matter())->build($this->post);
+
+        expect($yaml)->toContain('title: "Line one\\nLine two"');
+        expect($yaml)->not->toContain("Line one\nLine two");
+    });
+
+    it('escapes tab and carriage-return in an author name', function (): void {
+        Functions\when('get_the_author_meta')->justReturn("Jane\tQ\rDoe");
+
+        $yaml = (new Front_Matter())->build($this->post);
+
+        expect($yaml)->toContain('author: "Jane\\tQ\\rDoe"');
+    });
+
+    it('escapes a backslash in a title once', function (): void {
+        Functions\when('get_the_title')->justReturn('a\\b');
+
+        $yaml = (new Front_Matter())->build($this->post);
+
+        expect($yaml)->toContain('title: "a\\\\b"');
+    });
+
 });

@@ -128,7 +128,11 @@ final class Front_Matter {
 	 * @return string The quoted, escaped value.
 	 */
 	private function quote( string $value ): string {
-		return '"' . str_replace( [ '\\', '"' ], [ '\\\\', '\\"' ], $value ) . '"';
+		return '"' . str_replace(
+			[ '\\', '"', "\r", "\n", "\t" ],
+			[ '\\\\', '\\"', '\\r', '\\n', '\\t' ],
+			$value,
+		) . '"';
 	}
 
 }
