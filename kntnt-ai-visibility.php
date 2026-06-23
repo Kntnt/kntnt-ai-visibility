@@ -3,7 +3,7 @@
  * Plugin Name:       Kntnt AI Visibility
  * Plugin URI:        https://github.com/Kntnt/kntnt-ai-visibility
  * Description:       Makes content-rich WordPress sites discoverable, visible and readable by AI agents.
- * Version:           0.2.1
+ * Version:           0.2.2
  * Requires at least: 7.0
  * Requires PHP:      8.4
  * Author:            Kntnt

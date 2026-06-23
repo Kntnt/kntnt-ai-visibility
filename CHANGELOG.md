@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.2.2] – 2026-06-23
+
 ### Fixed
 
 - Resolved the WordPress 6.7+ "translation loading was triggered too early" notice. The settings-matrix column headers and the section heading are now translated lazily, when the settings page renders (after `init`), instead of when the plugin boots — so no translation is requested before `init`.
@@ -63,7 +65,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Tooling: Composer scripts (`test`, `stan`, `phpcs`, `phpcbf`, `build`), a Pest unit suite, PHPStan at level max, PHPCS (WordPress Coding Standards with four documented deviations), and the WordPress Playground end-to-end harness driven by `run-tests.sh`.
 - Continuous integration (`.github/workflows/tests.yml`): lint, static analysis, unit tests with coverage ≥ 80 %, and Playground e2e on PHP 8.5, plus automated tag-to-release builds (`.github/workflows/release.yml`) that publish a version-less `kntnt-ai-visibility.zip` asset.
 
-[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.1.0
