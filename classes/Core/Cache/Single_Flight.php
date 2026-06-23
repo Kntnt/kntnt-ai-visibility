@@ -36,18 +36,33 @@ final class Single_Flight {
 	private string $lock_dir;
 
 	/**
+	 * Whether this instance owns (and may auto-create) the lock directory.
+	 *
+	 * True only when the default location is used; an injected lock_dir is used
+	 * verbatim and never created, so a caller can still force a lock failure to
+	 * preserve graceful degradation.
+	 *
+	 * @since 0.2.3
+	 *
+	 * @var bool
+	 */
+	private readonly bool $owns_lock_dir;
+
+	/**
 	 * Binds the materialiser to its cache store and lock directory.
 	 *
 	 * @since 0.2.0
 	 *
 	 * @param Store       $store    The cache store read and written through.
-	 * @param string|null $lock_dir The lock directory; defaults to the system temp dir.
+	 * @param string|null $lock_dir The lock directory; defaults to a plugin-owned
+	 *                              subdirectory of the system temp dir.
 	 */
 	public function __construct(
 		private readonly Store $store,
 		?string $lock_dir = null,
 	) {
-		$this->lock_dir = $lock_dir ?? sys_get_temp_dir();
+		$this->owns_lock_dir = $lock_dir === null;
+		$this->lock_dir = $lock_dir ?? sys_get_temp_dir() . '/kntnt-ai-visibility-locks';
 	}
 
 	/**
@@ -96,6 +111,11 @@ final class Single_Flight {
 	 * @return resource|null The locked handle, or null when locking is unavailable.
 	 */
 	private function acquire_lock( Identity $identity ) {
+
+		// Ensure the plugin-owned lock directory exists; an injected dir is used as-is.
+		if ( $this->owns_lock_dir && ! is_dir( $this->lock_dir ) ) {
+			mkdir( $this->lock_dir, 0700, true );
+		}
 
 		// Lock outside the cache tree so locking never depends on the cache
 		// directory already existing.

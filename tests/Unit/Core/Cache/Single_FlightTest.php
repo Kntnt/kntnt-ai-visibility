@@ -93,4 +93,16 @@ describe('Single_Flight::once', function (): void {
         expect($this->store->read($identity))->toBe('BYTES');
     });
 
+    it('creates a plugin-owned lock directory when none is injected', function (): void {
+        $managed = sys_get_temp_dir() . '/kntnt-ai-visibility-locks';
+        kntnt_rmtree($managed);
+        $identity = new Identity('markdown-alternate', 'managed', 7);
+        $flight = new Single_Flight($this->store);
+        $bytes = $flight->once($identity, static fn(): string => 'BYTES');
+        expect($bytes)->toBe('BYTES');
+        expect(is_dir($managed))->toBeTrue();
+        expect(glob($managed . '/*.lock'))->not->toBeEmpty();
+        kntnt_rmtree($managed);
+    });
+
 });
