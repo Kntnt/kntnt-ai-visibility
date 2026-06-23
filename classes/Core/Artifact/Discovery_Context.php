@@ -2,9 +2,10 @@
 /**
  * Value object passed to a provider's advertise().
  *
- * Discovery happens in the context of a concrete HTML page being rendered, so
- * advertise() receives the post that page represents and decides which link
- * relations to contribute for it (docs/adr/0008).
+ * Discovery can be either page-scoped (a non-null post, when decorating the HTML
+ * page for that post) or site-scoped (a null post, when collecting site-wide
+ * artifacts on every HTML response). Providers branch on $post === null to decide
+ * which relations to return for each scope (docs/adr/0008).
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -22,14 +23,15 @@ namespace Kntnt\Ai_Visibility\Core\Artifact;
 final readonly class Discovery_Context {
 
 	/**
-	 * Names the post whose HTML page is being decorated.
+	 * Names the post whose HTML page is being decorated, or null for site-wide discovery.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param \WP_Post $post The post whose HTML page is being decorated.
+	 * @param \WP_Post|null $post The post whose HTML page is being decorated, or null on
+	 *                            the site-scoped discovery call (e.g. for site-wide artifacts).
 	 */
 	public function __construct(
-		public \WP_Post $post,
+		public \WP_Post|null $post,
 	) {}
 
 }

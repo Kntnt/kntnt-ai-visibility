@@ -144,7 +144,7 @@ final class Page_Markdown_Provider implements Provider {
 
 		// Advertise only for pages that actually have an alternate, so a generic
 		// discovery walk over all providers needs no eligibility knowledge of its own.
-		if ( ! $this->eligibility->is_eligible( $context->post ) ) {
+		if ( $context->post === null || ! $this->eligibility->is_eligible( $context->post ) ) {
 			return [];
 		}
 

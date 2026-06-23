@@ -19,6 +19,7 @@ namespace Kntnt\Ai_Visibility\Llms;
 use Kntnt\Ai_Visibility\Core\Artifact\Artifact;
 use Kntnt\Ai_Visibility\Core\Artifact\Discovery_Context;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
+use Kntnt\Ai_Visibility\Core\Artifact\Link_Relation;
 use Kntnt\Ai_Visibility\Core\Artifact\Provider;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Artifact\Serve_Pattern;
@@ -119,15 +120,24 @@ final class Full_Provider implements Provider {
 	}
 
 	/**
-	 * Advertises nothing — the file is convention-discovered (Release 2).
+	 * Advertises the llms-full.txt singleton as a site-wide link relation.
 	 *
-	 * @since 0.2.0
+	 * @since 0.3.0
 	 *
-	 * @param Discovery_Context $context The page being decorated.
-	 * @return list<\Kntnt\Ai_Visibility\Core\Artifact\Link_Relation>
+	 * @param Discovery_Context $context The discovery context.
+	 * @return list<Link_Relation>
 	 */
 	public function advertise( Discovery_Context $context ): array {
-		return [];
+
+		// Site-wide artifact: advertised only on the site-scoped discovery call
+		// (a null post), never per page. The relation is provisional — no IANA
+		// relation for llms.txt exists yet; revise $rel when one is registered.
+		if ( $context->post !== null ) {
+			return [];
+		}
+
+		return [ new Link_Relation( home_url( self::PATH ), 'related', 'text/plain' ) ];
+
 	}
 
 	/**
