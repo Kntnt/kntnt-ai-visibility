@@ -46,4 +46,20 @@ describe('Conditional_Request::is_fresh', function (): void {
         expect(Conditional_Request::is_fresh('', '', '"abc"', 1_700_000_000))->toBeFalse();
     });
 
+    it('is fresh when one entry of a comma-separated If-None-Match matches', function (): void {
+        expect(Conditional_Request::is_fresh('"a", "abc", "b"', '', '"abc"', 1_700_000_000))->toBeTrue();
+    });
+
+    it('is stale when no entry of a comma-separated If-None-Match matches', function (): void {
+        expect(Conditional_Request::is_fresh('"a", "b"', '', '"abc"', 1_700_000_000))->toBeFalse();
+    });
+
+    it('matches a weak client ETag against the strong current ETag', function (): void {
+        expect(Conditional_Request::is_fresh('W/"abc"', '', '"abc"', 1_700_000_000))->toBeTrue();
+    });
+
+    it('matches a weak entry within a comma-separated list', function (): void {
+        expect(Conditional_Request::is_fresh('"x", W/"abc"', '', '"abc"', 1_700_000_000))->toBeTrue();
+    });
+
 });

@@ -38,8 +38,16 @@ final class Conditional_Request {
 
 		// A matching or wildcard If-None-Match is authoritative over the date.
 		if ( $if_none_match !== '' ) {
-			$candidate = trim( $if_none_match );
-			return $candidate === '*' || $candidate === $etag;
+			if ( trim( $if_none_match ) === '*' ) {
+				return true;
+			}
+			$current = self::strip_weak( $etag );
+			foreach ( explode( ',', $if_none_match ) as $candidate ) {
+				if ( self::strip_weak( trim( $candidate ) ) === $current ) {
+					return true;
+				}
+			}
+			return false;
 		}
 
 		// Otherwise honour If-Modified-Since when the resource is no newer than it.
@@ -50,6 +58,22 @@ final class Conditional_Request {
 
 		return false;
 
+	}
+
+	/**
+	 * Strips the weak indicator prefix from an ETag for comparison.
+	 *
+	 * Per RFC 7232 §2.3, a weak ETag has the form `W/"…"`. Stripping the
+	 * leading `W/` before comparing implements the weak-comparison rule from
+	 * §2.3: `W/"abc"` and `"abc"` are considered equivalent.
+	 *
+	 * @since 0.2.3
+	 *
+	 * @param string $etag A quoted ETag string, optionally prefixed with `W/`.
+	 * @return string The ETag with any `W/` prefix removed.
+	 */
+	private static function strip_weak( string $etag ): string {
+		return str_starts_with( $etag, 'W/' ) ? substr( $etag, 2 ) : $etag;
 	}
 
 }
