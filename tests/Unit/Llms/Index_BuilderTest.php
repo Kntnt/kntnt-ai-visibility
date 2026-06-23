@@ -213,4 +213,16 @@ describe('Index_Builder::build', function (): void {
         expect($builder->build())->toBe('REWRITTEN');
     });
 
+    it('omits the section header for a selected type that has no posts', function (): void {
+        kntnt_index_stubs();
+        $builder = kntnt_index_builder(
+            ['llms' => ['page', 'post'], 'md' => ['page', 'post']],
+            ['page|post' => [kntnt_llms_post('page', 1, 'About')]],
+            [1 => 'https://example.com/about.md'],
+        );
+        $out = $builder->build();
+        expect($out)->toContain('## Pages');
+        expect($out)->not->toContain('## Posts');
+    });
+
 });

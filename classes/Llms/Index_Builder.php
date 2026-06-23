@@ -81,14 +81,18 @@ final class Index_Builder {
 		}
 
 		// One H2 section per type, each with its `- [title](url): excerpt` items.
+		// A type with no eligible posts contributes no section at all.
 		foreach ( is_array( $sections ) ? $sections : [] as $type => $posts ) {
-			$lines = [ '## ' . $this->type_label( (string) $type ) ];
+			$items = [];
 			foreach ( is_array( $posts ) ? $posts : [] as $post ) {
 				if ( $post instanceof \WP_Post ) {
-					$lines[] = $this->item( $post );
+					$items[] = $this->item( $post );
 				}
 			}
-			$blocks[] = implode( "\n", $lines );
+			if ( $items === [] ) {
+				continue;
+			}
+			$blocks[] = '## ' . $this->type_label( (string) $type ) . "\n" . implode( "\n", $items );
 		}
 
 		// The assembled document, then the raw escape-hatch filter.
