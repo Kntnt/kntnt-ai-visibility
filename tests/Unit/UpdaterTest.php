@@ -122,7 +122,7 @@ describe('Updater', function (): void {
         kntnt_test_seed_plugin_header([
             'PluginURI'  => 'https://github.com/Kntnt/kntnt-ai-visibility',
             'Version'    => '0.1.0',
-            'RequiresWP' => '7.0',
+            'RequiresWP' => '6.7',
         ]);
         Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
         Functions\when('plugin_basename')->justReturn('kntnt-ai-visibility/kntnt-ai-visibility.php');
@@ -149,7 +149,7 @@ describe('Updater', function (): void {
         expect($result->response)->toHaveKey($key);
         expect($result->response[$key]->new_version)->toBe('0.2.0');
         expect($result->response[$key]->package)->toBe('https://github.com/Kntnt/kntnt-ai-visibility/releases/download/0.2.0/kntnt-ai-visibility.zip');
-        expect($result->response[$key]->tested)->toBe('7.0');
+        expect($result->response[$key]->tested)->toBe('6.7');
     });
 
     it('serves the update from cache and skips the network', function (): void {

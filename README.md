@@ -1,6 +1,6 @@
 # Kntnt AI Visibility
 
-[![Requires WordPress: 7.0+](https://img.shields.io/badge/WordPress-7.0+-blue.svg)](https://wordpress.org)
+[![Requires WordPress: 6.7+](https://img.shields.io/badge/WordPress-6.7+-blue.svg)](https://wordpress.org)
 [![Requires PHP: 8.4+](https://img.shields.io/badge/PHP-8.4+-blue.svg)](https://php.net)
 [![License: GPL v2+](https://img.shields.io/badge/License-GPLv2+-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
 
@@ -26,9 +26,9 @@ Which content each file exposes is set on a single settings page – one row per
 | Requirement | Minimum |
 |---|---|
 | PHP | 8.4 |
-| WordPress | 7.0 |
+| WordPress | 6.7 |
 
-The plugin checks the PHP version on activation and aborts with a clear admin notice if the requirement is not met. WordPress blocks activation on versions older than 7.0.
+The plugin checks the PHP version on activation and aborts with a clear admin notice if the requirement is not met. WordPress blocks activation on versions older than 6.7.
 
 ## Installation
 
