@@ -275,6 +275,15 @@ final class Plugin {
 			is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS,
 			base_path: static fn(): string => rtrim( (string) wp_parse_url( (string) home_url( '/' ), PHP_URL_PATH ), '/' ),
 			cache_version: static fn(): int => ( new Cache_Version() )->current(),
+			canonical_origin: static function (): string {
+				$home   = (string) home_url( '/' );
+				$scheme = wp_parse_url( $home, PHP_URL_SCHEME );
+				$host   = wp_parse_url( $home, PHP_URL_HOST );
+				$port   = wp_parse_url( $home, PHP_URL_PORT );
+				return is_string( $scheme ) && is_string( $host )
+					? $scheme . '://' . $host . ( is_int( $port ) ? ':' . $port : '' )
+					: '';
+			},
 		);
 
 		// The content-type matrix and the eligibility predicate are Core concepts

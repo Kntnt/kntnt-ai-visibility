@@ -99,19 +99,30 @@ final class Serve_Router {
 	private $cache_version;
 
 	/**
+	 * Returns the canonical origin (scheme://host) for the `.md` back-link.
+	 *
+	 * @since 0.2.3
+	 *
+	 * @var callable(): string
+	 */
+	private $canonical_origin;
+
+	/**
 	 * Binds the router to its store, provider registry, logger and TTL.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param Store                                       $store         The cache store.
-	 * @param \Kntnt\Ai_Visibility\Core\Artifact\Registry $registry      The provider registry (serve allowlist).
-	 * @param Logger|null                                 $logger        Optional logger for refused requests.
-	 * @param int                                         $ttl           Max cache-file age in seconds; 0 disables the safety net.
-	 * @param (callable(): int)|null                      $clock         Returns the current Unix time; defaults to time().
-	 * @param (callable(): string)|null                   $base_path     Returns the home base path (e.g. '/blog') to strip on a
-	 *                                                                   subdirectory install; defaults to '' (root install).
-	 * @param (callable(): int)|null                      $cache_version Returns the cache version for version-stamped exact
-	 *                                                                   paths; invoked only on an exact-versioned match. Defaults to 1.
+	 * @param Store                                       $store            The cache store.
+	 * @param \Kntnt\Ai_Visibility\Core\Artifact\Registry $registry         The provider registry (serve allowlist).
+	 * @param Logger|null                                 $logger           Optional logger for refused requests.
+	 * @param int                                         $ttl              Max cache-file age in seconds; 0 disables the safety net.
+	 * @param (callable(): int)|null                      $clock            Returns the current Unix time; defaults to time().
+	 * @param (callable(): string)|null                   $base_path        Returns the home base path (e.g. '/blog') to strip on a
+	 *                                                                      subdirectory install; defaults to '' (root install).
+	 * @param (callable(): int)|null                      $cache_version    Returns the cache version for version-stamped exact
+	 *                                                                      paths; invoked only on an exact-versioned match. Defaults to 1.
+	 * @param (callable(): string)|null                   $canonical_origin Returns the canonical origin (scheme://host) for the
+	 *                                                                      `.md` back-link; defaults to reading HTTP_HOST.
 	 */
 	public function __construct(
 		private readonly Store $store,
@@ -121,10 +132,17 @@ final class Serve_Router {
 		?callable $clock = null,
 		?callable $base_path = null,
 		?callable $cache_version = null,
+		?callable $canonical_origin = null,
 	) {
 		$this->clock = $clock ?? static fn (): int => time();
 		$this->base_path = $base_path ?? static fn (): string => '';
 		$this->cache_version = $cache_version ?? static fn (): int => 1;
+		$this->canonical_origin = $canonical_origin ?? static function (): string {
+			$host = isset( $_SERVER['HTTP_HOST'] ) && is_string( $_SERVER['HTTP_HOST'] )
+				? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) )
+				: '';
+			return $host === '' ? '' : ( is_ssl() ? 'https' : 'http' ) . '://' . $host;
+		};
 	}
 
 	/**
@@ -400,24 +418,21 @@ final class Serve_Router {
 	 */
 	private function canonical_for( string $path ): string {
 
-		// Without a trustworthy host there is nothing safe to point at.
-		$host = isset( $_SERVER['HTTP_HOST'] ) && is_string( $_SERVER['HTTP_HOST'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) )
-			: '';
-		if ( $host === '' ) {
+		// Without a trustworthy origin there is nothing safe to point at.
+		$origin = ( $this->canonical_origin )();
+		if ( $origin === '' ) {
 			return '';
 		}
 
 		// Strip the home base and the `.md`, treat the home key specially, re-add
 		// the slash, then re-prepend the base so the canonical is correct on a
 		// subdirectory install too.
-		$scheme = is_ssl() ? 'https' : 'http';
 		$base = rtrim( ( $this->base_path )(), '/' );
 		$stripped = $this->strip_base( $path );
 		$key = substr( $stripped, 1, strlen( $stripped ) - 1 - strlen( '.md' ) );
 		$relative = $key === 'index' ? '/' : '/' . $key . '/';
 
-		return $scheme . '://' . $host . $base . $relative;
+		return $origin . $base . $relative;
 
 	}
 
