@@ -306,6 +306,7 @@ final class Plugin {
 		// first; the llms module then contributes its columns and singletons.
 		( new Markdown\Module() )->boot( $this->core );
 		( new Llms\Module() )->boot( $this->core );
+		( new Links\Module() )->boot( $this->core );
 
 	}
 
