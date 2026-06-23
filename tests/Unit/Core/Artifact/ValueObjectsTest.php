@@ -123,4 +123,10 @@ describe('Discovery_Context', function (): void {
         expect($context->post)->toBe($post);
     });
 
+    it('accepts a null post for site-wide discovery', function (): void {
+        $context = new Discovery_Context(null);
+
+        expect($context->post)->toBeNull();
+    });
+
 });

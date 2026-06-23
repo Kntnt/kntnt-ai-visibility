@@ -13,8 +13,10 @@
 
 declare(strict_types=1);
 
+use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Discovery_Context;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
+use Kntnt\Ai_Visibility\Core\Artifact\Link_Relation;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Cache\Cache_Version;
 use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
@@ -56,8 +58,20 @@ describe('Full_Provider', function (): void {
         expect($artifact->content_type)->toBe('text/plain; charset=utf-8');
     });
 
-    it('advertises nothing', function (): void {
+    it('advertises nothing for a page-scoped (non-null post) context', function (): void {
         expect($this->provider->advertise(new Discovery_Context(new WP_Post())))->toBe([]);
+    });
+
+    it('advertises the llms-full.txt singleton on the site-scoped (null-post) call', function (): void {
+        Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com' . $path);
+
+        $relations = $this->provider->advertise(new Discovery_Context(null));
+
+        expect($relations)->toHaveCount(1);
+        expect($relations[0])->toBeInstanceOf(Link_Relation::class);
+        expect($relations[0]->href)->toBe('https://example.com/llms-full.txt');
+        expect($relations[0]->rel)->toBe('related');
+        expect($relations[0]->type)->toBe('text/plain');
     });
 
     it('declares the exact /llms-full.txt serve shape', function (): void {

@@ -242,6 +242,10 @@ describe('Page_Markdown_Provider::advertise', function (): void {
         expect($this->provider->advertise(new Discovery_Context($post)))->toBe([]);
     });
 
+    it('advertises nothing for the site-wide (null-post) context', function (): void {
+        expect($this->provider->advertise(new Discovery_Context(null)))->toBe([]);
+    });
+
 });
 
 describe('Page_Markdown_Provider::identity_for_post', function (): void {
