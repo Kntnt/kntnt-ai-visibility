@@ -112,7 +112,9 @@ final class Updater {
 	 * Fetches the latest release data from the GitHub API.
 	 *
 	 * Returns an associative array on success so callers can access fields
-	 * without triggering static-analysis property errors on stdClass.
+	 * without triggering static-analysis property errors on stdClass. The
+	 * response is cached in a site transient to avoid hammering the GitHub
+	 * API on every update check (60 req/hr unauthenticated rate limit).
 	 *
 	 * @since 0.1.0
 	 *
@@ -120,6 +122,12 @@ final class Updater {
 	 * @return array<mixed>|null Release data on success, null on failure.
 	 */
 	private function get_latest_github_release( string $repo ): ?array {
+
+		// Serve from the site transient when a previously decoded response exists.
+		$cached = get_site_transient( 'kntnt_ai_visibility_update_check' );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
 
 		// Fetch the latest release from the GitHub REST API.
 		$request_uri = "https://api.github.com/repos/{$repo}/releases/latest";
@@ -132,9 +140,14 @@ final class Updater {
 		// Decode as an associative array so static analysis can reason about it.
 		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
 
-		if ( ! is_array( $decoded ) || ! isset( $decoded['tag_name'], $decoded['zipball_url'] ) ) {
+		if ( ! is_array( $decoded ) || ! isset( $decoded['tag_name'], $decoded['assets'] ) ) {
 			return null;
 		}
+
+		// Cache only successful decodes; failures are not worth caching.
+		$filtered = apply_filters( 'kntnt_ai_visibility_update_check_ttl', 6 * HOUR_IN_SECONDS );
+		$ttl      = max( 1, is_int( $filtered ) ? $filtered : 6 * HOUR_IN_SECONDS );
+		set_site_transient( 'kntnt_ai_visibility_update_check', $decoded, $ttl );
 
 		return $decoded;
 
@@ -143,9 +156,11 @@ final class Updater {
 	/**
 	 * Locates the first ZIP asset URL in a release's asset list.
 	 *
-	 * Returns null when no ZIP asset is attached — the Updater then skips
-	 * advertising the update rather than offering a broken package URL. The
-	 * match is by content type, not filename, so the version-less asset name
+	 * Returns null when no ZIP asset is attached, or when the asset's download
+	 * host is not in the GitHub allowlist (github.com /
+	 * objects.githubusercontent.com) — the Updater then skips advertising the
+	 * update rather than offering a broken or untrusted package URL. The match
+	 * is by content type, not filename, so the version-less asset name
 	 * (docs/adr/0005) stays compatible with self-update.
 	 *
 	 * @since 0.1.0
@@ -160,14 +175,21 @@ final class Updater {
 			return null;
 		}
 
+		// Allowlisted GitHub download hosts; anything else is rejected.
+		$allowed_hosts = [ 'github.com', 'objects.githubusercontent.com' ];
+
 		foreach ( $release['assets'] as $asset ) {
 			if ( ! is_array( $asset ) ) {
 				continue;
 			}
 			$is_zip = isset( $asset['content_type'] ) && $asset['content_type'] === 'application/zip';
-			if ( $is_zip ) {
-				$url = $asset['browser_download_url'] ?? null;
-				return is_string( $url ) ? $url : null;
+			if ( ! $is_zip ) {
+				continue;
+			}
+			$url  = $asset['browser_download_url'] ?? null;
+			$host = is_string( $url ) ? wp_parse_url( $url, PHP_URL_HOST ) : null;
+			if ( is_string( $host ) && in_array( $host, $allowed_hosts, true ) ) {
+				return $url;
 			}
 		}
 

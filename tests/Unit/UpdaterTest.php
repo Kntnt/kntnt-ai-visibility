@@ -4,8 +4,10 @@
  *
  * Drives Updater::check_for_updates() through its branches: non-object and
  * unchecked transients pass through untouched; a missing or non-GitHub Plugin
- * URI is ignored; an API failure or assetless release is skipped; and a newer
- * release with a ZIP asset is injected into the update transient.
+ * URI is ignored; an API failure, malformed JSON, non-GitHub asset host, or
+ * assetless release is skipped; a cache hit avoids the network entirely; and a
+ * newer release with a GitHub-hosted ZIP asset is injected into the update
+ * transient.
  *
  * @package Tests\Unit
  * @since   0.1.0
@@ -61,6 +63,7 @@ describe('Updater', function (): void {
     it('skips the update when the GitHub API request fails', function (): void {
         kntnt_test_seed_plugin_header(['PluginURI' => 'https://github.com/Kntnt/kntnt-ai-visibility', 'Version' => '0.1.0']);
         Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('get_site_transient')->justReturn(false);
         Functions\when('wp_remote_get')->justReturn(['response' => ['code' => 500]]);
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(500);
@@ -73,15 +76,17 @@ describe('Updater', function (): void {
     it('skips the update when the latest release has no ZIP asset', function (): void {
         kntnt_test_seed_plugin_header(['PluginURI' => 'https://github.com/Kntnt/kntnt-ai-visibility', 'Version' => '0.1.0']);
         Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('get_site_transient')->justReturn(false);
+        Functions\when('set_site_transient')->justReturn(true);
+        Functions\when('apply_filters')->justReturn(6 * 3600);
         Functions\when('wp_remote_get')->justReturn(['ok']);
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(
             (string) wp_json_encode_local([
-                'tag_name'    => 'v0.2.0',
-                'zipball_url' => 'https://api.github.com/zip',
-                'html_url'    => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.2.0',
-                'assets'      => [],
+                'tag_name' => 'v0.2.0',
+                'html_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.2.0',
+                'assets'   => [],
             ]),
         );
 
@@ -93,15 +98,17 @@ describe('Updater', function (): void {
     it('does not advertise an update when the installed version is current', function (): void {
         kntnt_test_seed_plugin_header(['PluginURI' => 'https://github.com/Kntnt/kntnt-ai-visibility', 'Version' => '0.2.0']);
         Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('get_site_transient')->justReturn(false);
+        Functions\when('set_site_transient')->justReturn(true);
+        Functions\when('apply_filters')->justReturn(6 * 3600);
         Functions\when('wp_remote_get')->justReturn(['ok']);
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(
             (string) wp_json_encode_local([
-                'tag_name'    => 'v0.2.0',
-                'zipball_url' => 'https://api.github.com/zip',
-                'assets'      => [
-                    ['content_type' => 'application/zip', 'browser_download_url' => 'https://example.com/x.zip'],
+                'tag_name' => 'v0.2.0',
+                'assets'   => [
+                    ['content_type' => 'application/zip', 'browser_download_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/download/0.2.0/kntnt-ai-visibility.zip'],
                 ],
             ]),
         );
@@ -119,17 +126,19 @@ describe('Updater', function (): void {
         ]);
         Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
         Functions\when('plugin_basename')->justReturn('kntnt-ai-visibility/kntnt-ai-visibility.php');
+        Functions\when('get_site_transient')->justReturn(false);
+        Functions\when('set_site_transient')->justReturn(true);
+        Functions\when('apply_filters')->justReturn(6 * 3600);
         Functions\when('wp_remote_get')->justReturn(['ok']);
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(
             (string) wp_json_encode_local([
-                'tag_name'    => 'v0.2.0',
-                'zipball_url' => 'https://api.github.com/zip',
-                'html_url'    => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.2.0',
-                'assets'      => [
-                    ['content_type' => 'application/octet-stream', 'browser_download_url' => 'https://example.com/source.tar'],
-                    ['content_type' => 'application/zip', 'browser_download_url' => 'https://example.com/kntnt-ai-visibility.zip'],
+                'tag_name' => 'v0.2.0',
+                'html_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.2.0',
+                'assets'   => [
+                    ['content_type' => 'application/octet-stream', 'browser_download_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/download/0.2.0/source.tar'],
+                    ['content_type' => 'application/zip', 'browser_download_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/download/0.2.0/kntnt-ai-visibility.zip'],
                 ],
             ]),
         );
@@ -139,8 +148,108 @@ describe('Updater', function (): void {
         $key = 'kntnt-ai-visibility/kntnt-ai-visibility.php';
         expect($result->response)->toHaveKey($key);
         expect($result->response[$key]->new_version)->toBe('0.2.0');
-        expect($result->response[$key]->package)->toBe('https://example.com/kntnt-ai-visibility.zip');
+        expect($result->response[$key]->package)->toBe('https://github.com/Kntnt/kntnt-ai-visibility/releases/download/0.2.0/kntnt-ai-visibility.zip');
         expect($result->response[$key]->tested)->toBe('7.0');
+    });
+
+    it('serves the update from cache and skips the network', function (): void {
+        kntnt_test_seed_plugin_header([
+            'PluginURI'  => 'https://github.com/Kntnt/kntnt-ai-visibility',
+            'Version'    => '0.1.0',
+            'RequiresWP' => '7.0',
+        ]);
+        Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('plugin_basename')->justReturn('kntnt-ai-visibility/kntnt-ai-visibility.php');
+
+        // Cache hit: return a valid release array so the network is never reached.
+        $cached_release = [
+            'tag_name' => 'v0.2.0',
+            'html_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.2.0',
+            'assets'   => [
+                ['content_type' => 'application/zip', 'browser_download_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/download/0.2.0/kntnt-ai-visibility.zip'],
+            ],
+        ];
+        Functions\when('get_site_transient')->justReturn($cached_release);
+        Functions\when('wp_remote_get')->alias(static function (): never {
+            throw new \RuntimeException('wp_remote_get must not be called on a cache hit');
+        });
+
+        $result = (new Updater())->check_for_updates(checked_transient());
+
+        $key = 'kntnt-ai-visibility/kntnt-ai-visibility.php';
+        expect($result->response)->toHaveKey($key);
+        expect($result->response[$key]->new_version)->toBe('0.2.0');
+        expect($result->response[$key]->package)->toBe('https://github.com/Kntnt/kntnt-ai-visibility/releases/download/0.2.0/kntnt-ai-visibility.zip');
+    });
+
+    it('does not inject an update when the API returns malformed JSON', function (): void {
+        kntnt_test_seed_plugin_header(['PluginURI' => 'https://github.com/Kntnt/kntnt-ai-visibility', 'Version' => '0.1.0']);
+        Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('get_site_transient')->justReturn(false);
+        Functions\when('wp_remote_get')->justReturn(['ok']);
+        Functions\when('is_wp_error')->justReturn(false);
+        Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
+        Functions\when('wp_remote_retrieve_body')->justReturn('{not json');
+
+        $result = (new Updater())->check_for_updates(checked_transient());
+
+        expect(isset($result->response))->toBeFalse();
+    });
+
+    it('does not inject an update when the ZIP asset host is not GitHub', function (): void {
+        kntnt_test_seed_plugin_header(['PluginURI' => 'https://github.com/Kntnt/kntnt-ai-visibility', 'Version' => '0.1.0']);
+        Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('get_site_transient')->justReturn(false);
+        Functions\when('set_site_transient')->justReturn(true);
+        Functions\when('apply_filters')->justReturn(6 * 3600);
+        Functions\when('wp_remote_get')->justReturn(['ok']);
+        Functions\when('is_wp_error')->justReturn(false);
+        Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
+        Functions\when('wp_remote_retrieve_body')->justReturn(
+            (string) wp_json_encode_local([
+                'tag_name' => 'v0.2.0',
+                'html_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.2.0',
+                'assets'   => [
+                    ['content_type' => 'application/zip', 'browser_download_url' => 'https://evil.example/kntnt-ai-visibility.zip'],
+                ],
+            ]),
+        );
+
+        $result = (new Updater())->check_for_updates(checked_transient());
+
+        expect(isset($result->response))->toBeFalse();
+    });
+
+    it('injects an update when the release has a GitHub ZIP asset but no zipball_url', function (): void {
+        kntnt_test_seed_plugin_header([
+            'PluginURI'  => 'https://github.com/Kntnt/kntnt-ai-visibility',
+            'Version'    => '0.1.0',
+            'RequiresWP' => '7.0',
+        ]);
+        Functions\when('wp_parse_url')->alias(static fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('plugin_basename')->justReturn('kntnt-ai-visibility/kntnt-ai-visibility.php');
+        Functions\when('get_site_transient')->justReturn(false);
+        Functions\when('set_site_transient')->justReturn(true);
+        Functions\when('apply_filters')->justReturn(6 * 3600);
+        Functions\when('wp_remote_get')->justReturn(['ok']);
+        Functions\when('is_wp_error')->justReturn(false);
+        Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
+        Functions\when('wp_remote_retrieve_body')->justReturn(
+            (string) wp_json_encode_local([
+                'tag_name' => 'v0.2.0',
+                'html_url' => 'https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/0.2.0',
+                'assets'   => [
+                    ['content_type' => 'application/zip', 'browser_download_url' => 'https://objects.githubusercontent.com/github-production-release-asset/kntnt-ai-visibility.zip'],
+                ],
+            ]),
+        );
+
+        $result = (new Updater())->check_for_updates(checked_transient());
+
+        $key = 'kntnt-ai-visibility/kntnt-ai-visibility.php';
+        expect($result->response)->toHaveKey($key);
+        expect($result->response[$key]->new_version)->toBe('0.2.0');
+        expect($result->response[$key]->package)->toBe('https://objects.githubusercontent.com/github-production-release-asset/kntnt-ai-visibility.zip');
     });
 
 });
