@@ -25,6 +25,15 @@ All filters share the `kntnt_ai_visibility_` prefix and are attached with the st
 | `kntnt_ai_visibility_llms_txt` | `string` | The finished `/llms.txt` document – a last-chance override of the whole file. |
 | `kntnt_ai_visibility_llms_full_txt` | `string` | The finished `/llms-full.txt` document – a last-chance override of the whole file. |
 
+## Path exclusions
+
+The **Excluded paths** settings section lists regular-expression bodies, one per line, matched against each page's home-relative path; a match curates that page out of its Markdown alternate, `/llms.txt` and `/llms-full.txt` alike. Two filters drive the same gate from code.
+
+| Filter | Receives | Purpose |
+|---|---|---|
+| `kntnt_ai_visibility_exclusion_patterns` | `string[]` of pattern bodies (delimiter- and flag-less) | The parsed exclusion patterns before they are compiled. Add or remove patterns in code; each survivor is wrapped as `#…#iu` and an invalid one is silently dropped. |
+| `kntnt_ai_visibility_is_excluded` | `bool`, plus `WP_Post $post` | The final per-post exclusion verdict, after the patterns have run. Force a page in or out regardless of the configured patterns. |
+
 ## Content signals
 
 | Filter | Receives | Purpose |
@@ -40,7 +49,7 @@ All filters share the `kntnt_ai_visibility_` prefix and are attached with the st
 
 ## Settings value resolution
 
-Beyond the named filters above, the settings registry resolves every field-based setting in the order saved value → code default → developer filter, exposing a dynamic per-field filter `kntnt_ai_visibility_{section}_{key}` (see [`docs/adr/0010`](adr/0010-zero-config-settings-registry.md)). Artifact output is better controlled through the dedicated filters above; the two settings sections shipped today – the content-type matrix and the content signals – are custom sections that resolve their own values, so this hook applies to any field-based section a future module adds rather than to a field present today.
+Beyond the named filters above, the settings registry resolves every field-based setting in the order saved value → code default → developer filter, exposing a dynamic per-field filter `kntnt_ai_visibility_{section}_{key}` (see [`docs/adr/0010`](adr/0010-zero-config-settings-registry.md)). Artifact output is better controlled through the dedicated filters above: the content-type matrix and the content signals are custom sections that resolve their own values, and the path-exclusions section is field-based but the gate reads its patterns through `kntnt_ai_visibility_exclusion_patterns` rather than this dynamic hook — so the per-field filter applies to any field-based section a future module adds rather than to a field present today.
 
 ## Worked examples
 

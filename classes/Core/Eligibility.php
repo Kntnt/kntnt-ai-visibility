@@ -6,9 +6,11 @@
  * provider and the llms enumeration depend on it (docs/spec/llms-txt.md §3.1).
  * is_servable() is the universal hard guard — published, front-end-viewable, not
  * an attachment — the security rule that lets the early router serve before
- * WordPress auth. is_eligible() adds membership of the matrix `.md` set. The
- * aggregates read enumerate(), which excludes drafts and password-protected
- * posts so the early-served per-page cache never holds protected content.
+ * WordPress auth. is_eligible() adds membership of the matrix `.md` set and that
+ * the post is not curated out by a path-exclusion pattern. The aggregates read
+ * enumerate(), which excludes drafts, password-protected posts and the same
+ * path-excluded entries, so the early-served per-page cache never holds
+ * protected content and no artifact carries a path the owner excluded.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.2.0
@@ -19,6 +21,7 @@ declare( strict_types = 1 );
 namespace Kntnt\Ai_Visibility\Core;
 
 use Kntnt\Ai_Visibility\Core\Content\Content_Types;
+use Kntnt\Ai_Visibility\Core\Content\Exclusions;
 
 /**
  * Decides what may be served, what is `.md`-eligible, and what to aggregate.
@@ -28,13 +31,17 @@ use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 final class Eligibility {
 
 	/**
-	 * Binds eligibility to the content-type matrix it reads its scope from.
+	 * Binds eligibility to the type matrix and the path-exclusion gate.
 	 *
 	 * @since 0.2.0
 	 *
-	 * @param Content_Types $types The content-type capability matrix.
+	 * @param Content_Types $types      The content-type capability matrix.
+	 * @param Exclusions    $exclusions The path-exclusion gate.
 	 */
-	public function __construct( private readonly Content_Types $types ) {}
+	public function __construct(
+		private readonly Content_Types $types,
+		private readonly Exclusions $exclusions,
+	) {}
 
 	/**
 	 * The universal hard guard: published, front-end-viewable, not an attachment.
@@ -60,7 +67,8 @@ final class Eligibility {
 	}
 
 	/**
-	 * Reports whether a post is `.md`-eligible: servable and in the matrix `.md` set.
+	 * Reports whether a post is `.md`-eligible: servable, in the matrix `.md`
+	 * set, and not curated out by a path-exclusion pattern.
 	 *
 	 * @since 0.2.0
 	 *
@@ -68,7 +76,9 @@ final class Eligibility {
 	 * @return bool
 	 */
 	public function is_eligible( \WP_Post $post ): bool {
-		return $this->is_servable( $post ) && in_array( $post->post_type, $this->md_types(), true );
+		return $this->is_servable( $post )
+			&& in_array( $post->post_type, $this->md_types(), true )
+			&& ! $this->exclusions->is_excluded( $post );
 	}
 
 	/**
@@ -78,7 +88,9 @@ final class Eligibility {
 	 * by menu_order then title, others by date descending — and returns the posts
 	 * grouped in the passed types' order, the read the aggregates share. Password-
 	 * protected posts are excluded so the aggregation never caches or concatenates
-	 * content the early router would serve before WordPress auth.
+	 * content the early router would serve before WordPress auth, and posts whose
+	 * path matches an exclusion pattern are dropped so the aggregates honour the
+	 * same per-URL curation as the per-page `.md`.
 	 *
 	 * @since 0.2.0
 	 *
@@ -106,7 +118,7 @@ final class Eligibility {
 				],
 			);
 			foreach ( is_array( $found ) ? $found : [] as $post ) {
-				if ( $post instanceof \WP_Post ) {
+				if ( $post instanceof \WP_Post && ! $this->exclusions->is_excluded( $post ) ) {
 					$posts[] = $post;
 				}
 			}

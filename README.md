@@ -19,7 +19,7 @@ Kntnt AI Visibility is built around four capabilities, none of which depends on 
 3. **Link headers** – RFC 8288/9727 headers that advertise the Markdown alternates and `llms.txt` so agents can find them.
 4. **Content signals in `robots.txt`** – declare how AI agents may use your content.
 
-Which content each file exposes is set on a single settings page – one row per content type, one column per file – and the zero-config defaults work without any setup. See [`docs/Charter.md`](docs/Charter.md) for the full plan.
+Which content each file exposes is set on a single settings page – one row per content type, one column per file – with an **Excluded paths** field that curates out individual pages by URL pattern (one regular expression per line, matched against each page's path). The zero-config defaults work without any setup. See [`docs/Charter.md`](docs/Charter.md) for the full plan.
 
 ## Requirements
 

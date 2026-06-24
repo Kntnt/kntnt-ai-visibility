@@ -24,6 +24,11 @@ require_once '/wordpress/wp-load.php';
 // default keeps the rewrite engine off.
 update_option('permalink_structure', '/%postname%/');
 
+// Exclude the auto-generated cookie-policy page from every artifact by path, so
+// the path-exclusion gate is exercised end to end: its `.md` 404s and it is
+// absent from /llms.txt and /llms-full.txt though it is a published page.
+update_option('kntnt_ai_visibility', ['exclusions' => ['paths' => '/cookiepolicy/']]);
+
 // Create the fixture pages. Each carries a known slug, title and body so the
 // e2e can assert the rendered front-matter, the visible H1 and the converted
 // (and absolutised) body.
@@ -40,6 +45,13 @@ $pages = [
         'post_title'   => 'Home',
         'post_status'  => 'publish',
         'post_content' => '<p>Welcome home.</p>',
+    ],
+    [
+        'post_name'    => 'cookiepolicy',
+        'post_title'   => 'Cookie Policy',
+        'post_status'  => 'publish',
+        'post_excerpt' => 'How we use cookies.',
+        'post_content' => '<p>Auto-generated cookie policy.</p>',
     ],
     [
         'post_name'     => 'secret',

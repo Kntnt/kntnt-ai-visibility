@@ -9,6 +9,9 @@
 # GitHub Releases "latest/download" URL stays stable (see docs/adr/0005); the
 # Updater identifies the asset by content type, not filename.
 #
+# With no arguments, the zip is written to dist/ in the repo root (created if
+# missing); pass --output/--update/--create to choose a different destination.
+#
 # Requirements: zip, composer.
 #   With --tag: git.
 #   With --update/--create: gh (GitHub CLI).
@@ -28,8 +31,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 usage() {
 	cat <<'HELP'
 Usage:
-  build-release-zip.sh --output <path>
-  build-release-zip.sh --tag <tag> --output <path>
+  build-release-zip.sh [--output <path>]
+  build-release-zip.sh --tag <tag> [--output <path>]
   build-release-zip.sh --tag <tag> --update
   build-release-zip.sh --tag <tag> --create
   build-release-zip.sh --help
@@ -38,17 +41,18 @@ Source:
   Without --tag, builds from the local working copy.
   With --tag <tag>, builds from the files at the given git tag.
 
-Destination (exactly one required):
+Destination (defaults to dist/ in the repo root when none is given):
   --output <path>      Save the zip to <path>. A directory (or trailing /) saves
                        kntnt-ai-visibility.zip inside it; otherwise the last path
-                       component is the filename. The parent must exist.
+                       component is the filename. The parent must exist. Omit to
+                       write ./dist/kntnt-ai-visibility.zip (dist/ is created).
   --update             Upload the zip to an existing GitHub release for <tag>,
                        replacing any existing zip asset. Requires --tag.
   --create             Create a new GitHub release for <tag> and upload the zip.
                        The tag must already exist. Requires --tag.
 
 Examples:
-  build-release-zip.sh --output .
+  build-release-zip.sh
   build-release-zip.sh --output ~/Desktop/custom-name.zip
   build-release-zip.sh --tag 0.1.0 --output /tmp
   build-release-zip.sh --tag 0.1.0 --create
@@ -61,8 +65,6 @@ HELP
 TAG=""
 OUTPUT_PATH=""
 RELEASE_ACTION=""
-
-[[ $# -eq 0 ]] && usage 1
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -109,11 +111,10 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-# Validate that exactly one destination is given.
+# With no destination given, default to building into dist/ in the repo root.
 if [[ -z "$OUTPUT_PATH" && -z "$RELEASE_ACTION" ]]; then
-	echo "Error: specify --output, --update, or --create." >&2
-	echo >&2
-	usage 1
+	OUTPUT_PATH="$SCRIPT_DIR/dist"
+	mkdir -p "$OUTPUT_PATH"
 fi
 if [[ -n "$OUTPUT_PATH" && -n "$RELEASE_ACTION" ]]; then
 	echo "Error: --output and --${RELEASE_ACTION} cannot be combined." >&2
@@ -203,6 +204,7 @@ else
 		--exclude='.git' \
 		--exclude='vendor' \
 		--exclude='node_modules' \
+		--exclude='dist' \
 		--exclude="$ZIP_NAME" \
 		"$SCRIPT_DIR/" "$TMPDIR/$PLUGIN_DIR/"
 fi

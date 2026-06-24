@@ -186,6 +186,13 @@ do_req "${BASE}/draft-item.md"
 expect_status 404 "GET /draft-item.md is 404"
 
 echo ""
+echo "Scenario 5b: 404 for a path-excluded page"
+# cookiepolicy is a published page (md-eligible by type, like about), so the only
+# reason it 404s is the /cookiepolicy/ exclusion pattern set in the seed.
+do_req "${BASE}/cookiepolicy.md"
+expect_status 404 "GET /cookiepolicy.md is 404 (excluded by path pattern)"
+
+echo ""
 echo "Scenario 6: 403 for password-protected content"
 do_req "${BASE}/secret.md"
 expect_status 403 "GET /secret.md is 403"
@@ -236,6 +243,8 @@ body_has 'The team behind the site.' "index carries the page excerpt"
 body_has 'Hello Markdown' "index lists the published post"
 body_lacks 'Secret' "password-protected page absent from the index"
 body_lacks 'Draft Item' "draft absent from the index"
+body_lacks 'Cookie Policy' "path-excluded page absent from the index"
+body_lacks '/cookiepolicy.md)' "path-excluded page .md not linked in the index"
 
 echo ""
 echo "Scenario 10: GET /llms-full.txt — the concatenated full text (Pages only)"
@@ -248,6 +257,7 @@ body_has 'Welcome home.' "full file includes the home page"
 body_lacks 'A post body.' "the post is absent (Pages only by default)"
 body_lacks 'Members only.' "the password-protected page is absent"
 body_lacks 'Not published.' "the draft is absent"
+body_lacks 'Auto-generated cookie policy.' "the path-excluded page is absent"
 
 echo ""
 echo "Scenario 11: early-router cache hit and conditional request"

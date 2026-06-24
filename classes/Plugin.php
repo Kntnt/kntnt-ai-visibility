@@ -22,6 +22,8 @@ use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Content\Content_Matrix;
 use Kntnt\Ai_Visibility\Core\Content\Content_Settings;
+use Kntnt\Ai_Visibility\Core\Content\Exclusion_Settings;
+use Kntnt\Ai_Visibility\Core\Content\Exclusions;
 use Kntnt\Ai_Visibility\Core\Core;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Front_Matter;
@@ -289,15 +291,22 @@ final class Plugin {
 		// (docs/spec/llms-txt.md §2). The matrix reads its saved cells from the
 		// `content_types` slice of the single option.
 		$matrix = new Content_Matrix( static fn(): array => self::content_types_option() );
-		$eligibility = new Eligibility( $matrix );
+		$exclusions = new Exclusions( static fn(): string => self::exclusion_patterns_option(), static fn(): string => home_url() );
+		$eligibility = new Eligibility( $matrix, $exclusions );
 		$markdown_alternate = new Markdown_Alternate();
 		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router, $matrix, $eligibility, $markdown_alternate, $single_flight );
 
-		// Core owns the single settings section — the matrix and the clear-cache
-		// action beside it; modules contribute only their columns.
+		// Core owns the settings sections: the content-type matrix with the
+		// clear-cache action beside it, and the path-exclusion patterns that curate
+		// individual entries out of every artifact. Modules contribute only their
+		// matrix columns.
 		$content_settings = new Content_Settings( $matrix, $store, new Cache_Version() );
 		$settings->register_section( $content_settings->section() );
 		$content_settings->register();
+
+		$exclusion_settings = new Exclusion_Settings( $store, new Cache_Version() );
+		$settings->register_section( $exclusion_settings->section() );
+		$exclusion_settings->register();
 
 		// Boot the feature modules against Core, in dependency order. The Markdown
 		// module registers the `.md` column the llms columns depend on, so it boots
@@ -375,6 +384,30 @@ final class Plugin {
 		}
 
 		return $matrix;
+
+	}
+
+	/**
+	 * Reads the saved path-exclusion patterns from the single option.
+	 *
+	 * The patterns live as newline-separated text under `exclusions.paths` in the
+	 * `kntnt_ai_visibility` option; an unsaved install returns an empty string so
+	 * no path is excluded (pure zero-config).
+	 *
+	 * @since 0.5.0
+	 *
+	 * @return string The raw pattern text, or an empty string.
+	 */
+	private static function exclusion_patterns_option(): string {
+
+		// Resolve the option, then the namespaced slice, defaulting both to empty.
+		$option = get_option( 'kntnt_ai_visibility', [] );
+		$slice = is_array( $option ) && isset( $option[ Exclusion_Settings::SECTION_ID ] ) && is_array( $option[ Exclusion_Settings::SECTION_ID ] )
+			? $option[ Exclusion_Settings::SECTION_ID ]
+			: [];
+		$value = $slice[ Exclusion_Settings::FIELD_KEY ] ?? '';
+
+		return is_scalar( $value ) ? (string) $value : '';
 
 	}
 

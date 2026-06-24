@@ -18,6 +18,7 @@ use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Content\Content_Types;
+use Kntnt\Ai_Visibility\Core\Content\Exclusions;
 use Kntnt\Ai_Visibility\Core\Core;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Logger;
@@ -35,7 +36,7 @@ describe('Core', function (): void {
         $cache     = Mockery::mock(Store::class);
         $router    = Mockery::mock(Serve_Router::class);
         $types     = Mockery::mock(Content_Types::class);
-        $eligibility = new Eligibility($types);
+        $eligibility = new Eligibility($types, new Exclusions(static fn(): string => '', static fn(): string => ''));
         $markdown_alternate = new Markdown_Alternate();
         $single_flight = Mockery::mock(Single_Flight::class);
 

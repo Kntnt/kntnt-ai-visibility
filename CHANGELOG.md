@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.5.0] – 2026-06-24
+
+### Added
+
+- Path exclusions: a new **Excluded paths** settings section (Settings → AI Visibility) curates individual entries out of every artifact — the per-page `.md` alternate, `/llms.txt` and `/llms-full.txt` — by listing path patterns, one regular expression per line, matched against each page's home-relative path (e.g. `/cookiepolicy/`). Patterns are written without delimiters or flags; matching is Unicode-aware and case-insensitive, an invalid pattern is reported and dropped when you save, and changing the patterns turns the cache over so the exclusion takes effect on the next request. The shared `Core\Eligibility` gate enforces it for both the per-page `.md` (`is_eligible()`) and the aggregates (`enumerate()`). Two developer filters customise it in code: `kntnt_ai_visibility_exclusion_patterns` (amend the pattern list) and `kntnt_ai_visibility_is_excluded` (force a per-post verdict).
+
+### Changed
+
+- `build-release-zip.sh` now builds `dist/kntnt-ai-visibility.zip` (creating `dist/` when missing) when run with no arguments, instead of printing the usage text and exiting; an explicit destination (`--output`, `--update` or `--create`) still overrides this, and `dist/` is git-ignored.
+
 ## [0.4.0] – 2026-06-24
 
 ### Added
@@ -90,7 +100,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Tooling: Composer scripts (`test`, `stan`, `phpcs`, `phpcbf`, `build`), a Pest unit suite, PHPStan at level max, PHPCS (WordPress Coding Standards with four documented deviations), and the WordPress Playground end-to-end harness driven by `run-tests.sh`.
 - Continuous integration (`.github/workflows/tests.yml`): lint, static analysis, unit tests with coverage ≥ 80 %, and Playground e2e on PHP 8.5, plus automated tag-to-release builds (`.github/workflows/release.yml`) that publish a version-less `kntnt-ai-visibility.zip` asset.
 
-[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.4.0
 [0.2.2]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.1

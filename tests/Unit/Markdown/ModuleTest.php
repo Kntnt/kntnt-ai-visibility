@@ -23,6 +23,7 @@ use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Content\Capability_Column;
 use Kntnt\Ai_Visibility\Core\Content\Content_Types;
+use Kntnt\Ai_Visibility\Core\Content\Exclusions;
 use Kntnt\Ai_Visibility\Core\Core;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Logger;
@@ -63,7 +64,7 @@ beforeEach(function (): void {
         Mockery::mock(Store::class),
         Mockery::mock(Serve_Router::class),
         $this->types,
-        new Eligibility($this->types),
+        new Eligibility($this->types, new Exclusions(static fn(): string => '', static fn(): string => '')),
         new Markdown_Alternate(),
         Mockery::mock(Single_Flight::class),
     );

@@ -10,8 +10,9 @@
 *.log
 
 # Release artefact emitted by ./build-release-zip.sh — uploaded to the GitHub
-# release as an asset, not committed.
+# release as an asset, not committed. dist/ is the default output directory.
 /kntnt-ai-visibility.zip
+/dist/
 
 # Local test-environment overrides.
 .env

@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Content\Content_Types;
+use Kntnt\Ai_Visibility\Core\Content\Exclusions;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 
 /**
@@ -24,12 +25,23 @@ use Kntnt\Ai_Visibility\Core\Eligibility;
  *
  * @param list<string> $md_types
  */
-function kntnt_eligibility(array $md_types = ['post', 'page']): Eligibility
+function kntnt_eligibility(array $md_types = ['post', 'page'], ?Exclusions $exclusions = null): Eligibility
 {
     $types = Mockery::mock(Content_Types::class);
     $types->shouldReceive('types_for')->with('md')->andReturn($md_types)->byDefault();
 
-    return new Eligibility($types);
+    return new Eligibility($types, $exclusions ?? kntnt_exclusions(''));
+}
+
+/**
+ * Builds an Exclusions gate over the given newline-separated pattern text.
+ *
+ * With empty text the gate short-circuits before any permalink lookup, so the
+ * default keeps the non-exclusion cases free of get_permalink stubbing.
+ */
+function kntnt_exclusions(string $text = ''): Exclusions
+{
+    return new Exclusions(static fn(): string => $text, static fn(): string => 'https://example.test');
 }
 
 /**
@@ -96,6 +108,24 @@ describe('Eligibility::is_eligible', function (): void {
         expect(kntnt_eligibility(['post'])->is_eligible(kntnt_post('post', 'publish')))->toBeFalse();
     });
 
+    it('rejects a post whose path matches an exclusion pattern', function (): void {
+        Functions\when('wp_parse_url')->alias(fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('get_permalink')->justReturn('https://example.test/cookiepolicy/');
+
+        $eligibility = kntnt_eligibility(['post', 'page'], kntnt_exclusions('/cookiepolicy/'));
+
+        expect($eligibility->is_eligible(kntnt_post('page', 'publish')))->toBeFalse();
+    });
+
+    it('keeps a post whose path matches no exclusion pattern', function (): void {
+        Functions\when('wp_parse_url')->alias(fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('get_permalink')->justReturn('https://example.test/about/');
+
+        $eligibility = kntnt_eligibility(['post', 'page'], kntnt_exclusions('/cookiepolicy/'));
+
+        expect($eligibility->is_eligible(kntnt_post('page', 'publish')))->toBeTrue();
+    });
+
 });
 
 describe('Eligibility::enumerate', function (): void {
@@ -146,6 +176,21 @@ describe('Eligibility::enumerate', function (): void {
         expect($args['page']['order'])->toBe('ASC');
         expect($args['post']['orderby'])->toBe('date');
         expect($args['post']['order'])->toBe('DESC');
+    });
+
+    it('drops an enumerated post whose path matches an exclusion pattern', function (): void {
+        $keep = kntnt_post('post');
+        $keep->ID = 1;
+        $drop = kntnt_post('post');
+        $drop->ID = 2;
+        Functions\when('is_post_type_hierarchical')->justReturn(false);
+        Functions\when('get_posts')->justReturn([$keep, $drop]);
+        Functions\when('wp_parse_url')->alias(fn(string $url, int $component) => parse_url($url, $component));
+        Functions\when('get_permalink')->alias(fn(WP_Post $post): string => $post->ID === 2 ? 'https://example.test/secret/' : 'https://example.test/keep/');
+
+        $result = kntnt_eligibility(['post'], kntnt_exclusions('/secret/'))->enumerate(['post']);
+
+        expect($result)->toBe([$keep]);
     });
 
 });
