@@ -3,14 +3,16 @@
  * Test-only must-use plugin for the Playground end-to-end suite.
  *
  * The e2e blueprint seeds content only once, at boot, so it cannot by itself
- * exercise cache invalidation — which needs a content change mid-run. Playground
- * runs single-worker with no authenticated curl session, so this drop-in mu-plugin
- * exposes two token-gated HTTP endpoints the e2e script drives over plain curl:
- * publish a post (to trigger the cache-version bump) and report the number of
- * cache files in an aggregate kind directory (to prove the bump pruned the
- * orphaned older version). It is copied into wp-content/mu-plugins by e2e-seed.php
- * and lives under tests/, so it is never part of a release and only ever runs
- * inside the throwaway Playground instance.
+ * exercise cache invalidation or vary settings mid-run. Playground runs
+ * single-worker with no authenticated curl session, so this drop-in mu-plugin
+ * exposes four token-gated HTTP endpoints the e2e script drives over plain curl:
+ * publish a post (to trigger the cache-version bump), report the number of cache
+ * files in an aggregate kind directory (to prove the bump pruned the orphaned
+ * older version), set the content-signal slice, and toggle blog_public (so the
+ * Release-4 robots.txt assertions can vary the policy and the public flag). It is
+ * copied into wp-content/mu-plugins by e2e-seed.php and lives under tests/, so it
+ * is never part of a release and only ever runs inside the throwaway Playground
+ * instance.
  *
  * @package Tests\Integration
  * @since   0.2.0

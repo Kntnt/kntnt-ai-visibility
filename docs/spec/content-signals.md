@@ -347,7 +347,7 @@ The `Discovery_Context` change Release 3 makes (ADR-0012's sibling, [`link-heade
 End-to-end assertions run on WordPress Playground with no DDEV fallback (ADR-0004), driving real HTTP against the live `robots.txt`.
 
 - `GET /robots.txt` on a fresh install contains `Content-Signal: ai-input=yes` inside the `User-agent: *` group, and contains **no** `search=` or `ai-train=` token.
-- After setting (through the test-only settings endpoint used by the Release-2 suite) `search=reserve` and `ai-train=reserve`, `GET /robots.txt` shows `Content-Signal: search=no, ai-input=yes, ai-train=no`.
+- After setting (through a test-only settings endpoint added to the e2e mu-plugin) `search=reserve` and `ai-train=reserve`, `GET /robots.txt` shows `Content-Signal: search=no, ai-input=yes, ai-train=no`.
 - After setting every signal to *defer*, `GET /robots.txt` contains **no** `Content-Signal` line and no Kntnt comment.
 - With `blog_public = 0`, `GET /robots.txt` contains `Disallow: /` and **no** `Content-Signal` line.
 - The decorator never breaks the file: the WordPress default `User-agent: *` / `Disallow:` / `Allow:` / `Sitemap:` lines remain present and unreordered.
