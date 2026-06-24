@@ -307,6 +307,7 @@ final class Plugin {
 		( new Markdown\Module() )->boot( $this->core );
 		( new Llms\Module() )->boot( $this->core );
 		( new Links\Module() )->boot( $this->core );
+		( new Signals\Module() )->boot( $this->core );
 
 	}
 
