@@ -12,12 +12,12 @@ For content-rich websites – corporate sites, online magazines and blogs – th
 
 ### Features
 
-Kntnt AI Visibility is built around four capabilities, none of which depends on an SEO or e-commerce plugin. Two are available today; the other two are still to come.
+Kntnt AI Visibility is built around four capabilities, none of which depends on an SEO or e-commerce plugin.
 
-1. **Markdown alternates** *(available)* – a clean Markdown version of every page, served on its canonical URL through `Accept` negotiation, and also reachable as a `.md` URL or via `?format=markdown`, produced by a high-fidelity HTML-to-Markdown converter and cached to disk for fast serving.
-2. **`llms.txt` and `llms-full.txt`** *(available)* – `/llms.txt`, a curated index of your key content that links to each page's Markdown, and `/llms-full.txt`, your selected pages concatenated into a single Markdown document. Both are generated on first request and rebuilt as your content changes.
-3. **Link headers** *(planned)* – RFC 8288/9727 headers that advertise the Markdown alternates and `llms.txt` so agents can find them.
-4. **Content signals in `robots.txt`** *(planned)* – declare how AI agents may use your content.
+1. **Markdown alternates** – a clean Markdown version of every page, served on its canonical URL through `Accept` negotiation, and also reachable as a `.md` URL or via `?format=markdown`, produced by a high-fidelity HTML-to-Markdown converter and cached to disk for fast serving.
+2. **`llms.txt` and `llms-full.txt`** – `/llms.txt`, a curated index of your key content that links to each page's Markdown, and `/llms-full.txt`, your selected pages concatenated into a single Markdown document. Both are generated on first request and rebuilt as your content changes.
+3. **Link headers** – RFC 8288/9727 headers that advertise the Markdown alternates and `llms.txt` so agents can find them.
+4. **Content signals in `robots.txt`** – declare how AI agents may use your content.
 
 Which content each file exposes is set on a single settings page – one row per content type, one column per file – and the zero-config defaults work without any setup. See [`docs/Charter.md`](docs/Charter.md) for the full plan.
 
@@ -82,6 +82,12 @@ The two llms.txt singletons – `/llms.txt` and `/llms-full.txt` – are cached 
 Have a usage question or something to discuss? Please use [Discussions](https://github.com/Kntnt/kntnt-ai-visibility/discussions).
 
 Found a bug or want to request a feature? Please [open an issue](https://github.com/Kntnt/kntnt-ai-visibility/issues). Search the existing issues first to avoid duplicates.
+
+## Extending
+
+Everything the plugin produces – the Markdown alternates, `/llms.txt`, `/llms-full.txt` and the `robots.txt` content signals – needs no configuration and can also be customised in code through optional WordPress filters, all prefixed `kntnt_ai_visibility_`. You can, for example, add a custom post type to the Markdown alternates and the `llms.txt` index, rewrite an entry's title and description from your SEO plugin or set the `robots.txt` content-signal policy.
+
+The full reference – every filter, what it receives and worked examples – is in [`docs/EXTENSIBILITY.md`](docs/EXTENSIBILITY.md).
 
 ## Development
 

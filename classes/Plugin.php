@@ -4,9 +4,8 @@
  *
  * Wires the plugin's components, holds the absolute path to the main plugin
  * file, and exposes the static helpers the Updater and other consumers need.
- * Module wiring is intentionally empty in the 1.1 scaffold; the four content
- * modules (Markdown, llms.txt, Link headers, Content Signals) are wired in as
- * they land in later steps.
+ * It boots the four content modules (Markdown, llms.txt, Link headers, Content
+ * Signals) against the Core service graph.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -243,9 +242,8 @@ final class Plugin {
 	 * Instantiated once by get_instance(). The Updater is wired here because
 	 * GitHub-hosted self-updates are core infrastructure (see docs/adr/0003),
 	 * not a content module. It then builds the Core service graph and boots the
-	 * feature modules in dependency order; Release 1 ships one — the Markdown
-	 * alternate. The remaining three (llms.txt, Link headers, Content Signals)
-	 * are booted alongside it as they land.
+	 * four feature modules in dependency order: the Markdown alternate, llms.txt,
+	 * Link headers and Content Signals.
 	 *
 	 * @since 0.1.0
 	 */

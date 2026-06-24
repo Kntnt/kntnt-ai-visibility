@@ -195,7 +195,7 @@ runs on WordPress Playground – never an automatic DDEV fallback
 
 Exact provider method signatures; the Markdown front-matter/metadata shape; cache mechanism details (single-flight, TTL/version invalidation, file paths); settings field definitions; and negotiation edge cases (attachments, pagination).
 
-These are settled for **Release 1** (the Markdown alternate) in [`docs/spec/markdown-alternate.md`](spec/markdown-alternate.md) and for **Release 2** (llms.txt + llms-full.txt, the content-type matrix and the exact-path router) in [`docs/spec/llms-txt.md`](spec/llms-txt.md), both now implemented. **Release 3** (the site-wide RFC 8288 `Link`-header advertising, module c) is specified in draft in [`docs/spec/link-headers.md`](spec/link-headers.md), and **Release 4** (the `robots.txt` content signals, module d) in [`docs/spec/content-signals.md`](spec/content-signals.md); neither module is implemented yet.
+These are settled for **Release 1** (the Markdown alternate) in [`docs/spec/markdown-alternate.md`](spec/markdown-alternate.md), **Release 2** (llms.txt + llms-full.txt, the content-type matrix and the exact-path router) in [`docs/spec/llms-txt.md`](spec/llms-txt.md), **Release 3** (the site-wide RFC 8288 `Link`-header advertising, module c) in [`docs/spec/link-headers.md`](spec/link-headers.md) and **Release 4** (the `robots.txt` content signals, module d) in [`docs/spec/content-signals.md`](spec/content-signals.md); all four modules are now implemented.
 
 ## Decision record
 
