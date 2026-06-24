@@ -357,6 +357,49 @@ expect_status 200 "GET /llms.txt (warm artifact) is 200"
 header_lacks 'rel="related"' "GET /llms.txt (early-router hit) carries no rel=related Link header"
 
 echo ""
+echo "Scenario 16: Content-Signal directive in robots.txt (Release 4)"
+
+# Fresh-install default: search=defer, ai-input=grant, ai-train=defer.
+# Only ai-input=yes should appear; no search= or ai-train= token.
+do_req "${BASE}/robots.txt"
+expect_status 200 "GET /robots.txt is 200"
+body_has 'User-agent: *' "robots.txt carries the default User-agent: * line"
+body_has 'Content-Signal: ai-input=yes' "default policy emits Content-Signal: ai-input=yes"
+body_lacks 'search=' "default policy omits the search signal"
+body_lacks 'ai-train=' "default policy omits the ai-train signal"
+
+# After setting search=reserve and ai_train=reserve: all three signals appear.
+do_req "${BASE}/?kntnt_e2e=set_signals&search=reserve&ai_input=grant&ai_train=reserve&token=${TOKEN}"
+body_has 'SIGNALS_SET' "set_signals endpoint confirmed the update"
+
+do_req "${BASE}/robots.txt"
+body_has 'Content-Signal: search=no, ai-input=yes, ai-train=no' "full non-defer policy emits all three signals"
+body_has 'User-agent: *' "User-agent: * line still present after signals update"
+
+# After setting every signal to defer: no Content-Signal line at all.
+do_req "${BASE}/?kntnt_e2e=set_signals&search=defer&ai_input=defer&ai_train=defer&token=${TOKEN}"
+body_has 'SIGNALS_SET' "set_signals endpoint confirmed all-defer update"
+
+do_req "${BASE}/robots.txt"
+body_lacks 'Content-Signal' "all-defer policy emits no Content-Signal line"
+body_has 'User-agent: *' "User-agent: * line still present for all-defer policy"
+
+# With blog_public=0: the whole block is suppressed; the WP default Disallow: / appears.
+do_req "${BASE}/?kntnt_e2e=set_signals&search=grant&ai_input=grant&ai_train=grant&token=${TOKEN}"
+body_has 'SIGNALS_SET' "set_signals endpoint confirmed all-grant update (setup for non-public test)"
+
+do_req "${BASE}/?kntnt_e2e=set_public&value=0&token=${TOKEN}"
+body_has 'PUBLIC_SET 0' "set_public endpoint confirmed blog_public=0"
+
+do_req "${BASE}/robots.txt"
+body_has 'User-agent: *' "robots.txt still carries User-agent: * when non-public"
+body_lacks 'Content-Signal' "non-public site suppresses the Content-Signal block entirely"
+
+# Restore to public so the remaining harness state is clean.
+do_req "${BASE}/?kntnt_e2e=set_public&value=1&token=${TOKEN}"
+body_has 'PUBLIC_SET 1' "set_public endpoint confirmed blog_public=1 restored"
+
+echo ""
 echo "═══ e2e summary: ${PASS} passed, ${FAIL} failed ═══"
 if [[ "$FAIL" -gt 0 ]]; then
 	echo "Some assertions failed. Server log follows:" >&2

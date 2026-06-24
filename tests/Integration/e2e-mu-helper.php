@@ -56,4 +56,33 @@ add_action('init', static function (): void {
         echo 'COUNT ' . (is_array($files) ? count($files) : 0);
         exit;
     }
+
+    // Update the content_signals slice of the plugin option so the e2e can
+    // assert the robots.txt output under different signal configurations.
+    if ($action === 'set_signals') {
+        $allowed = ['grant', 'reserve', 'defer'];
+        $search   = (isset($_GET['search'])   && in_array((string) $_GET['search'],   $allowed, true)) ? (string) $_GET['search']   : 'defer';
+        $ai_input = (isset($_GET['ai_input']) && in_array((string) $_GET['ai_input'], $allowed, true)) ? (string) $_GET['ai_input'] : 'grant';
+        $ai_train = (isset($_GET['ai_train']) && in_array((string) $_GET['ai_train'], $allowed, true)) ? (string) $_GET['ai_train'] : 'defer';
+        $option = (array) get_option('kntnt_ai_visibility', []);
+        $option['content_signals'] = [
+            'search'   => $search,
+            'ai_input' => $ai_input,
+            'ai_train' => $ai_train,
+        ];
+        update_option('kntnt_ai_visibility', $option);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'SIGNALS_SET';
+        exit;
+    }
+
+    // Toggle the site's public/private flag so the e2e can assert that
+    // Content-Signal is suppressed when blog_public = 0.
+    if ($action === 'set_public') {
+        $value = (isset($_GET['value']) && (string) $_GET['value'] === '0') ? '0' : '1';
+        update_option('blog_public', $value);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'PUBLIC_SET ' . $value;
+        exit;
+    }
 });
