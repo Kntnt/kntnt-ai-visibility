@@ -192,6 +192,11 @@ final class Settings {
 		// Render the form prefix used by all three selects.
 		$prefix = sprintf( '%s[%s]', self::OPTION_KEY, self::SECTION_ID );
 
+		// Wrap the three signal rows in a form-table. A custom, field-less section
+		// gets no table from do_settings_sections(), so the rows must carry their
+		// own wrapper — mirroring Content_Settings' self-contained matrix table.
+		echo '<table class="form-table" role="presentation">';
+
 		// Render each signal as a labelled select with three options and help text.
 		$this->render_signal(
 			$prefix,
@@ -225,6 +230,8 @@ final class Settings {
 				'kntnt-ai-visibility',
 			),
 		);
+
+		echo '</table>';
 
 		// Render inline warnings for any visibility-reducing or conflicting choices.
 		$this->render_warnings( $policy );

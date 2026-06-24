@@ -223,6 +223,11 @@ describe('Settings::section', function (): void {
         ($section->render)();
         $html = (string) ob_get_clean();
 
+        // The rows must be wrapped in a form-table; a field-less custom section
+        // gets no table from do_settings_sections(), so the markup carries its own.
+        expect($html)->toContain('<table class="form-table"');
+        expect($html)->toContain('</table>');
+
         // The three signal selects must be present.
         expect($html)->toContain('name="kntnt_ai_visibility[content_signals][search]"');
         expect($html)->toContain('name="kntnt_ai_visibility[content_signals][ai_input]"');
