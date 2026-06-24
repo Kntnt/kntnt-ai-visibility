@@ -1,4 +1,6 @@
-# Spec 3 (DRAFT) — Release 3: RFC 8288 Link-header discovery (Link headers module)
+# Spec 3 — Release 3: RFC 8288 Link-header discovery (Link headers module)
+
+> **Ratified 2026-06-23.** The four open decisions (§1 and the closing "Decisions" section) are now settled — see that section for the outcomes. In particular, **`Discovery_Context` gains a nullable post and NO `$scope` field**: the `string $scope` shown in §1a, §2.3 and §4 below is superseded (a null post *is* the site-wide call; providers branch on `post === null`). The authoritative implementation contract is `plans/013-build-link-headers-module.md`; where this draft's code blocks differ, follow the plan.
 
 This is the Release-3 specification for the **Link headers module**: RFC 8288 HTTP `Link` headers advertising every registered discoverable artifact on each HTML response. It turns the architectural seams of [`docs/architecture.md`](../architecture.md) and ADR-0006 … 0010 into concrete contracts an implementer can TDD against, mirroring the shape and rigour of the Release-2 spec [`docs/spec/llms-txt.md`](llms-txt.md). Where this spec states *what*, the linked ADR states *why*; read the ADR when the reasoning matters.
 
@@ -303,7 +305,11 @@ Steps 1–2 extend Core and existing providers; step 3 is the new module. Keep a
 
 ---
 
-## Decisions needed from the maintainer
+## Decisions (ratified 2026-06-23)
+
+All four are settled; the implementation contract is `plans/013-build-link-headers-module.md`. Summary: **(1)** Option A, simplified — `Discovery_Context` gains a nullable post and **no** `$scope` field (providers branch on `post === null`); **(2)** `rel="related"`, `type="text/plain"` for both singletons; **(3)** emit on **every** HTML page, with the guard extended to skip `is_robots()` and `is_404()`; **(4)** deduplicate by the full `(href, rel, type)` triple, not by `href` alone.
+
+The original options, for the record:
 
 1. **Discovery-context scope (§1a):** approve Option A (make `Discovery_Context::$post` nullable, add `$scope: 'page'|'site'`) or choose Option B (second context type) or Option C (separate `advertise_site()` method). The recommended choice is Option A.
 2. **Link relation for llms.txt (§1b):** approve `rel="related"` as the provisional relation for `/llms.txt` and `/llms-full.txt`, or choose `rel="alternate"` (imprecise but widely understood) or a custom extension URI (future-proof but opaque to current agents). The recommended choice is `related`.

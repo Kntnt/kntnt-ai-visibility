@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+
+- The Link-headers module (Release 3): RFC 8288 HTTP `Link` headers that advertise every registered artifact on HTML responses — each singular page's Markdown alternate (`rel="alternate"`, `type="text/markdown"`) and the site-wide `/llms.txt` and `/llms-full.txt` singletons (`rel="related"`, `type="text/plain"`). Headers are emitted on every HTML response through `send_headers` and skipped on admin, REST, feed, `robots.txt` and 404 responses; the early-router artifact path is deliberately left undecorated. `Discovery_Context` gains a nullable post so a provider can answer both the per-page and the site-wide discovery call, and relations are de-duplicated by the full (`href`, `rel`, `type`) triple.
+- Release-4 design groundwork: the Content Signals specification in `docs/spec/content-signals.md` and [ADR-0012](docs/adr/0012-content-signals-tri-state-defaults.md) — a site-wide, tri-state `Content-Signal` declaration in `robots.txt` (`search` / `ai-input` / `ai-train`), defaulting to `search`=defer, `ai-input`=grant, `ai-train`=defer. The `CONTEXT.md` glossary gains the term *Content signal*.
+
 ## [0.2.2] – 2026-06-23
 
 ### Fixed

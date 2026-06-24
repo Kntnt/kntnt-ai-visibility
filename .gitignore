@@ -24,4 +24,9 @@
 *.swp
 *~
 
+# Advisor revision material (improve-skill plans) and Claude Code local/worktree
+# state — kept on disk, deliberately not committed.
+/plans/
+/.claude/
+
 # Composer and npm lock files are committed (kept), so they are NOT ignored.

@@ -195,7 +195,7 @@ runs on WordPress Playground – never an automatic DDEV fallback
 
 Exact provider method signatures; the Markdown front-matter/metadata shape; cache mechanism details (single-flight, TTL/version invalidation, file paths); settings field definitions; and negotiation edge cases (attachments, pagination).
 
-These are settled for **Release 1** (the Markdown alternate) in [`docs/spec/markdown-alternate.md`](spec/markdown-alternate.md) and for **Release 2** (llms.txt + llms-full.txt, the content-type matrix and the exact-path router) in [`docs/spec/llms-txt.md`](spec/llms-txt.md), both now implemented. Only the site-wide RFC 8288 `Link`-header advertising (module c, Release 3) and the `robots.txt` content signals (module d, Release 4) remain deferred.
+These are settled for **Release 1** (the Markdown alternate) in [`docs/spec/markdown-alternate.md`](spec/markdown-alternate.md) and for **Release 2** (llms.txt + llms-full.txt, the content-type matrix and the exact-path router) in [`docs/spec/llms-txt.md`](spec/llms-txt.md), both now implemented. **Release 3** (the site-wide RFC 8288 `Link`-header advertising, module c) is specified in draft in [`docs/spec/link-headers.md`](spec/link-headers.md), and **Release 4** (the `robots.txt` content signals, module d) in [`docs/spec/content-signals.md`](spec/content-signals.md); neither module is implemented yet.
 
 ## Decision record
 
@@ -211,3 +211,5 @@ These are settled for **Release 1** (the Markdown alternate) in [`docs/spec/mark
 | [0008](adr/0008-artifact-provider-registry.md) | Artifact-provider registry |
 | [0009](adr/0009-markdown-alternate-serving-strategy.md) | Markdown serving strategy |
 | [0010](adr/0010-zero-config-settings-registry.md) | Zero-config settings registry |
+| [0011](adr/0011-release-notes-from-changelog.md) | Release notes come from the CHANGELOG |
+| [0012](adr/0012-content-signals-tri-state-defaults.md) | Content signals: site-wide tri-state declaration, mission-coherent defaults |

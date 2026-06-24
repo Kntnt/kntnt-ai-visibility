@@ -22,6 +22,10 @@ A curated, machine-readable index of the site's key content for LLMs, following 
 **llms-full.txt**:
 The site's full content concatenated as Markdown – assembled from the per-page **Markdown alternates**, never re-rendered from HTML. A singleton **discoverable artifact**.
 
+**Content signal**:
+A site-wide declared preference for how the site's content may be used by AI – one of `search`, `ai-input` or `ai-train` (the Content Signals Policy vocabulary) – emitted in `robots.txt`. Unlike a **discoverable artifact** it is a *directive*, not a representation served at its own URL: it has no provider, no serve pattern and no cache, and it is site-wide rather than per content type. Each signal has three states – *grant* (`yes`), *reserve* (`no`) and *defer* (omitted: neither granted nor reserved, leaving the use to whatever else governs it – the site's other directives, applicable law and crawler practice).
+_Avoid_: AI opt-out, blocklist, robots rule (it declares a usage preference; it does not block crawlers)
+
 ## Example dialogue
 
 **Dev:** When an agent requests `/about.md`, who decides whether to serve it?
