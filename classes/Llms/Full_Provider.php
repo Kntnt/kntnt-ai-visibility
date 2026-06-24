@@ -122,7 +122,7 @@ final class Full_Provider implements Provider {
 	/**
 	 * Advertises the llms-full.txt singleton as a site-wide link relation.
 	 *
-	 * @since 0.3.0
+	 * @since 0.4.0
 	 *
 	 * @param Discovery_Context $context The discovery context.
 	 * @return list<Link_Relation>

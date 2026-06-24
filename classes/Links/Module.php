@@ -22,14 +22,14 @@ use Kntnt\Ai_Visibility\Core\Module as Module_Contract;
 /**
  * Boots and wires the Link-headers module.
  *
- * @since 0.3.0
+ * @since 0.4.0
  */
 final class Module implements Module_Contract {
 
 	/**
 	 * Builds the header emitter and registers it against Core.
 	 *
-	 * @since 0.3.0
+	 * @since 0.4.0
 	 *
 	 * @param Core $core The Core service facade.
 	 * @return void

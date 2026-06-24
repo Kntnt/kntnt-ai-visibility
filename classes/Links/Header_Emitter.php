@@ -24,14 +24,14 @@ use Kntnt\Ai_Visibility\Core\Artifact\Registry;
 /**
  * Emits RFC 8288 Link headers on HTML responses.
  *
- * @since 0.3.0
+ * @since 0.4.0
  */
 final class Header_Emitter {
 
 	/**
 	 * Binds the emitter to the provider registry.
 	 *
-	 * @since 0.3.0
+	 * @since 0.4.0
 	 *
 	 * @param Registry $registry The artifact-provider registry.
 	 */
@@ -40,7 +40,7 @@ final class Header_Emitter {
 	/**
 	 * Registers the send_headers hook.
 	 *
-	 * @since 0.3.0
+	 * @since 0.4.0
 	 *
 	 * @return void
 	 */
@@ -51,7 +51,7 @@ final class Header_Emitter {
 	/**
 	 * Emits Link headers for the current request.
 	 *
-	 * @since 0.3.0
+	 * @since 0.4.0
 	 *
 	 * @return void
 	 */

@@ -6,11 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.0] – 2026-06-24
+
 ### Added
 
 - The Link-headers module (Release 3): RFC 8288 HTTP `Link` headers that advertise every registered artifact on HTML responses — each singular page's Markdown alternate (`rel="alternate"`, `type="text/markdown"`) and the site-wide `/llms.txt` and `/llms-full.txt` singletons (`rel="related"`, `type="text/plain"`). Headers are emitted on every HTML response through `send_headers` and skipped on admin, REST, feed, `robots.txt` and 404 responses; the early-router artifact path is deliberately left undecorated. `Discovery_Context` gains a nullable post so a provider can answer both the per-page and the site-wide discovery call, and relations are de-duplicated by the full (`href`, `rel`, `type`) triple.
 - The Content Signals module (Release 4): a site-wide, tri-state `Content-Signal` declaration spliced into the virtual `robots.txt` under `User-agent: *`, using the Content Signals Policy vocabulary (`search` / `ai-input` / `ai-train`). Each signal is *grant* (`yes`), *reserve* (`no`) or *defer* (omitted); the zero-config defaults – `search`=defer, `ai-input`=grant, `ai-train`=defer – emit the single line `Content-Signal: ai-input=yes`. An all-defer policy emits nothing and the block is suppressed entirely on a non-public site (`blog_public = 0`); a new "AI usage" settings section carries the three controls with inline warnings on visibility-reducing choices. A developer filter (`kntnt_ai_visibility_content_signals`) overrides the resolved policy in code. Specified in `docs/spec/content-signals.md` and [ADR-0012](docs/adr/0012-content-signals-tri-state-defaults.md); the `CONTEXT.md` glossary gains the term *Content signal*.
 - Developer-filter reference: `docs/EXTENSIBILITY.md` documents the plugin's `kntnt_ai_visibility_*` filters – the customisation surface for the Markdown alternates, `llms.txt` / `llms-full.txt`, the content signals and caching – with worked examples, and the README gains an *Extending* section that points to it.
+
+### Changed
+
+- The GitHub self-update check is now cached behind a filterable TTL (default six hours, `kntnt_ai_visibility_update_check_ttl`) and pinned to the expected GitHub host, so the plugin polls less often and ignores a response served from an unexpected host.
+- Less filesystem work on the cache-hit serve path: the cache-base real path is memoised and a response's `ETag` is computed only when it is needed.
+
+### Fixed
+
+- Control characters in a post's title, author or term names are now escaped in the Markdown front matter, so a stray control byte cannot break the YAML block.
+- `/llms.txt` no longer emits a section header for a content type that has no eligible posts.
+- Conditional requests honour a comma-separated `If-None-Match` list and weak ETags, so a matching validator returns `304` as it should.
+- The declared WordPress requirement is corrected to 6.7, from an erroneous 7.0, matching the actual minimum.
+
+### Security
+
+- The canonical host used in `Link` headers and advertised URLs is taken from the site configuration rather than the incoming `Host` header, so a spoofed `Host` cannot influence what the plugin advertises.
+- Single-flight lock files are written to a namespaced, restricted directory, preventing cross-install collisions and tightening the lock-file location.
 
 ## [0.2.2] – 2026-06-23
 
@@ -71,7 +90,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Tooling: Composer scripts (`test`, `stan`, `phpcs`, `phpcbf`, `build`), a Pest unit suite, PHPStan at level max, PHPCS (WordPress Coding Standards with four documented deviations), and the WordPress Playground end-to-end harness driven by `run-tests.sh`.
 - Continuous integration (`.github/workflows/tests.yml`): lint, static analysis, unit tests with coverage ≥ 80 %, and Playground e2e on PHP 8.5, plus automated tag-to-release builds (`.github/workflows/release.yml`) that publish a version-less `kntnt-ai-visibility.zip` asset.
 
-[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.4.0
 [0.2.2]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.0
