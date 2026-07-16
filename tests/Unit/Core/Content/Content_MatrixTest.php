@@ -51,6 +51,32 @@ beforeEach(function (): void {
     Functions\when('is_post_type_viewable')->alias(fn(string $type): bool => in_array($type, ['post', 'page', 'attachment'], true));
 });
 
+describe('Capability_Column::label', function (): void {
+
+    // A translatable header must stay a closure until the matrix renders; a column
+    // is constructed while a module boots, long before `init`.
+
+    it('does not resolve a closure label at construction', function (): void {
+        $calls = 0;
+        $column = new Capability_Column('md', function () use (&$calls): string {
+            ++$calls;
+
+            return 'Markdown (.md)';
+        }, '', static fn(string $type): bool => true);
+
+        expect($calls)->toBe(0);
+        expect($column->label())->toBe('Markdown (.md)');
+        expect($calls)->toBe(1);
+    });
+
+    it('still accepts a plain string label', function (): void {
+        $column = new Capability_Column('md', 'Markdown (.md)', '', static fn(string $type): bool => true);
+
+        expect($column->label())->toBe('Markdown (.md)');
+    });
+
+});
+
 describe('Content_Matrix::is_enabled', function (): void {
 
     it('falls back to the column default when the cell is unset', function (): void {

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.5.1] – 2026-07-16
+
+### Fixed
+
+- Resolved the WordPress 6.7+ "translation loading was triggered too early" notice that 0.5.0 reintroduced: the plugin logged one `_load_textdomain_just_in_time` notice on every request, whether or not any translations were installed. The **Excluded paths** field's label and help text are now translated lazily, when the settings page renders (after `init`), instead of while the plugin file is still being included. `Settings\Field` was the one value object that never received the lazy-label treatment `Section` and `Capability_Column` got in 0.2.2, so the two strings the 0.5.0 exclusion section introduced were resolved at bootstrap. `Field` now accepts a `Closure(): string` for both `label` and `description`, mirroring `Section::title()` and `Capability_Column::label()`, and unit tests guard all three against resolving a label at construction.
+
 ## [0.5.0] – 2026-06-24
 
 ### Added
@@ -100,7 +106,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Tooling: Composer scripts (`test`, `stan`, `phpcs`, `phpcbf`, `build`), a Pest unit suite, PHPStan at level max, PHPCS (WordPress Coding Standards with four documented deviations), and the WordPress Playground end-to-end harness driven by `run-tests.sh`.
 - Continuous integration (`.github/workflows/tests.yml`): lint, static analysis, unit tests with coverage ≥ 80 %, and Playground e2e on PHP 8.5, plus automated tag-to-release builds (`.github/workflows/release.yml`) that publish a version-less `kntnt-ai-visibility.zip` asset.
 
-[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Kntnt/kntnt-ai-visibility/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.5.1
 [0.5.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.4.0
 [0.2.2]: https://github.com/Kntnt/kntnt-ai-visibility/releases/tag/v0.2.2

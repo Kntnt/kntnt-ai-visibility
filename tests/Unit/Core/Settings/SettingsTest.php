@@ -113,6 +113,59 @@ describe('Settings::sanitize', function (): void {
 
 });
 
+describe('Field and Section lazy labels', function (): void {
+
+    // A translatable label must be declared as a closure and resolved at render
+    // time. Resolving it at construction would translate during plugin bootstrap,
+    // before `init` — tripping WordPress 6.7's "translation loaded too early"
+    // notice and freezing the string against the locale determinable before the
+    // current user exists. The guard that matters is that the closure is NOT
+    // called by the constructor.
+
+    it('does not resolve a field label or description at construction', function (): void {
+        $calls = 0;
+        $count = function () use (&$calls): string {
+            ++$calls;
+
+            return 'Lazy';
+        };
+
+        $field = new Field('flag', $count, 'checkbox', true, static fn($v): bool => (bool) $v, $count);
+
+        expect($calls)->toBe(0);
+        expect($field->label())->toBe('Lazy');
+        expect($field->description())->toBe('Lazy');
+        expect($calls)->toBe(2);
+    });
+
+    it('still accepts plain strings for a field label and description', function (): void {
+        $field = new Field('flag', 'Flag', 'checkbox', true, static fn($v): bool => (bool) $v, 'Flag help');
+
+        expect($field->label())->toBe('Flag');
+        expect($field->description())->toBe('Flag help');
+    });
+
+    it('defaults a field description to the empty string', function (): void {
+        $field = new Field('flag', 'Flag', 'checkbox', true, static fn($v): bool => (bool) $v);
+
+        expect($field->description())->toBe('');
+    });
+
+    it('does not resolve a section title at construction', function (): void {
+        $calls = 0;
+        $section = new Section('markdown', function () use (&$calls): string {
+            ++$calls;
+
+            return 'Markdown';
+        });
+
+        expect($calls)->toBe(0);
+        expect($section->title())->toBe('Markdown');
+        expect($calls)->toBe(1);
+    });
+
+});
+
 describe('Settings::register and add_page', function (): void {
 
     it('hooks admin_menu and admin_init on register', function (): void {
@@ -201,6 +254,36 @@ describe('Settings::register_wp_settings', function (): void {
         ob_start();
         ($section_cbs['kntnt_ai_visibility_content_types'])();
         expect((string) ob_get_clean())->toContain('MATRIX');
+    });
+
+    it('resolves closure labels and descriptions when composing the page', function (): void {
+        $labels = [];
+        $field_cbs = [];
+        Functions\when('register_setting')->justReturn(null);
+        Functions\when('add_settings_section')->justReturn(null);
+        Functions\when('add_settings_field')->alias(function (string $id, string $label, $cb) use (&$labels, &$field_cbs): void {
+            $labels[$id] = $label;
+            $field_cbs[$id] = $cb;
+        });
+
+        $settings = new Settings('kntnt_ai_visibility');
+        $settings->register_section(new Section('markdown', static fn(): string => 'Markdown', [
+            new Field(
+                'flag',
+                static fn(): string => 'Lazy label',
+                'checkbox',
+                true,
+                static fn($v): bool => (bool) $v,
+                static fn(): string => 'Lazy help',
+            ),
+        ]));
+        $settings->register_wp_settings();
+
+        expect($labels['markdown_flag'])->toBe('Lazy label');
+
+        ob_start();
+        ($field_cbs['markdown_flag'])();
+        expect((string) ob_get_clean())->toContain('Lazy help');
     });
 
     it('renders a field with a custom renderer through that renderer', function (): void {

@@ -95,11 +95,11 @@ final class Exclusion_Settings {
 			fields: [
 				new Field(
 					key: self::FIELD_KEY,
-					label: __( 'Path patterns', 'kntnt-ai-visibility' ),
+					label: static fn(): string => __( 'Path patterns', 'kntnt-ai-visibility' ),
 					type: 'text',
 					default: '',
 					sanitize: [ self::class, 'sanitize_patterns' ],
-					description: __( 'One regular expression per line, matched against each page’s path (e.g. /cookiepolicy/). A matching page is left out of its .md alternate, llms.txt and llms-full.txt. Write the pattern without delimiters or flags — matching is Unicode-aware and case-insensitive. Anchor with ^ and $ as needed; an invalid line is reported and dropped when you save.', 'kntnt-ai-visibility' ),
+					description: static fn(): string => __( 'One regular expression per line, matched against each page’s path (e.g. /cookiepolicy/). A matching page is left out of its .md alternate, llms.txt and llms-full.txt. Write the pattern without delimiters or flags — matching is Unicode-aware and case-insensitive. Anchor with ^ and $ as needed; an invalid line is reported and dropped when you save.', 'kntnt-ai-visibility' ),
 					render: [ self::class, 'render_textarea' ],
 				),
 			],

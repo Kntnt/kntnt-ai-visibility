@@ -44,29 +44,83 @@ final readonly class Field {
 	public mixed $render;
 
 	/**
+	 * The field label, resolved lazily via label().
+	 *
+	 * Stored as a string or a `Closure(): string` so a translatable label can be
+	 * translated when the settings page renders (on an admin hook, after `init`)
+	 * rather than when the field is built at plugin bootstrap — which would trip
+	 * WordPress 6.7's "translation loaded too early" notice and freeze the string
+	 * against the locale determinable before the current user exists.
+	 *
+	 * @since 0.5.1
+	 *
+	 * @var string|(\Closure(): string)
+	 */
+	private string|\Closure $label;
+
+	/**
+	 * The field's help text, resolved lazily via description().
+	 *
+	 * Lazy for the same reason as $label.
+	 *
+	 * @since 0.5.1
+	 *
+	 * @var string|(\Closure(): string)
+	 */
+	private string|\Closure $description;
+
+	/**
 	 * Builds a settings field with its default, sanitiser and renderer.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param string                               $key         The field key within the section.
-	 * @param string                               $label       The human-readable label.
+	 * @param string|(\Closure(): string)          $label       The human-readable label, or a closure
+	 *                                                          that returns it — wrap a translatable
+	 *                                                          label in a closure so it resolves at
+	 *                                                          render time.
 	 * @param string                               $type        The control type ('checkbox', 'text').
 	 * @param mixed                                $default     The zero-config default value.
 	 * @param callable(mixed): mixed               $sanitize    Sanitiser for a submitted value.
-	 * @param string                               $description Optional help text shown under the field.
+	 * @param string|(\Closure(): string)          $description Optional help text shown under the field,
+	 *                                                          or a closure that returns it.
 	 * @param (callable(mixed, string): void)|null $render Optional custom renderer.
 	 */
 	public function __construct(
 		public string $key,
-		public string $label,
+		string|\Closure $label,
 		public string $type,
 		public mixed $default,
 		callable $sanitize,
-		public string $description = '',
+		string|\Closure $description = '',
 		?callable $render = null,
 	) {
+		$this->label = $label;
+		$this->description = $description;
 		$this->sanitize = $sanitize;
 		$this->render = $render;
+	}
+
+	/**
+	 * Resolves the field label.
+	 *
+	 * @since 0.5.1
+	 *
+	 * @return string The label text.
+	 */
+	public function label(): string {
+		return $this->label instanceof \Closure ? ( $this->label )() : $this->label;
+	}
+
+	/**
+	 * Resolves the field's help text.
+	 *
+	 * @since 0.5.1
+	 *
+	 * @return string The help text, or '' when the field has none.
+	 */
+	public function description(): string {
+		return $this->description instanceof \Closure ? ( $this->description )() : $this->description;
 	}
 
 }

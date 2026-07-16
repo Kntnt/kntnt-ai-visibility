@@ -200,7 +200,7 @@ final class Settings implements Registry {
 			foreach ( $section->fields as $field ) {
 				add_settings_field(
 					"{$section_id}_{$field->key}",
-					$field->label,
+					$field->label(),
 					fn() => $this->render_field( $section_id, $field ),
 					$this->page_slug,
 					$wp_section,
@@ -287,9 +287,11 @@ final class Settings implements Registry {
 	 */
 	private function render_description( Field $field ): void {
 
-		// Only emit the paragraph when there is help text to show.
-		if ( $field->description !== '' ) {
-			printf( '<p class="description">%s</p>', esc_html( $field->description ) );
+		// Only emit the paragraph when there is help text to show. Resolved once:
+		// the description may be a closure that translates on each call.
+		$description = $field->description();
+		if ( $description !== '' ) {
+			printf( '<p class="description">%s</p>', esc_html( $description ) );
 		}
 
 	}
