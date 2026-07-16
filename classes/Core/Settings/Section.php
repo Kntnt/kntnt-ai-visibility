@@ -37,7 +37,7 @@ final readonly class Section {
 	 * `init`) rather than when the section is built at plugin bootstrap — which
 	 * would trip WordPress 6.7's "translation loaded too early" notice.
 	 *
-	 * @since 0.2.1
+	 * @since 0.2.2
 	 *
 	 * @var string|(\Closure(): string)
 	 */
@@ -69,7 +69,7 @@ final readonly class Section {
 	/**
 	 * Resolves the section heading.
 	 *
-	 * @since 0.2.1
+	 * @since 0.2.2
 	 *
 	 * @return string The heading text.
 	 */

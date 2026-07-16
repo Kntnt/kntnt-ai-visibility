@@ -45,7 +45,7 @@ final readonly class Capability_Column {
 	 * bootstrap — which would trip WordPress 6.7's "translation loaded too early"
 	 * notice.
 	 *
-	 * @since 0.2.1
+	 * @since 0.2.2
 	 *
 	 * @var string|(\Closure(): string)
 	 */
@@ -78,7 +78,7 @@ final readonly class Capability_Column {
 	/**
 	 * Resolves the column header label.
 	 *
-	 * @since 0.2.1
+	 * @since 0.2.2
 	 *
 	 * @return string The header text.
 	 */
