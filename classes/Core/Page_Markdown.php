@@ -5,7 +5,7 @@
  * Rendering a post to Markdown — render the content, convert HTML to GFM, build
  * front-matter, assemble — is a Core service, not module-private, because the
  * Release-2 llms.txt module concatenates the same per-page Markdown into
- * llms-full.txt rather than rendering a second time (docs/adr/0007, CONTEXT.md).
+ * llms-full.txt rather than rendering a second time (docs/adr/0007, GLOSSARY.md).
  * Designing it as a Core seam now is the committed-roadmap foresight of
  * docs/adr/0006.
  *

@@ -11,7 +11,7 @@ The module declares the site's preferences for how its content may be used by AI
 A `Content-Signal` is a **group-level** directive with no per-path or per-type axis. The module therefore **cannot** mirror the content-type matrix and is a single site-wide policy. It is the plugin's simplest module:
 
 - it registers **no** capability column (there is no per-type axis);
-- it registers **no** artifact provider, **no** serve pattern and uses **no** cache or early router — a content signal is a directive injected into a file WordPress already owns, not a discoverable artifact ([`CONTEXT.md`](../CONTEXT.md));
+- it registers **no** artifact provider, **no** serve pattern and uses **no** cache or early router — a content signal is a directive injected into a file WordPress already owns, not a discoverable artifact ([`GLOSSARY.md`](../GLOSSARY.md));
 - its `boot()` registers exactly two things: a **settings section** and the **`robots_txt` decorator**.
 
 The module namespace is `Kntnt\Ai_Visibility\Signals`, mirroring the terse module namespaces of the other modules (`Markdown`, `Llms`, `Links`).

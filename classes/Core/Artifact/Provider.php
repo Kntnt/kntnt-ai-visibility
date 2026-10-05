@@ -3,7 +3,7 @@
  * The artifact provider contract.
  *
  * A provider is the unit a feature module registers with the Core registry to
- * contribute one kind of discoverable artifact (CONTEXT.md). It is a deep
+ * contribute one kind of discoverable artifact (GLOSSARY.md). It is a deep
  * object with three responsibilities — match a request, generate the bytes,
  * advertise itself — plus the serve pattern that feeds the router allowlist. A
  * provider is a rule, not an enumeration: one provider covers every eligible

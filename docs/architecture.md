@@ -4,7 +4,7 @@ This is the orienting document for Kntnt AI Visibility: how the plugin is
 structured and why the pieces fit the way they do. It is a synthesis – the
 binding decisions and their rationale live in the ADRs under
 [`docs/adr/`](adr/), and the domain vocabulary lives in
-[`CONTEXT.md`](../CONTEXT.md). Where this document states *what*, the linked
+[`GLOSSARY.md`](../GLOSSARY.md). Where this document states *what*, the linked
 ADR states *why*; read the ADR when the reasoning matters.
 
 It reflects the design settled through step 1.2 of the
@@ -66,7 +66,7 @@ their release. See [ADR-0006](adr/0006-deep-module-architecture.md).
 The central abstraction is the **discoverable artifact**: a non-HTML
 representation the plugin exposes at its own URL for AI agents – a page's
 **Markdown alternate**, `llms.txt` or `llms-full.txt`
-([`CONTEXT.md`](../CONTEXT.md)).
+([`GLOSSARY.md`](../GLOSSARY.md)).
 
 A module contributes artifacts by registering an **artifact provider** with the
 Core registry. A provider is a deep object with three responsibilities:
