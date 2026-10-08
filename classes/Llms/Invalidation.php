@@ -13,8 +13,9 @@
  * autosaves are ignored (as in Release 1). The per-page `.md` keys are not
  * version-stamped, so
  * a bump never invalidates them — only the aggregates rebuild. Indirect changes
- * (theme switch, settings change) are covered by the Markdown invalidation, which
- * bumps the version and flushes the whole cache directory.
+ * (theme switch) are covered by Markdown invalidation; Core's exposure-option
+ * invalidation handles settings creation, updates and removal. Both bump the
+ * version and flush the whole cache directory.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.2.0

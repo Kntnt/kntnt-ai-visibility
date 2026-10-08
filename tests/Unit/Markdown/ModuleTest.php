@@ -98,7 +98,6 @@ describe('Module::boot', function (): void {
         expect($this->actions)->toContain('save_post');
         expect($this->actions)->toContain('transition_post_status');
         expect($this->actions)->toContain('switch_theme');
-        expect($this->actions)->toContain('update_option_kntnt_ai_visibility');
         expect($this->filters)->toContain('query_vars');
     });
 

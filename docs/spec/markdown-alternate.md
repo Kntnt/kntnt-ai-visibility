@@ -229,7 +229,7 @@ On both the cache-serve path (router) and the PHP path:
 3. **Only public, published content is cached** — the early serve runs before WP auth, so a cached file must never represent non-public content.
 4. **Invalidation = delete-on-change:**
    - A page's own `.md` is **deleted on save and on status transition** (publish→draft/trash/private). Per-entity regeneration is immediate after the editor's response (keep the save fast); aggregate artifacts regenerate lazily (Release 2 concern).
-   - Indirect changes (theme, menus, plugin/settings changes, translations) bump a **cache-version stamp** held in its *own* option key (per ADR-0010's note — not a key inside the settings array), invalidating everything lazily.
+   - Indirect changes (theme, menus, translations) bump a **cache-version stamp** held in its *own* option key (per ADR-0010's note — not a key inside the settings array). Core owns [exposure-setting creation, updates and removal](llms-txt.md#61-exposure-option-lifecycle): one version bump and whole-cache flush per relevant option transition, including a first matrix-only save from an absent option and restoration of zero-config defaults.
    - A **TTL safety net** (filterable) bounds staleness from changes no hook catches.
 5. **Single-flight:** lazy regeneration has a stampede risk — guard generation with a per-identity lock (lock file or short-lived transient) so concurrent misses do not all render. Required for correctness under load.
 
