@@ -76,13 +76,20 @@ add_action( 'init', static function (): void {
 		$query_state = serialize( [ $GLOBALS['wp_query'], $GLOBALS['wp_the_query'] ] );
 		$caller = wp_get_current_user();
 		$locale = get_locale();
-		$service = new Page_Markdown_Service( new Front_Matter(), new Single_Flight( $store ), new Plugin_Logger() );
+		$domain = static function () use ( $action ): string {
+			if ( str_contains( $action, 'conversion' ) ) {
+				$GLOBALS['kntnt_source_failure_context'] = kntnt_source_context_marker();
+				throw new RuntimeException( 'source-conversion-failure' );
+			}
+			return home_url();
+		};
+		$service = new Page_Markdown_Service( new Front_Matter(), new Single_Flight( $store ), new Plugin_Logger(), $domain );
 		$failure = static function ( string $content ): never {
 			$GLOBALS['kntnt_source_failure_context'] = kntnt_source_context_marker();
 			$GLOBALS['wp_query']->in_the_loop = false;
 			throw new RuntimeException( 'source-context-failure' );
 		};
-		if ( str_contains( $action, 'failure' ) ) {
+		if ( str_contains( $action, 'failure' ) && ! str_contains( $action, 'conversion' ) ) {
 			add_filter( 'the_content', $failure, 40 );
 		}
 		$result['renders'] = [];
@@ -92,6 +99,7 @@ add_action( 'init', static function (): void {
 			}
 		} catch ( RuntimeException $exception ) {
 			$result['error'] = $exception->getMessage();
+			$result['error_class'] = $exception::class;
 			$result['failure_context'] = $GLOBALS['kntnt_source_failure_context'];
 		} finally {
 			remove_filter( 'the_content', $failure, 40 );

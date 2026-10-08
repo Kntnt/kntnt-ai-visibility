@@ -79,11 +79,14 @@ def probe(base):
         for key, source in sources.items():
             document(temperature + " full " + key, body, source)
 
-    for action in ["direct-success-alias", "direct-success-distinct", "direct-failure-alias", "direct-failure-distinct"]:
+    for action in ["direct-success-alias", "direct-success-distinct", "direct-failure-alias", "direct-failure-distinct", "direct-conversion-failure"]:
         result = control(action)
         check(action + " restores query object identities/aliases, Loop globals, locale and caller", result["restored"])
         if "failure" in action:
-            check(action + " propagates content exception", result.get("error") == "source-context-failure")
+            if "conversion" in action:
+                check(action + " propagates typed conversion exception", result.get("error_class") == "Kntnt\\Ai_Visibility\\Core\\Markdown_Conversion_Failed")
+            else:
+                check(action + " propagates content exception", result.get("error") == "source-context-failure")
             check(action + " exception occurs in correct source context", result.get("failure_context") == marker(sources["a-en_GB"]))
         else:
             for key, source in sources.items():
