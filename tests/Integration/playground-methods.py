@@ -115,8 +115,13 @@ def verify(base):
             assert get_status == head_status == 200, (path, responses)
             assert get_body and not head_body, (path, get_body, head_body)
             assert get_headers.get_content_type() == head_headers.get_content_type() == expected_type, path
-            for name in ["Content-Length", "ETag", "Last-Modified", "X-Content-Type-Options"]:
+            for name in ["Content-Length", "ETag", "X-Content-Type-Options"]:
                 assert get_headers[name] and get_headers[name] == head_headers[name], (path, name, responses)
+            if path == "/ordinary/":
+                # Inline bytes have no complete source modification timestamp.
+                assert get_headers["Last-Modified"] is None and head_headers["Last-Modified"] is None, path
+            else:
+                assert get_headers["Last-Modified"] and get_headers["Last-Modified"] == head_headers["Last-Modified"], path
             assert int(get_headers["Content-Length"]) == len(get_body), path
             for method in ["GET", "HEAD"]:
                 status, _, body = request(base, path, method, {**accept, "If-None-Match": get_headers["ETag"]})

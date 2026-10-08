@@ -146,6 +146,28 @@ final class Serve_Router {
 	}
 
 	/**
+	 * Recognises a registered dedicated address without requiring a cache file.
+	 *
+	 * Uses the same installation-relative pattern and key validation as serving.
+	 * Other modules can yield these paths before canonical HTML negotiation.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param string $path The untrusted path, with the query already stripped.
+	 * @return bool Whether the path identifies a registered artifact.
+	 */
+	public function is_artifact_path( string $path ): bool {
+
+		// Refuse malformed input before deriving any registered artifact identity.
+		if ( $path === '' || $path[0] !== '/' || str_contains( $path, "\0" ) ) {
+			return false;
+		}
+
+		return $this->identify( $path ) !== null;
+
+	}
+
+	/**
 	 * Resolves an untrusted request to a safe, contained, existing cache path.
 	 *
 	 * Returns null whenever the request is not a cache-grade artifact request,
