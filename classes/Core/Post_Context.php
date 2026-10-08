@@ -24,6 +24,7 @@ final class Post_Context {
 	 *
 	 * @param \WP_Post           $post The source post.
 	 * @param callable(): string $render The rendering operation.
+	 * @param-immediately-invoked-callable $render
 	 * @return string The rendered artifact.
 	 */
 	public static function render( \WP_Post $post, callable $render ): string {

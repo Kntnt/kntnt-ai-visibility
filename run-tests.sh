@@ -138,7 +138,8 @@ run_e2e() {
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-password.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-eligibility.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-cache-failure.py" \
-		&& python3 "$SCRIPT_DIR/tests/Integration/playground-public-rendering.py"; then
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-public-rendering.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-conversion-failure.py"; then
 		E2E_EXIT=0
 	else
 		E2E_EXIT=$?
