@@ -18,6 +18,17 @@ update_option( 'blogname', 'SITE-A' );
 update_option( 'blogdescription', 'TAGLINE-A' );
 wp_update_user( [ 'ID' => 1, 'display_name' => 'AUTHOR-A' ] );
 
+// A declared curated-resource dependency is public body content, not chrome.
+$menu = wp_create_nav_menu( 'Public resources' );
+update_option( 'kntnt_indirect_menu', $menu );
+$item = wp_update_nav_menu_item( $menu, 0, [
+	'menu-item-title' => 'MENU-A',
+	'menu-item-url' => 'https://example.test/resource-a',
+	'menu-item-type' => 'custom',
+	'menu-item-status' => 'publish',
+] );
+update_option( 'kntnt_indirect_menu_item', $item );
+
 // A real page supplies both the direct alternate and the full aggregate.
 $id = wp_insert_post( [
 	'post_type' => 'page',
@@ -25,7 +36,7 @@ $id = wp_insert_post( [
 	'post_name' => 'indirect-source',
 	'post_title' => 'Indirect source',
 	'post_author' => 1,
-	'post_content' => '<p>Public indirect body.</p>',
+	'post_content' => '<p>Public indirect body.</p>[indirect_menu]',
 ] );
 update_option( 'kntnt_indirect_source', $id );
 flush_rewrite_rules();

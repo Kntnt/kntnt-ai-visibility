@@ -90,6 +90,19 @@ def verify(base):
         assert fields["ETag"] != etag, (path, "stale author validator")
     assert changed["version"] > warm["version"] and not any(changed["cached"].values()) and changed["modified"] == warm["modified"], ("author invalidation must be lazy without resave", warm, changed)
     print("PASS author display name: page/full front-matter refresh without source resave; unrelated profile write is ignored", flush=True)
+    original = {}
+    for path in [paths[0], paths[2]]:
+        status, fields, body = request(base, path)
+        assert status == 200 and b"MENU-A" in body and b"https://example.test/resource-a" in body, (path, status, body[:1000])
+        original[path] = fields["ETag"]
+    warm = control(base)
+    changed = control(base, "menu")
+    for path, etag in original.items():
+        status, fields, body = request(base, path, headers={"If-None-Match": etag})
+        assert status == 200 and b"MENU-B" in body and b"https://example.test/resource-b" in body and b"MENU-A" not in body, ("declared final menu dependency", path, status, body[:1000])
+        assert fields["ETag"] != etag, (path, "stale menu validator")
+    assert changed["version"] > warm["version"] and not any(changed["cached"].values()) and changed["modified"] == warm["modified"], ("declared menu invalidation must be lazy without resave", warm, changed)
+    print("PASS declared menu final writes refresh public body links without source resave", flush=True)
     print("Indirect HTTP: 0 failures", flush=True)
 
 

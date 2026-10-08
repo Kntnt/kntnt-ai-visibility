@@ -14,6 +14,20 @@ use Kntnt\Ai_Visibility\Core\Cache\File_Store;
 use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Plugin;
 
+// This adapter declares only the menu consumed by its curated-resource body.
+add_action( 'wp_update_nav_menu_item', static function ( int $menu_id ): void {
+	if ( $menu_id === (int) get_option( 'kntnt_indirect_menu' ) ) {
+		do_action( 'kntnt_ai_visibility_indirect_content_changed' );
+	}
+} );
+add_shortcode( 'indirect_menu', static function (): string {
+	$html = '<ul>';
+	foreach ( wp_get_nav_menu_items( (int) get_option( 'kntnt_indirect_menu' ) ) ?: [] as $item ) {
+		$html .= '<li><a href="' . esc_url( $item->url ) . '">' . esc_html( $item->title ) . '</a></li>';
+	}
+	return $html . '</ul>';
+} );
+
 // The token and writer exist only in this disposable MU-plugin fixture.
 add_action( 'wp_loaded', static function (): void {
 	if ( ( $_GET['indirect_fixture'] ?? '' ) !== 'fixture-only' ) {
@@ -29,6 +43,13 @@ add_action( 'wp_loaded', static function (): void {
 		wp_update_user( [ 'ID' => 1, 'user_url' => 'https://example.test/unrelated-profile' ] );
 	} elseif ( $action === 'author' ) {
 		wp_update_user( [ 'ID' => 1, 'display_name' => 'AUTHOR-B' ] );
+	} elseif ( $action === 'menu' ) {
+		wp_update_nav_menu_item( (int) get_option( 'kntnt_indirect_menu' ), (int) get_option( 'kntnt_indirect_menu_item' ), [
+			'menu-item-title' => 'MENU-B',
+			'menu-item-url' => 'https://example.test/resource-b',
+			'menu-item-type' => 'custom',
+			'menu-item-status' => 'publish',
+		] );
 	}
 	$store = new File_Store( static fn(): string => Plugin::cache_dir() );
 	$version = ( new Cache_Version() )->current();
