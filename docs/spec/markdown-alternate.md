@@ -179,7 +179,7 @@ Four reachable forms; strict precedence **`.md` URL > `?format=markdown` > `Acce
 
 1. **`.md` suffix** on a slugged URL (`/about/team.md`, `/category/news.md` for a singular post under that path) — the cache-grade, advertised path. **Lowercase `.md` only**; uppercase/mixed → not matched (404).
 2. **`?format=markdown`** on the canonical URL — same provider/cache as the `.md` path.
-3. **`Accept: text/markdown`** on the canonical URL — the standards-correct form. Default (§1.1): serve Markdown **inline, uncached**, with `Vary: Accept` and a `Link: <…>.md; rel="alternate"` steering agents to the cache-grade URL.
+3. **`Accept: text/markdown`** on the canonical URL — the standards-correct form. Default (§1.1): serve Markdown **inline, uncached**, with `Vary: Accept` and a `Link: <…>.md; rel="alternate"` steering agents to the cache-grade URL. Select Markdown only when an explicit `text/markdown` or `text/x-markdown` range has positive quality strictly above the HTML alternative; HTML wins ties. Evaluate `text/html` and `application/xhtml+xml` using their most specific matching range (exact type, then `text/*` or `application/*`, then `*/*`), retaining explicit `q=0`. Wildcards alone never select Markdown. Media types and `q` names are case-insensitive; trim surrounding whitespace. A quality value outside RFC 9110's 0–1 grammar, more than three fractional digits, a missing value or repeated `q` parameters gives that range zero quality. These rules do not change `.md` or `?format=markdown` precedence.
 4. **`/index.md`** for the slug-less home.
 
 **HTTP methods:** only `GET` and `HEAD` enter artifact handling. Every other method falls through to the ordinary WordPress workflow before negotiation, trailing-slash redirects, generation or conditional serving. This applies to canonical URLs (including `?format=markdown` and Markdown in `Accept`) and dedicated `.md` paths alike, on cold and warm caches. The plugin does not emit a rejection or an `Allow` header for this fall-through policy; downstream page and form handlers retain control of the response. Unsupported methods never materialise an artifact or receive a plugin-generated `304`.
@@ -215,7 +215,8 @@ On both the cache-serve path (router) and the PHP path:
 - `Content-Length`, `Last-Modified`, `ETag` — and `304` on conditional requests.
 - `Link: <canonical-HTML-URL>; rel="canonical"` — the `.md` points back at its HTML canonical (avoids duplicate-content confusion). The HTML stays `rel="canonical"`; the `.md` is `rel="alternate"`.
 - `X-Content-Type-Options: nosniff`.
-- `Vary: Accept` on the negotiated (`Accept`) path.
+- `Vary: Accept` on the negotiated (`Accept`) path and canonical HTML; combine existing values case-insensitively and retain an existing `*`.
+- `Cache-Control: private, no-store, no-cache, max-age=0, must-revalidate` on negotiated 200 and 304 responses. Establish WordPress/cache-plugin bypass signals before page-cache integration initialisation. Dedicated `.md` addresses retain their cache-grade policy. Caches serving before WordPress require explicit configuration and already polluted caches must be purged; follow the [target-site verification procedure](../operations/negotiated-cache.md).
 
 ### 4.5 Discovery in Release 1
 

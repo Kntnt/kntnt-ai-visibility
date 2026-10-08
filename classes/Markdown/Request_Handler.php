@@ -74,9 +74,67 @@ final class Request_Handler {
 	 * @return void
 	 */
 	public function register(): void {
+		add_action( 'plugins_loaded', [ $this, 'protect_negotiated_request' ], PHP_INT_MIN );
+		add_action( 'litespeed_init', [ $this, 'protect_negotiated_request' ] );
+		add_filter( 'wp_headers', [ $this, 'vary_canonical_headers' ] );
 		add_action( 'init', [ self::class, 'register_rewrite_rules' ] );
 		add_filter( 'query_vars', [ $this, 'register_query_vars' ] );
 		add_action( 'template_redirect', [ $this, 'handle' ], 0 );
+	}
+
+	/**
+	 * Prevents page-cache integrations from storing a negotiated representation.
+	 *
+	 * Runs before ordinary plugins_loaded callbacks and again when LiteSpeed's
+	 * API is ready. Caches serving before WordPress require server configuration.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return void
+	 */
+	public function protect_negotiated_request(): void {
+
+		// Explicit artifact URLs retain their cache-grade policy.
+		if ( $this->negotiate( Request_Factory::from_globals() ) !== 'inline' ) {
+			return;
+		}
+
+		// Establish the WordPress convention before cache plugins inspect it.
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		do_action( 'litespeed_control_set_nocache', 'Kntnt AI Visibility negotiated Markdown' );
+
+	}
+
+	/**
+	 * Keeps canonical HTML selection coherent with the negotiated representation.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param array<string, string> $headers WordPress's response headers.
+	 * @return array<string, string>
+	 */
+	public function vary_canonical_headers( array $headers ): array {
+
+		// Dedicated artifact addresses do not vary their representation on Accept.
+		$request = Request_Factory::from_globals();
+		if ( $this->negotiate( $request ) === 'cache' ) {
+			return $headers;
+		}
+
+		// Consolidate case-insensitive Vary fields without replacing their values.
+		$vary = [];
+		foreach ( $headers as $name => $value ) {
+			if ( strtolower( $name ) === 'vary' ) {
+				$vary[] = $value;
+				unset( $headers[ $name ] );
+			}
+		}
+		$headers['Vary'] = $this->vary_accept( implode( ', ', $vary ) );
+
+		return $headers;
+
 	}
 
 	/**
@@ -240,6 +298,7 @@ final class Request_Handler {
 		$etag = '"' . md5( $bytes ) . '"';
 		$headers = [
 			'Vary'                   => 'Accept',
+			'Cache-Control'          => 'private, no-store, no-cache, max-age=0, must-revalidate',
 			'X-Content-Type-Options' => 'nosniff',
 			'Last-Modified'          => gmdate( 'D, d M Y H:i:s', $last_modified ) . ' GMT',
 			'ETag'                   => $etag,
@@ -266,7 +325,9 @@ final class Request_Handler {
 	}
 
 	/**
-	 * Reports whether an Accept header explicitly accepts Markdown.
+	 * Reports whether explicitly requested Markdown is preferred over HTML.
+	 * Exact HTML/XHTML ranges override type and then universal wildcards.
+	 * HTML wins ties. Invalid or repeated quality parameters reject their range.
 	 *
 	 * @since 0.1.0
 	 *
@@ -274,24 +335,55 @@ final class Request_Handler {
 	 * @return bool
 	 */
 	private function accepts_markdown( string $accept ): bool {
-		$markdown = 0.0;
-		$html = 0.0;
+
+		// Parse explicit Markdown preferences and the HTML alternative ranges.
+		$qualities = [];
 		foreach ( explode( ',', strtolower( $accept ) ) as $range ) {
+
+			// Normalise media types and parameters independently of their order.
 			$parts = array_map( 'trim', explode( ';', $range ) );
 			$type = array_shift( $parts );
 			$quality = 1.0;
+			$has_quality = false;
 			foreach ( $parts as $parameter ) {
-				if ( preg_match( '/^q\s*=\s*(.*)$/', $parameter, $match ) === 1 ) {
-					$quality = is_numeric( $match[1] ) ? max( 0.0, min( 1.0, (float) $match[1] ) ) : 0.0;
+
+				// Parameters other than the quality weight do not set preference.
+				if ( preg_match( '/^q(?:\s*=\s*(.*))?$/', $parameter, $match ) !== 1 ) {
+					continue;
 				}
+
+				// Repeated weights make the range ambiguous regardless of order.
+				if ( $has_quality ) {
+					$quality = 0.0;
+					break;
+				}
+
+				// Reject malformed weights: RFC 9110 permits 0–1 with at most
+				// three fractional digits at this untrusted header boundary.
+				$has_quality = true;
+				$value = $match[1] ?? '';
+				$is_quality = preg_match( '/^(?:0(?:\.[0-9]{0,3})?|1(?:\.0{0,3})?)$/D', $value ) === 1;
+				$quality = $is_quality ? (float) $value : 0.0;
+
 			}
-			if ( in_array( $type, [ 'text/markdown', 'text/x-markdown' ], true ) ) {
-				$markdown = max( $markdown, $quality );
-			} elseif ( $type === 'text/html' ) {
-				$html = max( $html, $quality );
-			}
+
+			// Repeated media ranges have the same result in either order.
+			$qualities[ $type ] = max( $qualities[ $type ] ?? 0.0, $quality );
+
 		}
-		return $markdown > 0.0 && $markdown >= $html;
+
+		// Wildcards can prefer HTML but never explicitly request Markdown.
+		$markdown = max( $qualities['text/markdown'] ?? 0.0, $qualities['text/x-markdown'] ?? 0.0 );
+
+		// Specific ranges determine each HTML alternative's effective quality,
+		// including explicit zeroes; keep HTML when either alternative ties.
+		$html = max(
+			$qualities['text/html'] ?? $qualities['text/*'] ?? $qualities['*/*'] ?? 0.0,
+			$qualities['application/xhtml+xml'] ?? $qualities['application/*'] ?? $qualities['*/*'] ?? 0.0,
+		);
+
+		return $markdown > 0.0 && $markdown > $html;
+
 	}
 
 	/**
@@ -379,11 +471,48 @@ final class Request_Handler {
 	 */
 	private function send( int $status, array $headers ): void {
 
-		// Status first, then each header verbatim.
+		// Preserve Vary fields added by WordPress and other integrations.
 		status_header( $status );
 		foreach ( $headers as $name => $value ) {
+			if ( strtolower( $name ) === 'vary' ) {
+				$value = $this->vary_accept( $value );
+			}
 			header( $name . ': ' . $value );
 		}
+
+	}
+
+	/**
+	 * Combines existing Vary fields with Accept, preserving wildcard semantics.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param string $value The Vary value about to be emitted.
+	 * @return string
+	 */
+	private function vary_accept( string $value ): string {
+
+		// PHP may contain multiple Vary lines emitted before this response.
+		$values = [ $value, 'Accept' ];
+		foreach ( headers_list() as $header ) {
+			if ( str_starts_with( strtolower( $header ), 'vary:' ) ) {
+				$values[] = substr( $header, 5 );
+			}
+		}
+
+		// Deduplicate field names case-insensitively; a wildcard dominates them.
+		$fields = [];
+		foreach ( explode( ',', implode( ',', $values ) ) as $field ) {
+			$field = trim( $field );
+			if ( $field === '*' ) {
+				return '*';
+			}
+			if ( $field !== '' ) {
+				$fields[ strtolower( $field ) ] = $field;
+			}
+		}
+
+		return implode( ', ', $fields );
 
 	}
 
