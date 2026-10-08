@@ -129,6 +129,8 @@ jobs:
         run: python3 tests/Integration/playground-plain-permalink.py
       - name: Sequential source, descendant and aggregate lifecycle
         run: python3 tests/Integration/playground-lifecycle.py
+      - name: Native shared-block dependency invalidation
+        run: python3 tests/Integration/playground-shared-blocks.py
       - name: Generation-safe aggregate pruning and immutable responses
         run: python3 tests/Integration/playground-pruning.py
       - name: Concurrent publication, revocation and queued source freshness
