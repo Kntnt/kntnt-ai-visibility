@@ -213,7 +213,8 @@ On both the cache-serve path (router) and the PHP path:
 - `Content-Length`, `Last-Modified`, `ETag` — and `304` on conditional requests.
 - `Link: <canonical-HTML-URL>; rel="canonical"` — the `.md` points back at its HTML canonical (avoids duplicate-content confusion). The HTML stays `rel="canonical"`; the `.md` is `rel="alternate"`.
 - `X-Content-Type-Options: nosniff`.
-- `Vary: Accept` on the negotiated (`Accept`) path.
+- `Vary: Accept` on the negotiated (`Accept`) path and canonical HTML; combine existing values case-insensitively and retain an existing `*`.
+- `Cache-Control: private, no-store, no-cache, max-age=0, must-revalidate` on negotiated 200 and 304 responses. Establish WordPress/cache-plugin bypass signals before page-cache integration initialisation. Dedicated `.md` addresses retain their cache-grade policy. Caches serving before WordPress require explicit configuration and already polluted caches must be purged; follow the [target-site verification procedure](../operations/negotiated-cache.md).
 
 ### 4.5 Discovery in Release 1
 

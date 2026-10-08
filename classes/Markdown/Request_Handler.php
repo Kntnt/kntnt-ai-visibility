@@ -74,9 +74,67 @@ final class Request_Handler {
 	 * @return void
 	 */
 	public function register(): void {
+		add_action( 'plugins_loaded', [ $this, 'protect_negotiated_request' ], PHP_INT_MIN );
+		add_action( 'litespeed_init', [ $this, 'protect_negotiated_request' ] );
+		add_filter( 'wp_headers', [ $this, 'vary_canonical_headers' ] );
 		add_action( 'init', [ self::class, 'register_rewrite_rules' ] );
 		add_filter( 'query_vars', [ $this, 'register_query_vars' ] );
 		add_action( 'template_redirect', [ $this, 'handle' ], 0 );
+	}
+
+	/**
+	 * Prevents page-cache integrations from storing a negotiated representation.
+	 *
+	 * Runs before ordinary plugins_loaded callbacks and again when LiteSpeed's
+	 * API is ready. Caches serving before WordPress require server configuration.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return void
+	 */
+	public function protect_negotiated_request(): void {
+
+		// Explicit artifact URLs retain their cache-grade policy.
+		if ( $this->negotiate( Request_Factory::from_globals() ) !== 'inline' ) {
+			return;
+		}
+
+		// Establish the WordPress convention before cache plugins inspect it.
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		do_action( 'litespeed_control_set_nocache', 'Kntnt AI Visibility negotiated Markdown' );
+
+	}
+
+	/**
+	 * Keeps canonical HTML selection coherent with the negotiated representation.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param array<string, string> $headers WordPress's response headers.
+	 * @return array<string, string>
+	 */
+	public function vary_canonical_headers( array $headers ): array {
+
+		// Dedicated artifact addresses do not vary their representation on Accept.
+		$request = Request_Factory::from_globals();
+		if ( $this->negotiate( $request ) === 'cache' ) {
+			return $headers;
+		}
+
+		// Consolidate case-insensitive Vary fields without replacing their values.
+		$vary = [];
+		foreach ( $headers as $name => $value ) {
+			if ( strtolower( $name ) === 'vary' ) {
+				$vary[] = $value;
+				unset( $headers[ $name ] );
+			}
+		}
+		$headers['Vary'] = $this->vary_accept( implode( ', ', $vary ) );
+
+		return $headers;
+
 	}
 
 	/**
@@ -234,6 +292,7 @@ final class Request_Handler {
 		$etag = '"' . md5( $bytes ) . '"';
 		$headers = [
 			'Vary'                   => 'Accept',
+			'Cache-Control'          => 'private, no-store, no-cache, max-age=0, must-revalidate',
 			'X-Content-Type-Options' => 'nosniff',
 			'Last-Modified'          => gmdate( 'D, d M Y H:i:s', $last_modified ) . ' GMT',
 			'ETag'                   => $etag,
@@ -373,11 +432,48 @@ final class Request_Handler {
 	 */
 	private function send( int $status, array $headers ): void {
 
-		// Status first, then each header verbatim.
+		// Preserve Vary fields added by WordPress and other integrations.
 		status_header( $status );
 		foreach ( $headers as $name => $value ) {
+			if ( strtolower( $name ) === 'vary' ) {
+				$value = $this->vary_accept( $value );
+			}
 			header( $name . ': ' . $value );
 		}
+
+	}
+
+	/**
+	 * Combines existing Vary fields with Accept, preserving wildcard semantics.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param string $value The Vary value about to be emitted.
+	 * @return string
+	 */
+	private function vary_accept( string $value ): string {
+
+		// PHP may contain multiple Vary lines emitted before this response.
+		$values = [ $value, 'Accept' ];
+		foreach ( headers_list() as $header ) {
+			if ( str_starts_with( strtolower( $header ), 'vary:' ) ) {
+				$values[] = substr( $header, 5 );
+			}
+		}
+
+		// Deduplicate field names case-insensitively; a wildcard dominates them.
+		$fields = [];
+		foreach ( explode( ',', implode( ',', $values ) ) as $field ) {
+			$field = trim( $field );
+			if ( $field === '*' ) {
+				return '*';
+			}
+			if ( $field !== '' ) {
+				$fields[ strtolower( $field ) ] = $field;
+			}
+		}
+
+		return implode( ', ', $fields );
 
 	}
 
