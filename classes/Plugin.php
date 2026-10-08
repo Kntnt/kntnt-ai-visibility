@@ -221,10 +221,10 @@ final class Plugin {
 	/**
 	 * Cleans up on deactivation: rewrite rules and the file cache.
 	 *
-	 * Drops the Markdown `.md` rewrite rules so a deactivated plugin leaves no
-	 * dangling routes, and clears the file cache (docs/adr/0007). The settings
-	 * option is deliberately preserved so reactivation keeps the site's
-	 * configuration; only uninstall removes it (docs/spec §7).
+	 * Drops both modules' owned rewrite rules and clears the file cache
+	 * (docs/adr/0007). Before wp_loaded the flush is deferred until WordPress has
+	 * constructed WP_Rewrite and other owners have registered their rules. The
+	 * settings option is preserved; only uninstall removes it (docs/spec §7).
 	 *
 	 * @since 0.1.0
 	 *
@@ -232,8 +232,14 @@ final class Plugin {
 	 */
 	public static function deactivate(): void {
 
-		// Remove the plugin's rewrite rules from the rewrite cache.
-		flush_rewrite_rules();
+		// Remove both modules' in-memory entries before WordPress regenerates.
+		Markdown\Request_Handler::unregister_rewrite_rules();
+		Llms\Request_Handler::unregister_rewrite_rules();
+		if ( did_action( 'wp_loaded' ) ) {
+			flush_rewrite_rules();
+		} else {
+			add_action( 'wp_loaded', 'flush_rewrite_rules' );
+		}
 
 		// Clear the cached Markdown files; the settings option stays put.
 		( new File_Store( static fn(): string => self::cache_dir() ) )->flush_all();

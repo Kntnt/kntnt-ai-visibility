@@ -124,6 +124,7 @@ describe('Plugin', function (): void {
         // Point the cache at a directory that does not exist, so flush_all() is a
         // no-op and the test never touches the real filesystem.
         Functions\when('wp_upload_dir')->justReturn(['basedir' => sys_get_temp_dir() . '/kntnt-aiv-absent-' . uniqid()]);
+        Functions\when('did_action')->justReturn(1);
         Functions\expect('flush_rewrite_rules')->once();
 
         Plugin::deactivate();
