@@ -68,12 +68,14 @@ final class Page_Markdown_Service implements Page_Markdown {
 
 	/**
 	 * Renders a post to its Markdown alternate — front-matter plus body.
+	 * Conversion failures propagate without assembling a successful document.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param \WP_Post $post The post to render.
 	 * @return string The assembled Markdown document.
-	 * @throws \DomainException When the source has a stored password.
+	 * @throws \DomainException When public rendering is refused.
+	 * @phpstan-throws \DomainException|Markdown_Conversion_Failed
 	 */
 	public function for_post( \WP_Post $post ): string {
 
@@ -111,13 +113,15 @@ final class Page_Markdown_Service implements Page_Markdown {
 
 	/**
 	 * Materialises a post's Markdown with an independent persistence outcome.
+	 * Conversion failures propagate without a result or a cache write.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param Identity $identity The cache identity to materialise under.
 	 * @param \WP_Post $post     The post to render on a miss.
 	 * @return Materialisation The valid bytes and independent persistence outcome.
-	 * @throws \DomainException When the source has a stored password, even on a hit.
+	 * @throws \DomainException When public publication is refused, even on a hit.
+	 * @phpstan-throws \DomainException|Markdown_Conversion_Failed
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): Materialisation {
 
@@ -141,7 +145,8 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 * @since 0.1.0
 	 *
 	 * @param string $html The rendered HTML.
-	 * @return string The Markdown body, or '' when conversion fails.
+	 * @return string The Markdown body, which may legitimately be empty.
+	 * @throws Markdown_Conversion_Failed When conversion fails; no bytes are valid.
 	 */
 	private function convert( string $html ): string {
 
@@ -152,7 +157,8 @@ final class Page_Markdown_Service implements Page_Markdown {
 			return $converter->convertString( $html, new Options( domain: ( $this->domain_provider )() ) );
 		} catch ( \Throwable $exception ) {
 			$this->logger->error( 'Markdown conversion failed', [ 'error' => $exception->getMessage() ] );
-			return '';
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The previous exception stays internal; HTTP shells emit a fixed message.
+			throw new Markdown_Conversion_Failed( 'Markdown conversion failed.', 0, $exception );
 		}
 
 	}

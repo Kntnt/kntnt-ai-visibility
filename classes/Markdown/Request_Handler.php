@@ -29,6 +29,7 @@ use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Http\Conditional_Request;
 use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
 use Kntnt\Ai_Visibility\Core\Logger;
+use Kntnt\Ai_Visibility\Core\Markdown_Conversion_Failed;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
 
 /**
@@ -233,6 +234,19 @@ final class Request_Handler {
 			} else {
 				$this->serve_cache_grade( $identity, $post, $request );
 			}
+		} catch ( Markdown_Conversion_Failed ) {
+
+			// A failed conversion has no valid representation or validators.
+			status_header( 500 );
+			nocache_headers();
+			header( 'Content-Type: text/plain; charset=utf-8' );
+			header( 'X-Content-Type-Options: nosniff' );
+			if ( $request->method !== 'HEAD' ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- This fixed translated response is plain text, never HTML.
+				echo __( 'This content could not be converted to Markdown.', 'kntnt-ai-visibility' );
+			}
+			exit;
+
 		} catch ( \DomainException $exception ) {
 			$this->forbidden( 'This content cannot produce a public artifact.' );
 		}

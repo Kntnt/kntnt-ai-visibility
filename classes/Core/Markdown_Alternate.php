@@ -46,7 +46,7 @@ final class Markdown_Alternate {
 	 * @since 0.2.0
 	 *
 	 * @param \WP_Post $post The post.
-	 * @return Identity The KIND, the home-relative permalink key ('index' for the home), and the post ID.
+	 * @return Identity The KIND, the home-relative artifact key and the post ID.
 	 */
 	public function identity_for( \WP_Post $post ): Identity {
 		return new Identity( self::KIND, $this->key_for( $post ), $post->ID );
@@ -62,10 +62,10 @@ final class Markdown_Alternate {
 	 */
 	public function url_for( \WP_Post $post ): string {
 
-		// The home alternate lives at /index.md; every other page appends `.md`
-		// to its permalink (minus the trailing slash).
+		// Reserve /index.md for the home. Ordinary index leaves append another
+		// index segment, so repeated index paths remain distinct at every depth.
 		$permalink = rtrim( $this->permalink_for( $post ), '/' );
-		return $this->is_front( $post ) || $this->key_for( $post ) === 'index'
+		return $this->is_front( $post ) || $this->key_for( $post ) === 'index' || str_ends_with( $permalink, '/index' )
 			? $permalink . '/index.md'
 			: $permalink . '.md';
 
@@ -106,18 +106,21 @@ final class Markdown_Alternate {
 	 * @since 0.2.0
 	 *
 	 * @param \WP_Post $post The post.
-	 * @return string The cache key; 'index' for the slug-less home.
+	 * @return string The home-relative key, with one reserved index segment escaped.
 	 */
 	private function key_for( \WP_Post $post ): string {
 
 		// The key is the permalink path relative to the WordPress home, without
 		// surrounding slashes; the slug-less home maps to the 'index' key the
 		// router serves at /index.md. Keeping the key home-relative means the same
-		// key is derived on root and subdirectory installs.
+		// key is derived on root and subdirectory installs. Ordinary index leaves
+		// append one segment too, preventing collisions with a home or a parent.
 		$path = $this->home_relative( (string) wp_parse_url( $this->permalink_for( $post ), PHP_URL_PATH ) );
 		$key = trim( $path, '/' );
 
-		return $key === '' ? 'index' : ( $this->is_front( $post ) ? $key . '/index' : $key );
+		return $key === '' || $this->is_front( $post ) || str_ends_with( '/' . $key, '/index' )
+			? ltrim( $key . '/index', '/' )
+			: $key;
 
 	}
 

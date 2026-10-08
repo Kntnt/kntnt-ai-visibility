@@ -109,18 +109,20 @@ use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 final class Markdown_Alternate {
     public const KIND = 'markdown-alternate';
 
-    // The cache identity for a post: KIND, the home-relative permalink key
-    // ('index' for the slug-less home), and the post ID. The key is the same on
-    // root and subdirectory installs.
+    // The cache identity: KIND, the home-relative key and the source ID.
+    // An unprefixed home uses 'index'; source-language prefixes survive.
+    // Ordinary index leaves append '/index'. Root and subdirectory installs
+    // derive the same key.
     public function identity_for( \WP_Post $post ): Identity;
 
-    // The absolute `.md` URL advertised and linked for a post: home_url('/index.md')
-    // for the home, else the permalink (minus its trailing slash) plus '.md'.
+    // The absolute `.md` URL advertised and linked for a post: the source-language
+    // home plus '/index.md' for a static front. Ordinary index leaves append
+    // '/index.md'; other pages append '.md' to the permalink minus its trailing slash.
     public function url_for( \WP_Post $post ): string;
 }
 ```
 
-- `key_for`, `md_url` and `home_relative` move here verbatim from `Markdown\Page_Markdown_Provider`. The Markdown provider's `identity_for_post()` and `md_url()` delegate to this locator; the `KIND` constant moves here and the provider references it.
+- The locator owns `key_for`, the advertised URL and `home_relative`; the Markdown provider and both aggregates use this same identity scheme. Home `index` keys are reserved for configured static fronts. An ordinary canonical index leaf gains one additional `index` segment in both its key and its dedicated URL, at every nesting depth and with source-language prefixes preserved. Dedicated-path resolution reverses this escape; canonical negotiation uses the original page path. No shorter compatibility aliases are provided.
 - The llms index builder calls `url_for()` for each link; the llms full builder calls `identity_for()` to materialise each page's Markdown.
 - The `.md` URL for a non-ASCII slug is still a valid URL — it just resolves through the uncached PHP path (the Release-1 deferred limitation), so the link works; it is simply not early-cached. No new issue for Release 2 (§10).
 
@@ -264,6 +266,7 @@ Both aggregate builders run their entire selection, metadata, per-page materiali
 - Then, for each post in `Core\Eligibility::enumerate( types_for('llms_full') )` (the same per-type order as the index), the page's Markdown via `Page_Markdown::materialise( Core\Markdown_Alternate::identity_for( $post ), $post )` — which serves the per-page cache file when warm and renders+caches it once when cold (the inner cache that softens the O(site) cold start, ADR-0007).
 - **Separator** — each per-page `.md` opens with its `---` YAML front-matter, which is the natural record boundary; entries are joined with a blank line. An HR `---` separator is deliberately avoided because it collides with the front-matter fence.
 - **Final string** — filter `kntnt_ai_visibility_llms_full_txt`.
+- **Conversion failure** — one failed page conversion aborts the full producer before it can return successful aggregate bytes. No partial aggregate is cached; already completed public per-page files may be reused by the next attempt. The handler returns the deliberate non-cacheable `500` described in §5.2 of the Markdown specification and retries on a later cold request.
 - Scope is `types_for('llms_full')` (§4.2), which **defaults to Pages only** (decision 6): a small site's full file is its cornerstone pages, and a large archive is never dumped wholesale unless the owner ticks those types into the `llms-full.txt` column.
 - **Password-protected pages are absent** because `enumerate()` excludes them (§3.1), so `llms-full.txt` never concatenates protected content and the aggregation never writes a per-page `.md` cache file for a protected page — the early router can therefore never serve one. As belt-and-braces, the loop also skips any post whose `post_password` is non-empty.
 
