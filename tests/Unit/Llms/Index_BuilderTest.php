@@ -71,6 +71,7 @@ function kntnt_index_builder(array $type_sets, array $enumerations, array $urls)
     }
 
     $eligibility = Mockery::mock(Eligibility::class);
+    $eligibility->shouldReceive('md_types')->andReturn($type_sets['md']);
     foreach ($enumerations as $joined => $posts) {
         $eligibility->shouldReceive('enumerate')->with(explode('|', $joined))->andReturn($posts);
     }
@@ -78,7 +79,7 @@ function kntnt_index_builder(array $type_sets, array $enumerations, array $urls)
     $locator = Mockery::mock(Markdown_Alternate::class);
     $locator->shouldReceive('url_for')->andReturnUsing(fn(WP_Post $p): string => $urls[$p->ID] ?? '');
 
-    return new Index_Builder($eligibility, new Selected_Types($types), $locator);
+    return new Index_Builder($eligibility, new Selected_Types($types, $eligibility), $locator);
 }
 
 describe('Index_Builder::build', function (): void {

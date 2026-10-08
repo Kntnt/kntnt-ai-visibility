@@ -550,6 +550,7 @@ final class Request_Handler {
 	 */
 	private function forbidden(): void {
 		status_header( 403 );
+		nocache_headers();
 		header( 'Content-Type: text/plain; charset=utf-8' );
 		echo 'This content is password protected.';
 

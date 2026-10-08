@@ -37,6 +37,7 @@ interface Page_Markdown {
 	 *
 	 * @param \WP_Post $post The post to render.
 	 * @return string The assembled Markdown document.
+	 * @throws \DomainException When the source has a stored password.
 	 */
 	public function for_post( \WP_Post $post ): string;
 
@@ -54,6 +55,7 @@ interface Page_Markdown {
 	 * @param Identity $identity The cache identity to materialise under.
 	 * @param \WP_Post $post     The post to render on a miss.
 	 * @return string The cached or freshly-rendered Markdown bytes.
+	 * @throws \DomainException When the source has a stored password, even on a hit.
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): string;
 

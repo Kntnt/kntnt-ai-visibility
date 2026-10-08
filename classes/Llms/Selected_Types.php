@@ -18,6 +18,7 @@ declare( strict_types = 1 );
 namespace Kntnt\Ai_Visibility\Llms;
 
 use Kntnt\Ai_Visibility\Core\Content\Content_Types;
+use Kntnt\Ai_Visibility\Core\Eligibility;
 
 /**
  * Resolves and orders the post-type set for an llms artifact column.
@@ -27,13 +28,17 @@ use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 final class Selected_Types {
 
 	/**
-	 * Binds the resolver to the content-type matrix it reads.
+	 * Binds aggregate selection to the matrix and shared effective `.md` policy.
 	 *
 	 * @since 0.2.0
 	 *
-	 * @param Content_Types $types The content-type capability matrix.
+	 * @param Content_Types $types       The content-type capability matrix.
+	 * @param Eligibility   $eligibility The effective Markdown eligibility policy.
 	 */
-	public function __construct( private readonly Content_Types $types ) {}
+	public function __construct(
+		private readonly Content_Types $types,
+		private readonly Eligibility $eligibility,
+	) {}
 
 	/**
 	 * Returns the ordered type set for a column, filtered and md-intersected.
@@ -46,7 +51,7 @@ final class Selected_Types {
 	public function resolve( string $column ): array {
 
 		// The column through its developer filter (literal per column), intersected
-		// with the `.md` set so a filter can never add a type without an alternate.
+		// with Core's effective `.md` set so excluded types cannot be re-added.
 		$types = $this->types->types_for( $column );
 		$selected = match ( $column ) {
 			'llms'      => apply_filters( 'kntnt_ai_visibility_llms_post_types', $types ),
@@ -54,7 +59,7 @@ final class Selected_Types {
 			default     => $types,
 		};
 		$selected = is_array( $selected ) ? array_values( array_filter( $selected, 'is_string' ) ) : [];
-		$md = $this->types->types_for( 'md' );
+		$md = $this->eligibility->md_types();
 
 		return $this->order( array_values( array_intersect( $selected, $md ) ) );
 
