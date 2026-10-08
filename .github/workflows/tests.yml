@@ -122,3 +122,5 @@ jobs:
 
       - name: Negotiated canonical-page cache policy
         run: python3 tests/Integration/playground-negotiated-cache.py
+      - name: Stored-password public-artifact exclusion
+        run: python3 tests/Integration/playground-password.py
