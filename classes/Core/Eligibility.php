@@ -67,7 +67,7 @@ final class Eligibility {
 	}
 
 	/**
-	 * Reports whether a post is `.md`-eligible: servable, in the matrix `.md`
+	 * Reports whether a post is `.md`-eligible: servable, in the effective `.md`
 	 * set, and not curated out by a path-exclusion pattern.
 	 *
 	 * @since 0.2.0
@@ -90,7 +90,8 @@ final class Eligibility {
 	 * protected posts are excluded so the aggregation never caches or concatenates
 	 * content the early router would serve before WordPress auth, and posts whose
 	 * path matches an exclusion pattern are dropped so the aggregates honour the
-	 * same per-URL curation as the per-page `.md`.
+	 * same per-URL curation as the per-page `.md`. Requested types are restricted
+	 * to the effective Markdown type set before querying.
 	 *
 	 * @since 0.2.0
 	 *
@@ -98,6 +99,9 @@ final class Eligibility {
 	 * @return list<\WP_Post>
 	 */
 	public function enumerate( array $types ): array {
+
+		// Aggregate callers cannot widen the effective Markdown policy.
+		$types = array_intersect( $types, $this->md_types() );
 
 		// One query per type, concatenated in the passed order.
 		$posts = [];
@@ -118,7 +122,7 @@ final class Eligibility {
 				],
 			);
 			foreach ( is_array( $found ) ? $found : [] as $post ) {
-				if ( $post instanceof \WP_Post && ! $this->exclusions->is_excluded( $post ) ) {
+				if ( $post instanceof \WP_Post && $this->is_eligible( $post ) ) {
 					$posts[] = $post;
 				}
 			}
@@ -129,19 +133,34 @@ final class Eligibility {
 	}
 
 	/**
-	 * Returns the `.md` post-type set: the matrix column through the filter.
+	 * Returns the effective `.md` post-type set shared by all artifact consumers.
+	 *
+	 * The developer filter may add viewable types as well as remove matrix rows.
+	 * Its output must still obey the universal non-attachment/viewability guard.
+	 * Code-driven policy changes require a deployment cache purge; see the llms
+	 * specification's exposure-policy deployment procedure.
 	 *
 	 * @since 0.2.0
 	 *
 	 * @return list<string>
 	 */
-	private function md_types(): array {
+	public function md_types(): array {
 
 		// The matrix `md` column is the source; the filter is the developer escape
 		// hatch mirroring it.
 		$types = apply_filters( 'kntnt_ai_visibility_eligible_post_types', $this->types->types_for( 'md' ) );
 
-		return is_array( $types ) ? array_values( array_filter( $types, 'is_string' ) ) : [];
+		// Filters are an integration boundary; reject malformed selections and
+		// prevent injected types bypassing the universal public-artifact guard.
+		if ( ! is_array( $types ) ) {
+			return [];
+		}
+		$types = array_filter(
+			$types,
+			static fn( mixed $type ): bool => is_string( $type ) && $type !== 'attachment' && is_post_type_viewable( $type ),
+		);
+
+		return array_values( array_unique( $types ) );
 
 	}
 
