@@ -31,6 +31,15 @@ use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 final class File_Store implements Store {
 
 	/**
+	 * Bounds lazy cleanup work while normal requests drain an obsolete backlog.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @var int
+	 */
+	private const PRUNE_BATCH_SIZE = 32;
+
+	/**
 	 * Lazily-resolved, cached absolute base directory (no trailing slash).
 	 *
 	 * @since 0.1.0
@@ -278,14 +287,66 @@ final class File_Store implements Store {
 	}
 
 	/**
-	 * Deletes the other cache files in the identity's kind directory.
+	 * Lazily removes a bounded batch of known older aggregate generations.
+	 *
+	 * Calls $current under the store's short publication barrier. An obsolete
+	 * caller, absent current file or poisoned store never authorises cleanup.
+	 * Only owned llms-txt/llms-full version keys older than that authoritative
+	 * identity can be removed; current/newer files and other kinds are retained.
 	 *
 	 * @since 0.2.0
 	 *
-	 * @param Identity $identity The identity whose file is kept; its kind directory is pruned.
+	 * @param Identity              $identity The successfully persisted caller identity.
+	 * @param callable(): ?Identity $current  Reads the fresh authoritative identity; never renders.
 	 * @return void
 	 */
-	public function prune_siblings( Identity $identity ): void {
+	public function prune_siblings( Identity $identity, callable $current ): void {
+
+		// Obsolete requests never authorise cleanup after a newer publication.
+		$barrier = $this->publication();
+		try {
+			$generation = $barrier->current();
+			$barrier->publish(
+				$generation,
+				function () use ( $identity, $current ): void {
+					$authoritative = $current();
+					if ( $authoritative === null || $authoritative->kind !== $identity->kind
+						|| $authoritative->key !== $identity->key ) {
+						return;
+					}
+					$this->prune_current( $identity );
+				},
+			);
+		} catch ( Obsolete_Artifact | \UnexpectedValueException ) {
+			$this->logger->warning( 'Skipped aggregate cleanup: publication state is unavailable or obsolete' );
+		}
+
+	}
+
+	/**
+	 * Removes siblings only after the current identity has been established.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param Identity $identity The authoritative aggregate identity.
+	 * @return void
+	 */
+	private function prune_current( Identity $identity ): void {
+
+		// Only the two owned aggregate key families have ordered generations.
+		$prefix = match ( $identity->kind ) {
+			'llms-txt' => 'llms-v',
+			'llms-full' => 'llms-full-v',
+			default => null,
+		};
+		if ( $prefix === null ) {
+			return;
+		}
+		$pattern = '/\A' . preg_quote( $prefix, '/' ) . '([1-9][0-9]*)\.md\z/';
+		if ( preg_match( $pattern, $identity->key . '.md', $current ) !== 1 ) {
+			return;
+		}
+		$version = (int) $current[1];
 
 		// Resolve the kind directory and refuse to act unless it lies strictly
 		// inside the cache base — the realpath containment the serve router uses,
@@ -297,19 +358,31 @@ final class File_Store implements Store {
 			return;
 		}
 
-		// Delete every sibling cache file directly in this one kind directory
-		// except the identity's own current file. Non-recursive by design: the
-		// aggregate kind directories are flat, and a concurrent reader of a stale
-		// version is a benign race — the old version is stale anyway, and an
-		// already-open handle survives the unlink.
+		// Current persisted output is required; poison never authorises cleanup.
 		$keep = $dir . '/' . $identity->key . '.md';
-		$siblings = glob( $dir . '/*.md' );
-		if ( $siblings === false ) {
+		clearstatcache( true, $keep );
+		if ( ! $this->publication()->readable() || ! is_file( $keep ) ) {
 			return;
 		}
-		foreach ( $siblings as $path ) {
-			if ( $path !== $keep && is_file( $path ) ) {
-				unlink( $path );
+
+		// Visit a bounded batch without globbing or sorting the entire directory.
+		$visited = 0;
+		$entries = new \FilesystemIterator( $dir, \FilesystemIterator::SKIP_DOTS );
+		foreach ( $entries as $entry ) {
+			if ( $visited++ >= self::PRUNE_BATCH_SIZE ) {
+				break;
+			}
+			if ( ! $entry instanceof \SplFileInfo ) {
+				continue;
+			}
+			$name = $entry->getFilename();
+			if ( preg_match( $pattern, $name, $candidate ) !== 1 || (int) $candidate[1] >= $version
+				|| ! $entry->isFile() || $entry->isLink() ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- optional cleanup failure is logged without affecting valid response bytes.
+			if ( ! @unlink( $entry->getPathname() ) ) {
+				$this->logger->warning( 'Aggregate cleanup failed', [ 'path' => $entry->getPathname() ] );
 			}
 		}
 

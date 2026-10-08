@@ -11,7 +11,7 @@
  * Accept` and a steering alternate link (docs/adr/0009, docs/spec §4).
  *
  * The decision logic (negotiate, trailing-slash target, inline response shape)
- * is pure and unit-tested; the header/readfile/exit shell is covered end-to-end.
+ * is pure and unit-tested; the header/body/exit shell is covered end-to-end.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -486,11 +486,12 @@ final class Request_Handler {
 	private function serve_cache_grade( Identity $identity, \WP_Post $post, Request $request ): void {
 
 		// Materialise the cache (single-flight) and serve the resulting file with
-		// the router's file-based headers, so this first serve and every later
+		// the router's immutable snapshot, so this first serve and every later
 		// router serve agree on the validators.
 		$result = $this->page_markdown->materialise( $identity, $post );
 		$path = $this->cache->path_for( $identity );
-		if ( ! $result->persisted || ! is_file( $path ) ) {
+		$snapshot = $result->persisted ? $this->router->snapshot_for( $path ) : null;
+		if ( $snapshot === null ) {
 
 			// A cache outage must not fall through to an unrelated HTML template.
 			$this->logger->warning( 'Serving generated artifact without cache', [ 'key' => $identity->key ] );
@@ -504,11 +505,11 @@ final class Request_Handler {
 			exit;
 
 		}
-		$response = $this->router->headers_for( $path, $request, self::CONTENT_TYPE, (string) get_permalink( $post ) );
+		$response = $this->router->headers_for_snapshot( $snapshot, $request, self::CONTENT_TYPE, (string) get_permalink( $post ) );
 		$this->send( $response['status'], $response['headers'] );
 		if ( $response['send_body'] ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a Core-owned cache file is the point of the serve path.
-			readfile( $path );
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- plain-text bytes must match the captured response metadata.
+			echo $snapshot->bytes;
 		}
 
 		exit;

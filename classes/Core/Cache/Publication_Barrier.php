@@ -53,6 +53,7 @@ final class Publication_Barrier {
 	 * @since 0.5.2
 	 *
 	 * @return bool False for durable poison or unavailable coordination.
+	 * @phpstan-impure Reads shared state that another process can change.
 	 */
 	public function readable(): bool {
 		try {
