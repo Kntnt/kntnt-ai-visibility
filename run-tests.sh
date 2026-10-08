@@ -148,6 +148,7 @@ run_e2e() {
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-source-context.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-public-content.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-taxonomy-links.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-relative-references.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-unicode-descriptions.py"; then
 		E2E_EXIT=0
 	else

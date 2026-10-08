@@ -3,8 +3,9 @@
  * Unit tests for the shared Page-Markdown service.
  *
  * for_post() runs the pipeline: render the content (the_content), convert the
- * HTML to GFM with the full converter (absolutising URLs against the site
- * domain), prepend the front-matter and the visible H1, and assemble. The body
+ * HTML to GFM with the full converter (absolutising URLs against the source
+ * canonical URL or explicit base override), prepend front-matter and the
+ * visible H1, and assemble. The body
  * leads with the page's H1 sourced from the post title; the title element is
  * metadata only and never appears twice. materialise() is the single-flight
  * cache write: a miss renders and stores, a hit returns the cached bytes
