@@ -131,6 +131,8 @@ jobs:
         run: python3 tests/Integration/playground-lifecycle.py
       - name: Concurrent publication, revocation and queued source freshness
         run: python3 tests/Integration/playground-publication.py
+      - name: Native deactivation and reactivation rewrite lifecycle
+        run: python3 tests/Integration/playground-deactivation.py
       - name: Negotiated canonical-page cache policy
         run: python3 tests/Integration/playground-negotiated-cache.py
       - name: Dynamic inline Markdown validators
@@ -159,3 +161,5 @@ jobs:
         run: python3 tests/Integration/playground-unicode-descriptions.py
       - name: Exact canonical headers and safe stored front matter
         run: python3 tests/Integration/playground-canonical-links.py
+      - name: Complete safe Markdown trailing-slash redirects
+        run: python3 tests/Integration/playground-trailing-slash.py

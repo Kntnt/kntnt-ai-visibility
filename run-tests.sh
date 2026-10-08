@@ -140,6 +140,7 @@ run_e2e() {
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-plain-permalink.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-lifecycle.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-publication.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-deactivation.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-password.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-eligibility.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-cache-failure.py" \
@@ -151,7 +152,8 @@ run_e2e() {
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-taxonomy-links.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-relative-references.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-unicode-descriptions.py" \
-		&& python3 "$SCRIPT_DIR/tests/Integration/playground-canonical-links.py"; then
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-canonical-links.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-trailing-slash.py"; then
 		E2E_EXIT=0
 	else
 		E2E_EXIT=$?

@@ -349,7 +349,8 @@ The **clear-cache action** moves to Core beside the matrix (it flushes the whole
 ## 7. Activation / deactivation / uninstall
 
 - **Activation (`install.php`):** also register the llms rewrite rules (`Llms\Request_Handler::register_rewrite_rules()`) before the single `flush_rewrite_rules()`, so `/llms.txt` and `/llms-full.txt` route on first activation alongside the `.md` rules.
-- **Deactivation / uninstall:** no change. Deactivation already clears the whole cache directory (covering the llms files); uninstall already removes the settings option, the cache-version option and the cache directory. The llms module introduces no new persistent state — it reuses the shared option, the cache directory and the cache-version stamp.
+- **Deactivation:** remove the llms module's owned in-memory rewrite entries and detach its `init` registration alongside the Markdown module before the shared flush, including a flush deferred until `wp_loaded`. Preserve unrelated owners' rules and the settings option, and clear the whole cache directory (covering both warmed aggregates). Reactivation restores both singleton routes. In plain mode the singletons use their exact-path PHP handler and WordPress's persisted rewrite set remains empty; deactivation returns unknown paths to native WordPress behaviour. The [Markdown lifecycle contract](markdown-alternate.md#7-activation--deactivation--uninstall) is per site and does not claim network-wide cleanup.
+- **Uninstall:** removes the settings option, the cache-version option and the cache directory. The llms module introduces no new persistent state – it reuses the shared option, the cache directory and the cache-version stamp.
 
 ## 8. Testing strategy (ADR-0004)
 

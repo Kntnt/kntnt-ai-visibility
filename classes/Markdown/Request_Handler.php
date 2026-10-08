@@ -50,6 +50,17 @@ final class Request_Handler {
 	private const CONTENT_TYPE = 'text/markdown; charset=utf-8';
 
 	/**
+	 * Owned rules shared by runtime, activation and deactivation.
+	 *
+	 * @since 0.5.2
+	 * @var array<string, string>
+	 */
+	private const REWRITE_RULES = [
+		'^index\.md$' => 'index.php?markdown_request=1',
+		'^(.+?)\.md$' => 'index.php?markdown_request=1',
+	];
+
+	/**
 	 * Binds the handler to the provider, services, cache and router.
 	 *
 	 * @since 0.1.0
@@ -153,8 +164,40 @@ final class Request_Handler {
 	 * @return void
 	 */
 	public static function register_rewrite_rules(): void {
-		add_rewrite_rule( '^index\.md$', 'index.php?markdown_request=1', 'top' );
-		add_rewrite_rule( '^(.+?)\.md$', 'index.php?markdown_request=1', 'top' );
+		foreach ( self::REWRITE_RULES as $pattern => $target ) {
+			add_rewrite_rule( $pattern, $target, 'top' );
+		}
+	}
+
+	/**
+	 * Removes only this module's entries before the deactivation rewrite flush.
+	 *
+	 * Detaches runtime registration even before init: WordPress can defer its
+	 * flush until wp_loaded. A different owner replacing the same pattern keeps
+	 * its rule. Regeneration uses in-memory extras, not the stored option.
+	 *
+	 * @since 0.5.2
+	 * @return void
+	 */
+	public static function unregister_rewrite_rules(): void {
+
+		global $wp_rewrite;
+
+		// A deferred flush must not reintroduce this deactivated module's rules.
+		remove_action( 'init', [ self::class, 'register_rewrite_rules' ] );
+
+		// Native deactivation may precede construction of the rewrite component.
+		if ( ! $wp_rewrite instanceof \WP_Rewrite ) {
+			return;
+		}
+
+		// Preserve unrelated targets even when their pattern overlaps ours.
+		foreach ( self::REWRITE_RULES as $pattern => $target ) {
+			if ( ( $wp_rewrite->extra_rules_top[ $pattern ] ?? null ) === $target ) {
+				unset( $wp_rewrite->extra_rules_top[ $pattern ] );
+			}
+		}
+
 	}
 
 	/**
@@ -189,9 +232,10 @@ final class Request_Handler {
 			return;
 		}
 
-		// Normalise a trailing-slashed `.md` URL with a 301 to the canonical form.
+		// Redirect only a supported source address, preserving its existing base.
 		$target = $this->trailing_slash_target( $request->path );
-		if ( $target !== null ) {
+		if ( $target !== null
+			&& $this->provider->match( new Request( $request->method, $target, $request->query ) ) !== null ) {
 			wp_safe_redirect( $target, 301 );
 			exit;
 		}
@@ -290,7 +334,10 @@ final class Request_Handler {
 	}
 
 	/**
-	 * Returns the de-slashed `.md` path for a trailing-slash request, or null.
+	 * Returns a safe de-slashed path in pretty mode, or null.
+	 *
+	 * Preserves encoding and existing prefixes. The HTTP shell also requires
+	 * that the provider recognise the target and source-identifying query.
 	 *
 	 * @since 0.1.0
 	 *
@@ -299,8 +346,20 @@ final class Request_Handler {
 	 */
 	public function trailing_slash_target( string $path ): ?string {
 
-		// Match a `.md` URL followed by one or more trailing slashes.
-		if ( preg_match( '~^(/.+\.md)/+$~', $path, $matches ) === 1 ) {
+		// Plain query alternates have no dedicated suffix path to normalise.
+		if ( get_option( 'permalink_structure' ) === '' ) {
+			return null;
+		}
+
+		// Reject alternate authority syntax and encoded header-control bytes.
+		$decoded = rawurldecode( $path );
+		if ( str_starts_with( $decoded, '//' ) || str_contains( $decoded, '\\' )
+			|| preg_match( '~[\x00-\x1f\x7f]~', $decoded ) === 1 ) {
+			return null;
+		}
+
+		// Match a root-relative path, never a scheme-relative redirect target.
+		if ( preg_match( '~^(/(?!/).+\.md)/+$~', $path, $matches ) === 1 ) {
 			return $matches[1];
 		}
 

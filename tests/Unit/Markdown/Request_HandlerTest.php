@@ -24,6 +24,7 @@ use Kntnt\Ai_Visibility\Markdown\Page_Markdown_Provider;
 use Kntnt\Ai_Visibility\Markdown\Request_Handler;
 
 beforeEach(function (): void {
+    Functions\when('get_option')->justReturn('/%postname%/');
     $this->handler = new Request_Handler(
         Mockery::mock(Page_Markdown_Provider::class),
         Mockery::mock(Page_Markdown::class),
