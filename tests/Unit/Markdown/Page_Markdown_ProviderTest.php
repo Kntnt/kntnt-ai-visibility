@@ -6,8 +6,8 @@
  * produces the artifact bytes through the shared Page-Markdown service
  * (generate), advertises the page's `.md` alternate (advertise) and declares the
  * `.md` serve shape (serve_pattern). Resolution covers the `.md` suffix, the
- * canonical URL form, and the `/index.md` home with its real-page-first
- * precedence.
+ * canonical URL form and the reserved `/index.md` static home. Ordinary index
+ * pages use a distinct escaped dedicated path.
  *
  * @package Tests\Unit
  * @since   0.1.0
@@ -50,6 +50,26 @@ describe('Page_Markdown_Provider::serve_pattern', function (): void {
 });
 
 describe('Page_Markdown_Provider::match', function (): void {
+
+    it('negotiates the configured front even when another page has the index slug', function (): void {
+        $front = new WP_Post();
+        $front->ID = 2;
+        $index = new WP_Post();
+        $index->ID = 11;
+        Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'home' => 'https://example.com',
+            'show_on_front' => 'page',
+            'page_on_front' => 2,
+            default => '',
+        });
+        Functions\when('get_page_by_path')->justReturn($index);
+        Functions\when('get_post')->justReturn($front);
+        Functions\when('get_permalink')->alias(fn(WP_Post $post): string => $post->ID === 2 ? 'https://example.com/' : 'https://example.com/index/');
+        $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
+
+        expect($this->provider->match(new Request('GET', '/'))?->source_id)->toBe(2);
+        expect($this->provider->match(new Request('GET', '/index.md'))?->source_id)->toBe(2);
+    });
 
     it('rejects a real canonical leaf path outside its configured installation', function (): void {
         $post = new WP_Post();
@@ -203,17 +223,19 @@ describe('Page_Markdown_Provider::match', function (): void {
         expect($identity?->source_id)->toBe(2);
     });
 
-    it('prefers a real page slugged index over the front page', function (): void {
+    it('keeps the actual index page addressable independently from the home', function (): void {
         $page     = new WP_Post();
         $page->ID = 11;
         Functions\when('get_page_by_path')->justReturn($page);
         Functions\when('get_permalink')->justReturn('https://example.com/index/');
         $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
 
-        $identity = $this->provider->match(new Request('GET', '/index.md'));
+        Functions\when('url_to_postid')->justReturn(0);
+        $identity = $this->provider->match(new Request('GET', '/index/index.md'));
 
         expect($identity?->source_id)->toBe(11);
-        expect($identity?->key)->toBe('index');
+        expect($identity?->key)->toBe('index/index');
+        expect($this->provider->match(new Request('GET', '/index/'))?->source_id)->toBe(11);
     });
 
 });

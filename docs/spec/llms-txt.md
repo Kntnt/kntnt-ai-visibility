@@ -110,17 +110,18 @@ final class Markdown_Alternate {
     public const KIND = 'markdown-alternate';
 
     // The cache identity for a post: KIND, the home-relative permalink key
-    // ('index' for the slug-less home), and the post ID. The key is the same on
-    // root and subdirectory installs.
+    // ('index' for the home; an ordinary index leaf appends '/index'), and
+    // the post ID. Root and subdirectory installs derive the same key.
     public function identity_for( \WP_Post $post ): Identity;
 
     // The absolute `.md` URL advertised and linked for a post: home_url('/index.md')
-    // for the home, else the permalink (minus its trailing slash) plus '.md'.
+    // for the static home. Ordinary index leaves append '/index.md'; other
+    // pages append '.md' to the permalink minus its trailing slash.
     public function url_for( \WP_Post $post ): string;
 }
 ```
 
-- `key_for`, `md_url` and `home_relative` move here verbatim from `Markdown\Page_Markdown_Provider`. The Markdown provider's `identity_for_post()` and `md_url()` delegate to this locator; the `KIND` constant moves here and the provider references it.
+- The locator owns `key_for`, the advertised URL and `home_relative`; the Markdown provider and both aggregates use this same identity scheme. Home `index` keys are reserved for configured static fronts. An ordinary canonical index leaf gains one additional `index` segment in both its key and its dedicated URL, at every nesting depth and with source-language prefixes preserved. Dedicated-path resolution reverses this escape; canonical negotiation uses the original page path. No shorter compatibility aliases are provided.
 - The llms index builder calls `url_for()` for each link; the llms full builder calls `identity_for()` to materialise each page's Markdown.
 - The `.md` URL for a non-ASCII slug is still a valid URL — it just resolves through the uncached PHP path (the Release-1 deferred limitation), so the link works; it is simply not early-cached. No new issue for Release 2 (§10).
 
