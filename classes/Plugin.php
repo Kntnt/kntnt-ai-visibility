@@ -24,6 +24,7 @@ use Kntnt\Ai_Visibility\Core\Content\Content_Matrix;
 use Kntnt\Ai_Visibility\Core\Content\Content_Settings;
 use Kntnt\Ai_Visibility\Core\Content\Exclusion_Settings;
 use Kntnt\Ai_Visibility\Core\Content\Exclusions;
+use Kntnt\Ai_Visibility\Core\Content\Exposure_Invalidation;
 use Kntnt\Ai_Visibility\Core\Core;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Front_Matter;
@@ -305,9 +306,9 @@ final class Plugin {
 		$settings->register_section( $content_settings->section() );
 		$content_settings->register();
 
-		$exclusion_settings = new Exclusion_Settings( $store, new Cache_Version() );
+		$exclusion_settings = new Exclusion_Settings();
 		$settings->register_section( $exclusion_settings->section() );
-		$exclusion_settings->register();
+		( new Exposure_Invalidation( $store, new Cache_Version() ) )->register();
 
 		// Boot the feature modules against Core, in dependency order. The Markdown
 		// module registers the `.md` column the llms columns depend on, so it boots
