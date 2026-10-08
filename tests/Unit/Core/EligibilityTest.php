@@ -58,6 +58,7 @@ function kntnt_post(string $type = 'post', string $status = 'publish'): WP_Post
 }
 
 beforeEach(function (): void {
+    Functions\when('get_option')->justReturn(false);
     Functions\when('is_post_type_viewable')->alias(fn(string $type): bool => in_array($type, ['post', 'page', 'attachment'], true));
     Functions\when('apply_filters')->alias(fn(string $hook, mixed $value): mixed => $value);
 });
@@ -215,4 +216,20 @@ describe('Eligibility::enumerate', function (): void {
         expect($result)->toBe([$keep]);
     });
 
+});
+
+
+it('excludes the configured posts listing only while the front page is static', function (): void {
+    $post = kntnt_post('page');
+    $options = ['show_on_front' => 'page', 'page_for_posts' => $post->ID];
+    Functions\when('get_option')->alias(static fn(string $name): mixed => $options[$name] ?? false);
+
+    expect(kntnt_eligibility()->is_eligible($post))->toBeFalse();
+    Functions\when('is_post_type_hierarchical')->justReturn(true);
+    Functions\when('get_posts')->justReturn([$post]);
+    expect(kntnt_eligibility()->enumerate(['page']))->toBe([]);
+
+    $options['show_on_front'] = 'posts';
+    Functions\when('get_option')->alias(static fn(string $name): mixed => $options[$name] ?? false);
+    expect(kntnt_eligibility()->is_eligible($post))->toBeTrue();
 });

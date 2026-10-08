@@ -318,3 +318,18 @@ describe('Page_Markdown_Service::materialise', function (): void {
     });
 
 });
+
+
+it('refuses materialising an unsupported posts listing even when its file is warm', function (): void {
+    $post = new WP_Post();
+    $post->ID = 7;
+    $post->post_type = 'page';
+    $identity = new Identity('markdown-alternate', 'news', 7);
+    $this->store->write($identity, 'STALE POSTS PAGE BODY');
+    Functions\when('get_option')->alias(static fn(string $name): mixed => match ($name) {
+        'show_on_front' => 'page', 'page_for_posts' => 7, default => false,
+    });
+    $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger);
+
+    expect(fn(): Materialisation => $service->materialise($identity, $post))->toThrow(DomainException::class);
+});

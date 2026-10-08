@@ -1,18 +1,17 @@
 """Verify native shared-block edits refresh all dependent public artifacts."""
 
 import json
-from http.client import parse_headers
-from io import BytesIO
 import os
 from pathlib import Path
 import signal
-import socket
 import subprocess
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
-from urllib.parse import urlsplit
+
+from http_fixture import raw_head
+
 
 class NoRedirect(HTTPRedirectHandler):
     """Expose stale addresses rather than following WordPress's guessed URL."""
@@ -25,19 +24,7 @@ class NoRedirect(HTTPRedirectHandler):
 def request(base, path, headers=None, method="GET"):
     """Read actual status, headers and source bytes from the public endpoint."""
     if method == "HEAD":
-        address = urlsplit(base + path)
-        fields = {"Host": address.netloc, "Connection": "close", **(headers or {})}
-        outgoing = "HEAD " + address.path + ("?" + address.query if address.query else "") + " HTTP/1.1\r\n"
-        outgoing += "".join(f"{key}: {value}\r\n" for key, value in fields.items()) + "\r\n"
-        with socket.create_connection((address.hostname, address.port), timeout=20) as connection:
-            connection.sendall(outgoing.encode("ascii"))
-            chunks = []
-            while chunk := connection.recv(65536):
-                chunks.append(chunk)
-        block, separator, body = b"".join(chunks).partition(b"\r\n\r\n")
-        assert separator, block
-        line, fields = block.split(b"\r\n", 1)
-        return int(line.split()[1]), parse_headers(BytesIO(fields)), body
+        return raw_head(base + path, headers, timeout=20)
     try:
         response = build_opener(NoRedirect).open(Request(base + path, headers=headers or {}, method=method), timeout=20)
     except HTTPError as error:

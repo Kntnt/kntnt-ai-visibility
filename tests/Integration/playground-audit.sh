@@ -1,7 +1,9 @@
-#!/usr/bin/env bash
 # Regression tests for Bogo, rendering context and public-cache lifecycle.
+# Invoke with Bash 5+; requires npx/Node, curl, PHP, sed, grep and mktemp.
 # KNTNT_AUDIT_EXPLICIT=1 also prefixes the default language (/en and /sv).
-set -uo pipefail
+# Exit 0 when every assertion passes, 1 on a failed assertion/setup/runtime probe;
+# missing executables retain the shell's exit 127. No DDEV fallback is permitted.
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -9,9 +11,12 @@ PORT="${KNTNT_AUDIT_PORT:-9414}"
 BASE="http://127.0.0.1:${PORT}"
 SCRATCH="$(mktemp -d)"
 SERVER_PID=""
+# Stop the owned server and remove this run's request captures on every exit.
 cleanup() {
-	[[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null
-	[[ -n "$SERVER_PID" ]] && wait "$SERVER_PID" 2>/dev/null
+	if [[ -n "$SERVER_PID" ]]; then
+		kill "$SERVER_PID" 2>/dev/null || true
+		wait "$SERVER_PID" 2>/dev/null || true
+	fi
 	rm -f "$SCRATCH/log" "$SCRATCH/body" "$SCRATCH/headers"
 	rmdir "$SCRATCH"
 }
@@ -36,6 +41,7 @@ assert_playground_php_version "$BASE" || exit 1
 
 PASS=0
 FAIL=0
+# Count one named assertion; argument commands may fail without ending the run.
 check() {
 	local label="$1"
 	shift
@@ -47,24 +53,36 @@ check() {
 		fi
 	fi
 }
+# Capture the real HTTP status, fields and body for the supplied curl arguments.
 request() {
 	STATUS="$(curl -sS -D "$SCRATCH/headers" -o "$SCRATCH/body" -w '%{http_code}' "$@")"
 }
+# Test literal body text after normalising converter-escaped underscores.
 contains() { sed 's/\\_/_/g' "$SCRATCH/body" | grep -qF -- "$1"; }
+# Invert the literal-body assertion without discarding its pipeline failures.
 lacks() { ! contains "$1"; }
+# Commit one token-protected fixture action; curl failures remain fatal.
 control() { curl -fsS "$BASE/?audit_token=fixture-only&audit_action=$1${2:-}"; }
 
 IDS="$(control flush)"
 # Playground may answer HTTP while the final blueprint step is still running.
 for _ in $(seq 1 30); do
+	# PHP owns these dollar-prefixed variables; Bash must pass them literally.
+	# shellcheck disable=SC2016
 	if printf '%s' "$IDS" | php -r '$a=json_decode(stream_get_contents(STDIN),true); exit(isset($a["en_GB"], $a["sv_SE"])?0:1);'; then break; fi
 	sleep 1
 	IDS="$(control flush)"
 done
+# PHP owns these dollar-prefixed variables; Bash must pass them literally.
+# shellcheck disable=SC2016
 if ! printf '%s' "$IDS" | php -r '$a=json_decode(stream_get_contents(STDIN),true); exit(isset($a["en_GB"], $a["sv_SE"])?0:1);'; then
 	echo 'Fixture setup did not complete'; cat "$SCRATCH/log"; exit 1
 fi
+# PHP owns these dollar-prefixed variables; Bash must pass them literally.
+# shellcheck disable=SC2016
 EN_ID="$(printf '%s' "$IDS" | php -r '$a=json_decode(stream_get_contents(STDIN),true); echo $a["en_GB"];')"
+# PHP owns these dollar-prefixed variables; Bash must pass them literally.
+# shellcheck disable=SC2016
 SV_ID="$(printf '%s' "$IDS" | php -r '$a=json_decode(stream_get_contents(STDIN),true); echo $a["sv_SE"];')"
 EN_BASE="$BASE"
 if [[ "${KNTNT_AUDIT_EXPLICIT:-0}" == 1 ]]; then

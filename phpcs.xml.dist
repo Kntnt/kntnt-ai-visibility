@@ -56,10 +56,11 @@
 
 		<!--
 			The standard forbids vertical alignment of = and => across lines. The
-			MultipleStatementAlignment sniff enforces the opposite; exclude it so
+			MultipleStatementAlignment sniffs enforce the opposite; exclude them so
 			the no-alignment rule wins.
 		-->
 		<exclude name="Generic.Formatting.MultipleStatementAlignment"/>
+		<exclude name="WordPress.Arrays.MultipleStatementAlignment"/>
 
 		<!--
 			Paragraph style requires a blank line before the closing brace of a

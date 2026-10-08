@@ -46,6 +46,8 @@ HDR="$(mktemp)"
 BODYF="$(mktemp)"
 SERVER_PID=""
 
+# ShellCheck cannot follow this function through the EXIT trap.
+# shellcheck disable=SC2329
 cleanup() {
 	[[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null
 	[[ -n "$SERVER_PID" ]] && wait "$SERVER_PID" 2>/dev/null
@@ -122,8 +124,20 @@ STATUS=""
 do_req() {
 	STATUS="$(curl -sS --path-as-is -D "$HDR" -o "$BODYF" -w '%{http_code}' "$@" 2>/dev/null)"
 }
-expect_status() { [[ "$STATUS" == "$1" ]] && ok "$2 (status $1)" || no "$2 (expected $1, got $STATUS)"; }
-header_has() { grep -iqF -- "$1" "$HDR" && ok "$2" || no "$2 — header missing: $1"; }
+expect_status() {
+	if [[ "$STATUS" == "$1" ]]; then
+		ok "$2 (status $1)"
+	else
+		no "$2 (expected $1, got $STATUS)"
+	fi
+}
+header_has() {
+	if grep -iqF -- "$1" "$HDR"; then
+		ok "$2"
+	else
+		no "$2 — header missing: $1"
+	fi
+}
 
 # Compare the complete Location, including one installation prefix.
 location_is() {
@@ -135,8 +149,20 @@ location_is() {
 		no "$2 — expected Location $1, got $actual"
 	fi
 }
-body_has() { grep -qF -- "$1" "$BODYF" && ok "$2" || no "$2 — body missing: $1"; }
-body_lacks() { ! grep -qF -- "$1" "$BODYF" && ok "$2" || no "$2 — body unexpectedly contains: $1"; }
+body_has() {
+	if grep -qF -- "$1" "$BODYF"; then
+		ok "$2"
+	else
+		no "$2 — body missing: $1"
+	fi
+}
+body_lacks() {
+	if ! grep -qF -- "$1" "$BODYF"; then
+		ok "$2"
+	else
+		no "$2 — body unexpectedly contains: $1"
+	fi
+}
 
 echo ""
 echo "Scenario S1: a per-page .md resolves under the subdirectory"

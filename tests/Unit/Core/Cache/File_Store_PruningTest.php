@@ -202,3 +202,56 @@ it('treats missing and poisoned cache capture as silent misses', function (): vo
     expect($poisoned)->toBeNull();
     expect($warnings)->toBeEmpty();
 });
+
+
+it('progresses past retained unknown files across separate bounded materialisations', function (): void {
+    $GLOBALS['wpdb']->query("UPDATE options SET option_value = '72'");
+    $current = new Identity('llms-txt', 'llms-v72');
+    $unknown = [];
+    for ($number = 0; $number < 80; ++$number) {
+        $unknown[] = new Identity('llms-txt', 'unknown-' . $number);
+        $this->store->write($unknown[array_key_last($unknown)], 'RETAINED UNKNOWN');
+    }
+    $old = [];
+    for ($version = 1; $version <= 70; ++$version) {
+        $old[] = new Identity('llms-txt', 'llms-v' . $version);
+        $this->store->write($old[array_key_last($old)], 'OBSOLETE');
+    }
+    $this->store->write($current, 'CURRENT');
+    $remaining = fn(): int => count(array_filter($old, fn(Identity $identity): bool => $this->store->has($identity)));
+
+    for ($request = 0; $request < 10; ++$request) {
+        $fresh = kntnt_test_file_store(fn(): string => $this->base);
+        $fresh->prune_siblings($current, $this->current);
+        if ($request === 0) { expect($remaining())->toBeGreaterThanOrEqual(38); }
+        expect($fresh->read($current))->toBe('CURRENT');
+    }
+
+    expect($remaining())->toBe(0);
+    foreach ($unknown as $identity) { expect($this->store->read($identity))->toBe('RETAINED UNKNOWN'); }
+});
+
+
+it('keeps cursor failure optional without following a path outside its owned directory', function (): void {
+    $current = new Identity('llms-txt', 'llms-v2');
+    $old = new Identity('llms-txt', 'llms-v1');
+    $this->store->write($old, 'OBSOLETE');
+    $this->store->write($current, 'CURRENT');
+    $sentinel = $this->base . '/outside-cursor';
+    file_put_contents($sentinel, 'RETAINED SENTINEL');
+    $cursor = $this->base . '/llms-txt/.prune-next';
+    symlink($sentinel, $cursor);
+    $lines = [];
+    $logger = new Kntnt\Ai_Visibility\Core\Plugin_Logger(static function (string $line) use (&$lines): void { $lines[] = $line; });
+    Functions\when('wp_json_encode')->alias(static fn(mixed $value): string|false => json_encode($value));
+    $fresh = kntnt_test_file_store(fn(): string => $this->base, $logger);
+
+    $fresh->prune_siblings($current, $this->current);
+
+    expect($fresh->read($current))->toBe('CURRENT');
+    expect($fresh->read($old))->toBeNull();
+    expect(file_get_contents($sentinel))->toBe('RETAINED SENTINEL');
+    expect(implode("\n", $lines))->toContain('Aggregate cleanup cursor could not be saved');
+    unlink($cursor);
+    unlink($sentinel);
+});
