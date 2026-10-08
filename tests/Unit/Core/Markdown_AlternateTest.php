@@ -38,6 +38,22 @@ beforeEach(function (): void {
 
 describe('Markdown_Alternate::identity_for', function (): void {
 
+    it('gives the static home and a literal index page distinct advertised identities', function (): void {
+        Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'home' => 'https://example.com',
+            'show_on_front' => 'page',
+            'page_on_front' => 2,
+            default => '',
+        });
+        Functions\when('get_permalink')->alias(fn(WP_Post $post): string => $post->ID === 2 ? 'https://example.com/' : 'https://example.com/index/');
+        $locator = new Markdown_Alternate();
+
+        expect($locator->identity_for(kntnt_md_post(2))->key)->toBe('index');
+        expect($locator->identity_for(kntnt_md_post(8))->key)->toBe('index/index');
+        expect($locator->url_for(kntnt_md_post(2)))->toBe('https://example.com/index.md');
+        expect($locator->url_for(kntnt_md_post(8)))->toBe('https://example.com/index/index.md');
+    });
+
     it('builds the markdown-alternate identity from the permalink', function (): void {
         Functions\when('get_permalink')->justReturn('https://example.com/news/hello/');
 
