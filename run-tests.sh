@@ -131,7 +131,8 @@ run_e2e() {
 		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e.sh" "${args[@]}" \
 		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e-subdir.sh" "${args[@]}" \
 		&& bash "$SCRIPT_DIR/tests/Integration/playground-audit.sh" "${args[@]}" \
-		&& KNTNT_AUDIT_EXPLICIT=1 bash "$SCRIPT_DIR/tests/Integration/playground-audit.sh" "${args[@]}"; then
+		&& KNTNT_AUDIT_EXPLICIT=1 bash "$SCRIPT_DIR/tests/Integration/playground-audit.sh" "${args[@]}" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-methods.py"; then
 		E2E_EXIT=0
 	else
 		E2E_EXIT=$?

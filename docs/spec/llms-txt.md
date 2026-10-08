@@ -257,6 +257,8 @@ Markdown index of {site name} for AI agents. Full text: /llms-full.txt
 
 ### 4.5 Request handling and routing
 
+**HTTP methods:** the early router and the slow request handler share the `GET`/`HEAD` policy. Every other method falls through to the ordinary WordPress workflow before provider matching, generation or conditional serving, whether `/llms.txt` or `/llms-full.txt` is cold or warm. The plugin emits no rejection or `Allow` header for this fall-through policy, does not populate the public artifact cache and does not issue a `304` for an unsupported method. This is the same policy as the Markdown alternate (§4.2 of its specification).
+
 `Llms\Request_Handler` is the PHP path the early router falls through to on a cold or invalidated cache. It mirrors `Markdown\Request_Handler`:
 
 - **Rewrite rules** (registered on `init`, flushed once on activation): `^llms\.txt$` and `^llms-full\.txt$`, each mapping to a marker query var (`index.php?kntnt_aiv_llms=index` / `=full`) so WordPress loads rather than 404s. Register `kntnt_aiv_llms` as a query var. Static and side-effect-only so `install.php` can register the same rules before flushing (parity with §4.2 of the Release-1 spec).

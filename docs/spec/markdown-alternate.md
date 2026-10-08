@@ -182,6 +182,8 @@ Four reachable forms; strict precedence **`.md` URL > `?format=markdown` > `Acce
 3. **`Accept: text/markdown`** on the canonical URL — the standards-correct form. Default (§1.1): serve Markdown **inline, uncached**, with `Vary: Accept` and a `Link: <…>.md; rel="alternate"` steering agents to the cache-grade URL.
 4. **`/index.md`** for the slug-less home.
 
+**HTTP methods:** only `GET` and `HEAD` enter artifact handling. Every other method falls through to the ordinary WordPress workflow before negotiation, trailing-slash redirects, generation or conditional serving. This applies to canonical URLs (including `?format=markdown` and Markdown in `Accept`) and dedicated `.md` paths alike, on cold and warm caches. The plugin does not emit a rejection or an `Allow` header for this fall-through policy; downstream page and form handlers retain control of the response. Unsupported methods never materialise an artifact or receive a plugin-generated `304`.
+
 Mechanics, parity with the reference:
 
 - **Rewrite rules** (registered on `init`, flushed once on activation): `^index\.md$` and the non-greedy `(.+?)\.md$`, mapping to an internal query var (`markdown_request=1`) plus the resolved page. Register `markdown_request`/`format` as query vars.

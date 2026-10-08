@@ -42,4 +42,18 @@ final readonly class Request {
 		public string $if_modified_since = '',
 	) {}
 
+	/**
+	 * Reports whether an artifact may be negotiated, generated or served.
+	 *
+	 * Non-read methods belong to the ordinary WordPress workflow, including
+	 * dedicated artifact paths. Both cold and warm requests fall through.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return bool
+	 */
+	public function is_read(): bool {
+		return $this->method === 'GET' || $this->method === 'HEAD';
+	}
+
 }
