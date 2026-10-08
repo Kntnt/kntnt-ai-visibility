@@ -108,20 +108,19 @@ interface Store {
 	public function flush_all(): void;
 
 	/**
-	 * Deletes the other cache files in the identity's kind directory.
+	 * Lazily removes a bounded batch of known older aggregate generations.
 	 *
-	 * Prunes the orphaned, version-stamped aggregates a cache-version bump leaves
-	 * behind (e.g. `llms-txt/llms-v7.md` after a bump to v8): every file directly
-	 * in the identity's kind directory except the identity's own file is removed
-	 * (docs/spec/llms-txt.md §5.5, an optional optimisation). It is scoped to the
-	 * one kind directory and contained within the cache base, so it never touches
-	 * the nested, non-version-stamped `markdown-alternate/` files.
+	 * Calls $current under the store's short publication barrier. An obsolete
+	 * caller, absent current file or poisoned store never authorises cleanup.
+	 * Only owned llms-txt/llms-full version keys older than that authoritative
+	 * identity can be removed; current/newer files and other kinds are retained.
 	 *
 	 * @since 0.2.0
 	 *
-	 * @param Identity $identity The identity whose file is kept; its kind directory is pruned.
+	 * @param Identity              $identity The successfully persisted caller identity.
+	 * @param callable(): ?Identity $current  Reads the fresh authoritative identity; never renders.
 	 * @return void
 	 */
-	public function prune_siblings( Identity $identity ): void;
+	public function prune_siblings( Identity $identity, callable $current ): void;
 
 }

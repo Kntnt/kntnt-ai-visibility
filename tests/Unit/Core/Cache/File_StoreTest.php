@@ -169,7 +169,7 @@ describe('File_Store', function (): void {
         $this->store->write(new Identity('llms-txt', 'llms-v7', 0), 'old');
         $this->store->write(new Identity('llms-txt', 'llms-v8', 0), 'new');
 
-        $this->store->prune_siblings(new Identity('llms-txt', 'llms-v8', 0));
+        $this->store->prune_siblings(new Identity('llms-txt', 'llms-v8', 0), static fn() => new Identity('llms-txt', 'llms-v8', 0));
 
         expect(is_file($this->base . '/llms-txt/llms-v7.md'))->toBeFalse();
         expect(is_file($this->base . '/llms-txt/llms-v8.md'))->toBeTrue();
@@ -181,7 +181,7 @@ describe('File_Store', function (): void {
         $this->store->write(new Identity('llms-txt', 'llms-v7', 0), 'old');
         $this->store->write(new Identity('llms-txt', 'llms-v8', 0), 'new');
 
-        $this->store->prune_siblings(new Identity('llms-txt', 'llms-v8', 0));
+        $this->store->prune_siblings(new Identity('llms-txt', 'llms-v8', 0), static fn() => new Identity('llms-txt', 'llms-v8', 0));
 
         expect(is_file($this->base . '/markdown-alternate/about.md'))->toBeTrue();
         expect(is_file($this->base . '/markdown-alternate/a/b/c.md'))->toBeTrue();
@@ -189,7 +189,7 @@ describe('File_Store', function (): void {
     });
 
     it('treats prune of an absent kind directory as a no-op', function (): void {
-        $this->store->prune_siblings(new Identity('llms-full', 'llms-full-v1', 0));
+        $this->store->prune_siblings(new Identity('llms-full', 'llms-full-v1', 0), static fn() => new Identity('llms-full', 'llms-full-v1', 0));
 
         expect(true)->toBeTrue();
     });
@@ -201,7 +201,7 @@ describe('File_Store', function (): void {
         file_put_contents($sentinel, 'keep me');
         $this->store->write(new Identity('llms-txt', 'llms-v8', 0), 'new');
 
-        $this->store->prune_siblings(new Identity('..', 'whatever', 0));
+        $this->store->prune_siblings(new Identity('..', 'whatever', 0), static fn() => new Identity('..', 'whatever', 0));
 
         expect(is_file($sentinel))->toBeTrue();
         unlink($sentinel);
