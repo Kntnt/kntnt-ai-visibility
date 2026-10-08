@@ -49,22 +49,34 @@ final class Single_Flight {
 	private readonly bool $owns_lock_dir;
 
 	/**
+	 * Supplies the same controllable time boundary as the early router.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @var \Closure(): int
+	 */
+	private readonly \Closure $clock;
+
+	/**
 	 * Binds the materialiser to its cache store and lock directory.
 	 *
 	 * @since 0.2.0
 	 *
-	 * @param Store       $store    The cache store read and written through.
-	 * @param string|null $lock_dir The lock directory; defaults to a plugin-owned
-	 *                              subdirectory of the system temp dir.
-	 * @param int         $ttl      Maximum age in seconds; zero disables expiry.
+	 * @param Store                  $store    The cache store read and written through.
+	 * @param string|null            $lock_dir The lock directory; defaults to a plugin-owned
+	 *                                         subdirectory of the system temp dir.
+	 * @param int                    $ttl      Maximum age in seconds; non-positive disables expiry.
+	 * @param (callable(): int)|null $clock Returns current Unix time; defaults to time().
 	 */
 	public function __construct(
 		private readonly Store $store,
 		?string $lock_dir = null,
 		private readonly int $ttl = 604800,
+		?callable $clock = null,
 	) {
 		$this->owns_lock_dir = $lock_dir === null;
 		$this->lock_dir = $lock_dir ?? sys_get_temp_dir() . '/kntnt-ai-visibility-locks';
+		$this->clock = $clock === null ? static fn(): int => time() : \Closure::fromCallable( $clock );
 	}
 
 	/**
@@ -157,7 +169,7 @@ final class Single_Flight {
 	private function read_fresh( Identity $identity ): ?string {
 		$path = $this->store->path_for( $identity );
 		clearstatcache( true, $path );
-		if ( $this->ttl > 0 && is_file( $path ) && time() - (int) filemtime( $path ) > $this->ttl ) {
+		if ( $this->ttl > 0 && is_file( $path ) && ( $this->clock )() - (int) filemtime( $path ) > $this->ttl ) {
 			return null;
 		}
 		return $this->store->read( $identity );
