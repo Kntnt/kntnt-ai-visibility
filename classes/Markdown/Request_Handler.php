@@ -294,13 +294,12 @@ final class Request_Handler {
 	 * @since 0.1.0
 	 *
 	 * @param string  $bytes         The Markdown bytes.
-	 * @param int     $last_modified The post's last-modified Unix time.
 	 * @param Request $request       The request (for method and conditionals).
 	 * @param string  $canonical_url The HTML canonical URL.
 	 * @param string  $md_url        The cache-grade `.md` URL agents should prefer.
 	 * @return array{status: int, headers: array<string, string>, send_body: bool}
 	 */
-	public function inline_response( string $bytes, int $last_modified, Request $request, string $canonical_url, string $md_url ): array {
+	public function inline_response( string $bytes, Request $request, string $canonical_url, string $md_url ): array {
 
 		// Validators and the headers common to 200 and 304: Vary for the negotiated
 		// form, and a Link steering agents to the cache-grade URL.
@@ -309,13 +308,13 @@ final class Request_Handler {
 			'Vary'                   => 'Accept',
 			'Cache-Control'          => 'private, no-store, no-cache, max-age=0, must-revalidate',
 			'X-Content-Type-Options' => 'nosniff',
-			'Last-Modified'          => gmdate( 'D, d M Y H:i:s', $last_modified ) . ' GMT',
 			'ETag'                   => $etag,
 			'Link'                   => '<' . $canonical_url . '>; rel="canonical", <' . $md_url . '>; rel="alternate"; type="text/markdown"',
 		];
 
-		// A fresh client gets a bodyless 304; otherwise the full document.
-		if ( Conditional_Request::is_fresh( $request->if_none_match, $request->if_modified_since, $etag, $last_modified ) ) {
+		// Dynamic metadata and shared content have no complete modification date.
+		// Only the freshly rendered bytes can establish inline freshness.
+		if ( Conditional_Request::is_fresh( $request->if_none_match, $request->if_modified_since, $etag, null ) ) {
 			return [
 				'status'    => 304,
 				'headers'   => $headers,
@@ -453,7 +452,7 @@ final class Request_Handler {
 		$bytes = $this->page_markdown->for_post( $post );
 		$relations = $this->provider->advertise( new Discovery_Context( $post ) );
 		$md_url = $relations === [] ? '' : $relations[0]->href;
-		$response = $this->inline_response( $bytes, $this->modified_time( $post ), $request, (string) get_permalink( $post ), $md_url );
+		$response = $this->inline_response( $bytes, $request, (string) get_permalink( $post ), $md_url );
 		$this->send( $response['status'], $response['headers'] );
 		if ( $response['send_body'] ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the body is Markdown served as text/markdown; HTML escaping would corrupt it.

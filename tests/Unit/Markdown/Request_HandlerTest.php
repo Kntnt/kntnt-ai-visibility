@@ -222,12 +222,21 @@ describe('Request_Handler::trailing_slash_target', function (): void {
 
 describe('Request_Handler::inline_response', function (): void {
 
+    it('returns freshly rendered inline bytes despite a date newer than the unchanged source timestamp', function (): void {
+        $request = new Request('GET', '/about/team/', [], 'text/markdown', '', 'Fri, 01 Jan 2100 00:00:00 GMT');
+
+        $response = $this->handler->inline_response('META-CHANGED', $request, 'https://example.com/about/team/', 'https://example.com/about/team.md');
+
+        expect($response['status'])->toBe(200);
+        expect($response['send_body'])->toBeTrue();
+        expect($response['headers'])->not->toHaveKey('Last-Modified');
+    });
+
     it('builds a 200 with Vary, canonical and steering alternate links', function (): void {
         $request = new Request('GET', '/about/team/', [], 'text/markdown');
 
         $response = $this->handler->inline_response(
             "# Team\n",
-            1_700_000_000,
             $request,
             'https://example.com/about/team/',
             'https://example.com/about/team.md',
@@ -248,7 +257,7 @@ describe('Request_Handler::inline_response', function (): void {
         $etag    = '"' . md5("# Team\n") . '"';
         $request = new Request('GET', '/about/team/', [], 'text/markdown', $etag);
 
-        $response = $this->handler->inline_response("# Team\n", 1_700_000_000, $request, 'https://example.com/about/team/', 'https://example.com/about/team.md');
+        $response = $this->handler->inline_response("# Team\n", $request, 'https://example.com/about/team/', 'https://example.com/about/team.md');
 
         expect($response['status'])->toBe(304);
         expect($response['send_body'])->toBeFalse();

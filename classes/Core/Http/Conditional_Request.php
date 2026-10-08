@@ -6,7 +6,7 @@
  * handler for deciding whether a client's cached copy is still fresh and may be
  * answered with 304: a matching (or wildcard) If-None-Match is authoritative
  * over the date; otherwise an If-Modified-Since no older than the resource is
- * fresh.
+ * fresh, provided the representation has a known modification time.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -28,13 +28,13 @@ final class Conditional_Request {
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param string $if_none_match     The If-None-Match request header, or ''.
-	 * @param string $if_modified_since The If-Modified-Since request header, or ''.
-	 * @param string $etag              The current content ETag (quoted).
-	 * @param int    $last_modified     The resource's last-modified Unix time.
+	 * @param string   $if_none_match     The If-None-Match request header, or ''.
+	 * @param string   $if_modified_since The If-Modified-Since request header, or ''.
+	 * @param string   $etag              The current content ETag (quoted).
+	 * @param int|null $last_modified     The representation's known modification time, or null.
 	 * @return bool True when the client may be answered with 304.
 	 */
-	public static function is_fresh( string $if_none_match, string $if_modified_since, string $etag, int $last_modified ): bool {
+	public static function is_fresh( string $if_none_match, string $if_modified_since, string $etag, ?int $last_modified ): bool {
 
 		// A matching or wildcard If-None-Match is authoritative over the date.
 		if ( $if_none_match !== '' ) {
@@ -50,8 +50,8 @@ final class Conditional_Request {
 			return false;
 		}
 
-		// Otherwise honour If-Modified-Since when the resource is no newer than it.
-		if ( $if_modified_since !== '' ) {
+		// A date is authoritative only when it covers the representation.
+		if ( $last_modified !== null && $if_modified_since !== '' ) {
 			$since = strtotime( $if_modified_since );
 			return $since !== false && $last_modified <= $since;
 		}
@@ -69,7 +69,7 @@ final class Conditional_Request {
 	 *
 	 * @since 0.2.3
 	 *
-	 * @param string $etag A quoted ETag string, optionally prefixed with `W/`.
+	 * @param string   $etag A quoted ETag string, optionally prefixed with `W/`.
 	 * @return string The ETag with any `W/` prefix removed.
 	 */
 	private static function strip_weak( string $etag ): string {
