@@ -17,6 +17,7 @@ declare(strict_types=1);
 use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
+use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 
 beforeEach(function (): void {
     // The store creates directories through wp_mkdir_p(); off WordPress, make it
@@ -38,6 +39,8 @@ afterEach(function (): void {
             $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
         }
         rmdir($this->base);
+    } elseif (is_file($this->base)) {
+        unlink($this->base);
     }
 });
 
@@ -55,10 +58,69 @@ describe('File_Store', function (): void {
         expect($this->store->has($id))->toBeFalse();
         expect($this->store->read($id))->toBeNull();
 
-        $this->store->write($id, "# Hello\n");
+        expect($this->store->write($id, "# Hello\n"))->toBeTrue();
 
         expect($this->store->has($id))->toBeTrue();
         expect($this->store->read($id))->toBe("# Hello\n");
+    });
+
+    it('reports an obstructed cache path through the logger without emitting warnings', function (): void {
+        file_put_contents($this->base, 'ordinary file obstructs the cache');
+        Functions\when('wp_json_encode')->alias('json_encode');
+        $lines = [];
+        $logger = new Plugin_Logger(static function (string $line) use (&$lines): void {
+            $lines[] = $line;
+        });
+        $store = new File_Store(fn(): string => $this->base, $logger);
+
+        $warnings = [];
+        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+            if (error_reporting() & $severity) {
+                $warnings[] = $message;
+            }
+            return true;
+        });
+        try {
+            $written = $store->write(new Identity('markdown-alternate', 'about', 1), '# About');
+        } finally {
+            restore_error_handler();
+        }
+
+        expect($warnings)->toBeEmpty();
+        expect($written)->toBeFalse();
+        expect($lines)->toHaveCount(1);
+        expect(str_replace('\\/', '/', $lines[0]))->toContain('[Kntnt AI Visibility] [WARNING]', 'Cache write failed', $this->base);
+        expect(file_get_contents($this->base))->toBe('ordinary file obstructs the cache');
+    });
+
+    it('removes its temporary file when atomic publication fails', function (): void {
+        Functions\when('wp_json_encode')->alias('json_encode');
+        $lines = [];
+        $logger = new Plugin_Logger(static function (string $line) use (&$lines): void {
+            $lines[] = $line;
+        });
+        $store = new File_Store(fn(): string => $this->base, $logger);
+        $identity = new Identity('markdown-alternate', 'occupied', 1);
+        mkdir($store->path_for($identity), 0777, true);
+        $warnings = [];
+        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+            if (error_reporting() & $severity) {
+                $warnings[] = $message;
+            }
+            return true;
+        });
+        try {
+            $written = $store->write($identity, '# Occupied');
+        } finally {
+            restore_error_handler();
+        }
+
+        expect($written)->toBeFalse();
+        expect($warnings)->toBeEmpty();
+        expect(glob(dirname($store->path_for($identity)) . '/*.tmp'))->toBe([]);
+        expect($store->read($identity))->toBeNull();
+        expect($lines)->toHaveCount(1);
+        expect($lines[0])->toContain('Cache write failed', 'rename');
     });
 
     it('creates nested directories for slash-bearing keys', function (): void {

@@ -19,6 +19,7 @@ declare(strict_types=1);
 use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
+use Kntnt\Ai_Visibility\Core\Cache\Materialisation;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Front_Matter;
 use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
@@ -115,7 +116,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
         $post->post_content = '<p>PASSWORD-CONTENT</p>';
         Functions\when('post_password_required')->justReturn(false);
 
-        expect(fn(): string => $service->materialise($identity, $post))->toThrow(DomainException::class);
+        expect(fn(): Materialisation => $service->materialise($identity, $post))->toThrow(DomainException::class);
         expect($this->store->has($identity))->toBeFalse();
     });
 
@@ -127,7 +128,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
         $post->post_password = 'fixture';
         Functions\when('post_password_required')->justReturn(false);
 
-        expect(fn(): string => $service->materialise($identity, $post))->toThrow(DomainException::class);
+        expect(fn(): Materialisation => $service->materialise($identity, $post))->toThrow(DomainException::class);
     });
 
     it('renders, writes the cache and returns the bytes on a miss', function (): void {
@@ -144,8 +145,9 @@ describe('Page_Markdown_Service::materialise', function (): void {
         $bytes = $service->materialise($identity, $post);
 
         expect($this->store->has($identity))->toBeTrue();
-        expect($this->store->read($identity))->toBe($bytes);
-        expect($bytes)->toContain('# T');
+        expect($this->store->read($identity))->toBe($bytes->bytes);
+        expect($bytes->persisted)->toBeTrue();
+        expect($bytes->bytes)->toContain('# T');
     });
 
     it('returns the cached bytes without re-rendering on a hit', function (): void {
@@ -158,7 +160,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
 
         $post = new WP_Post();
 
-        expect($service->materialise($identity, $post))->toBe('CACHED BYTES');
+        expect($service->materialise($identity, $post)->bytes)->toBe('CACHED BYTES');
     });
 
 });

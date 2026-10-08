@@ -406,11 +406,21 @@ final class Request_Handler {
 		// Materialise the cache (single-flight) and serve the resulting file with
 		// the router's file-based headers, so this first serve and every later
 		// router serve agree on the validators.
-		$this->page_markdown->materialise( $identity, $post );
+		$result = $this->page_markdown->materialise( $identity, $post );
 		$path = $this->cache->path_for( $identity );
-		if ( ! is_file( $path ) ) {
-			$this->logger->warning( 'Cache file missing after materialise', [ 'key' => $identity->key ] );
-			return;
+		if ( ! $result->persisted || ! is_file( $path ) ) {
+
+			// A cache outage must not fall through to an unrelated HTML template.
+			$this->logger->warning( 'Serving generated artifact without cache', [ 'key' => $identity->key ] );
+			$response = $this->router->headers_for_bytes( $result->bytes, $this->modified_time( $post ), $request, self::CONTENT_TYPE, (string) get_permalink( $post ) );
+			$this->send( $response['status'], $response['headers'] );
+			if ( $response['send_body'] ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escaping corrupts a text/markdown representation.
+				echo $result->bytes;
+			}
+
+			exit;
+
 		}
 		$response = $this->router->headers_for( $path, $request, self::CONTENT_TYPE, (string) get_permalink( $post ) );
 		$this->send( $response['status'], $response['headers'] );

@@ -265,7 +265,7 @@ final class Plugin {
 		$settings = new Settings();
 		$settings->register();
 		$artifacts = new Artifact_Registry();
-		$store = new File_Store( static fn(): string => self::cache_dir() );
+		$store = new File_Store( static fn(): string => self::cache_dir(), $logger );
 		$ttl = apply_filters( 'kntnt_ai_visibility_cache_ttl', WEEK_IN_SECONDS );
 		$single_flight = new Single_Flight( $store, ttl: is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS );
 		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $single_flight, $logger );
