@@ -208,13 +208,16 @@ def run(subpath):
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            if server.poll() is None:
+            # Stop descendants even if the npx wrapper has already exited.
+            try:
                 os.killpg(server.pid, signal.SIGTERM)
-                try:
-                    server.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(server.pid, signal.SIGKILL)
-                    server.wait()
+            except ProcessLookupError:
+                pass
+            try:
+                server.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                os.killpg(server.pid, signal.SIGKILL)
+                server.wait()
 
 
 if __name__ == "__main__":
