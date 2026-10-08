@@ -80,7 +80,7 @@ final class Full_Builder {
 			if ( ! $post instanceof \WP_Post || $post->post_password !== '' ) {
 				continue;
 			}
-			$parts[] = $this->page_markdown->materialise( $this->markdown_alternate->identity_for( $post ), $post );
+			$parts[] = $this->page_markdown->materialise( $this->markdown_alternate->identity_for( $post ), $post )->bytes;
 		}
 
 		// Join with a blank line; the per-page front-matter is the record boundary.

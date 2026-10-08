@@ -18,6 +18,7 @@ declare( strict_types = 1 );
 namespace Kntnt\Ai_Visibility\Core;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
+use Kntnt\Ai_Visibility\Core\Cache\Materialisation;
 
 /**
  * Renders a post to its Markdown alternate and materialises it to the cache.
@@ -45,21 +46,22 @@ interface Page_Markdown {
 	public function for_post( \WP_Post $post ): string;
 
 	/**
-	 * Materialises the post's Markdown to the cache and returns the bytes.
+	 * Materialises the post's Markdown and reports its persistence independently.
 	 *
 	 * Idempotent and single-flight (docs/spec §5.5): concurrent misses do not
 	 * all render. A cache hit returns the cached bytes without rendering. The
 	 * identity is supplied by the caller (the matching provider derives it), so
-	 * this Core service stays free of any one artifact kind's key scheme — a
-	 * refinement of the spec's `materialise( post ): Identity`.
+	 * this Core service stays free of any one artifact kind's key scheme.
+	 * Unavailable persistence returns valid bytes with persisted=false; it does
+	 * not mean generation failed and cannot authorise serving an older file.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param Identity $identity The cache identity to materialise under.
 	 * @param \WP_Post $post     The post to render on a miss.
-	 * @return string The cached or freshly-rendered Markdown bytes.
+	 * @return Materialisation The valid bytes and independent persistence outcome.
 	 * @throws \DomainException When a password, preview or content cache veto prevents public publication.
 	 */
-	public function materialise( Identity $identity, \WP_Post $post ): string;
+	public function materialise( Identity $identity, \WP_Post $post ): Materialisation;
 
 }

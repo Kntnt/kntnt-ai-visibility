@@ -32,6 +32,16 @@ beforeEach(function (): void {
 
 describe('Full_Provider', function (): void {
 
+    it('refuses the full singleton outside the configured installation', function (): void {
+        Functions\when('get_option')->justReturn('https://example.com/blog');
+        Functions\when('wp_parse_url')->alias(fn(string $url, int $component = -1): mixed => parse_url($url, $component));
+        $this->version->shouldReceive('current')->andReturn(8);
+        $provider = new Full_Provider($this->builder, $this->version, new Markdown_Alternate());
+
+        expect($provider->match(new Request('GET', '/llms-full.txt')))->toBeNull();
+        expect($provider->match(new Request('GET', '/blog/llms-full.txt'))?->key)->toBe('llms-full-v8');
+    });
+
     it('matches /llms-full.txt to a version-stamped identity', function (): void {
         $this->locator->shouldReceive('home_relative')->with('/llms-full.txt')->andReturn('/llms-full.txt');
         $this->version->shouldReceive('current')->andReturn(8);

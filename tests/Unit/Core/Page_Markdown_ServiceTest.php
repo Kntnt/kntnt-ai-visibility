@@ -19,6 +19,7 @@ declare(strict_types=1);
 use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
+use Kntnt\Ai_Visibility\Core\Cache\Materialisation;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Front_Matter;
 use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
@@ -178,7 +179,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
         $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger, fn(): string => 'https://example.com');
 
         try {
-            expect(fn(): string => $service->materialise($identity, $post))->toThrow(DomainException::class);
+            expect(fn(): Materialisation => $service->materialise($identity, $post))->toThrow(DomainException::class);
             expect($this->store->has($identity))->toBeFalse();
             expect($_GET)->toBe(['preview' => 'true', 'preview_nonce' => 'private']);
         } finally {
@@ -187,6 +188,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
     });
 
     it('publishes anonymous bytes from an authenticated caller and restores its identity', function (): void {
+        $previous = $GLOBALS['current_user'] ?? null;
         $caller = (object) ['ID' => 71];
         $GLOBALS['current_user'] = $caller;
         Functions\when('wp_get_current_user')->alias(static fn(): object => $GLOBALS['current_user']);
@@ -211,12 +213,18 @@ describe('Page_Markdown_Service::materialise', function (): void {
         $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger, fn(): string => 'https://example.com');
 
         try {
-            $bytes = $service->materialise($identity, $post);
+            $result = $service->materialise($identity, $post);
+            $bytes = $result->bytes;
             expect($bytes)->toContain('PUBLIC-DETAIL')->not->toContain('MEMBER-PRIVATE-DETAIL');
+            expect($result->persisted)->toBeTrue();
             expect($this->store->read($identity))->toBe($bytes);
             expect($GLOBALS['current_user'])->toBe($caller);
         } finally {
-            unset($GLOBALS['current_user']);
+            if ($previous === null) {
+                unset($GLOBALS['current_user']);
+            } else {
+                $GLOBALS['current_user'] = $previous;
+            }
         }
     });
 
@@ -228,7 +236,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
         $post->post_content = '<p>PASSWORD-CONTENT</p>';
         Functions\when('post_password_required')->justReturn(false);
 
-        expect(fn(): string => $service->materialise($identity, $post))->toThrow(DomainException::class);
+        expect(fn(): Materialisation => $service->materialise($identity, $post))->toThrow(DomainException::class);
         expect($this->store->has($identity))->toBeFalse();
     });
 
@@ -240,7 +248,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
         $post->post_password = 'fixture';
         Functions\when('post_password_required')->justReturn(false);
 
-        expect(fn(): string => $service->materialise($identity, $post))->toThrow(DomainException::class);
+        expect(fn(): Materialisation => $service->materialise($identity, $post))->toThrow(DomainException::class);
     });
 
     it('renders, writes the cache and returns the bytes on a miss', function (): void {
@@ -257,8 +265,9 @@ describe('Page_Markdown_Service::materialise', function (): void {
         $bytes = $service->materialise($identity, $post);
 
         expect($this->store->has($identity))->toBeTrue();
-        expect($this->store->read($identity))->toBe($bytes);
-        expect($bytes)->toContain('# T');
+        expect($this->store->read($identity))->toBe($bytes->bytes);
+        expect($bytes->persisted)->toBeTrue();
+        expect($bytes->bytes)->toContain('# T');
     });
 
     it('returns the cached bytes without re-rendering on a hit', function (): void {
@@ -271,7 +280,7 @@ describe('Page_Markdown_Service::materialise', function (): void {
 
         $post = new WP_Post();
 
-        expect($service->materialise($identity, $post))->toBe('CACHED BYTES');
+        expect($service->materialise($identity, $post)->bytes)->toBe('CACHED BYTES');
     });
 
 });

@@ -21,6 +21,7 @@ use Kntnt\Ai_Visibility\Core\Content\Content_Types;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
+use Kntnt\Ai_Visibility\Core\Cache\Materialisation;
 use Kntnt\Ai_Visibility\Llms\Full_Builder;
 use Kntnt\Ai_Visibility\Llms\Selected_Types;
 
@@ -77,7 +78,7 @@ function kntnt_full_builder(array $posts, array $markdown): Full_Builder
     $locator->shouldReceive('identity_for')->andReturnUsing(fn(WP_Post $p): Identity => new Identity('markdown-alternate', 'k' . $p->ID, $p->ID));
 
     $page_markdown = Mockery::mock(Page_Markdown::class);
-    $page_markdown->shouldReceive('materialise')->andReturnUsing(fn(Identity $i, WP_Post $p): string => $markdown[$p->ID] ?? '');
+    $page_markdown->shouldReceive('materialise')->andReturnUsing(fn(Identity $i, WP_Post $p): Materialisation => new Materialisation($markdown[$p->ID] ?? '', true));
 
     return new Full_Builder($eligibility, new Selected_Types($types, $eligibility), $locator, $page_markdown);
 }

@@ -307,6 +307,56 @@ final class Serve_Router {
 	}
 
 	/**
+	 * Builds an uncached response when valid bytes could not be persisted.
+	 *
+	 * Validators and length describe the returned bytes, never a stale file left
+	 * behind by a failed write. GET and HEAD share metadata; HEAD and 304 have
+	 * no body. The no-store policy prevents a storage outage becoming a cached
+	 * representation or error at an intermediary.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param string  $bytes         The valid generated artifact bytes.
+	 * @param int     $last_modified The source modification or aggregate build time.
+	 * @param Request $request       The read request and its validators.
+	 * @param string  $content_type  The artifact's Content-Type.
+	 * @param string  $canonical_url The HTML canonical URL, or '' for singletons.
+	 * @return array{status: int, headers: array<string, string>, send_body: bool}
+	 */
+	public function headers_for_bytes( string $bytes, int $last_modified, Request $request, string $content_type = self::CONTENT_TYPE, string $canonical_url = '' ): array {
+
+		// Describe only the generated representation and prevent its storage.
+		$etag = '"' . md5( $bytes ) . '"';
+		$headers = [
+			'Cache-Control' => 'private, no-store, no-cache, max-age=0, must-revalidate',
+			'X-Content-Type-Options' => 'nosniff',
+			'Last-Modified' => gmdate( 'D, d M Y H:i:s', $last_modified ) . ' GMT',
+			'ETag' => $etag,
+		];
+		if ( $canonical_url !== '' ) {
+			$headers['Link'] = '<' . $canonical_url . '>; rel="canonical"';
+		}
+
+		// Conditional requests validate the bytes even without a backing file.
+		if ( Conditional_Request::is_fresh( $request->if_none_match, $request->if_modified_since, $etag, $last_modified ) ) {
+			return [
+				'status' => 304,
+				'headers' => $headers,
+				'send_body' => false,
+			];
+		}
+		$headers['Content-Type'] = $content_type;
+		$headers['Content-Length'] = (string) strlen( $bytes );
+
+		return [
+			'status' => 200,
+			'headers' => $headers,
+			'send_body' => $request->method !== 'HEAD',
+		];
+
+	}
+
+	/**
 	 * Reports whether a cache file has aged past the TTL safety net.
 	 *
 	 * @since 0.1.0
@@ -335,6 +385,12 @@ final class Serve_Router {
 	 *               pattern that matched, or null when no shape matches or the key is unsafe.
 	 */
 	private function identify( string $path ): ?array {
+
+		// An out-of-installation path must never alias a contained cache key.
+		$base = rtrim( ( $this->base_path )(), '/' );
+		if ( $base !== '' && ! str_starts_with( $path, $base . '/' ) ) {
+			return null;
+		}
 
 		// Take the path relative to the WordPress home so a subdirectory install
 		// (e.g. /blog/about.md or /blog/llms.txt) derives the same key as root.

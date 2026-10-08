@@ -22,6 +22,7 @@ declare( strict_types = 1 );
 namespace Kntnt\Ai_Visibility\Core;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
+use Kntnt\Ai_Visibility\Core\Cache\Materialisation;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\HtmlToMarkdown\Converter\Converter;
 use Kntnt\HtmlToMarkdown\Converter\Options;
@@ -109,16 +110,16 @@ final class Page_Markdown_Service implements Page_Markdown {
 	}
 
 	/**
-	 * Materialises a post's Markdown to the cache and returns the bytes.
+	 * Materialises a post's Markdown with an independent persistence outcome.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param Identity $identity The cache identity to materialise under.
 	 * @param \WP_Post $post     The post to render on a miss.
-	 * @return string
+	 * @return Materialisation The valid bytes and independent persistence outcome.
 	 * @throws \DomainException When the source has a stored password, even on a hit.
 	 */
-	public function materialise( Identity $identity, \WP_Post $post ): string {
+	public function materialise( Identity $identity, \WP_Post $post ): Materialisation {
 
 		// Do not let a preview context consult or populate the shared file cache.
 		Public_Rendering::assert_public_request( true );

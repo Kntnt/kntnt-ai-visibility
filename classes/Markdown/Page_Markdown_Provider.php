@@ -163,6 +163,13 @@ final class Page_Markdown_Provider implements Provider {
 	 */
 	private function resolve_post( string $path ): ?\WP_Post {
 
+		// Reject requests outside the configured installation before fallbacks
+		// can turn their leaf into a legitimate installation-relative identity.
+		$base = rtrim( (string) wp_parse_url( Site_Url::home(), PHP_URL_PATH ), '/' );
+		if ( $base !== '' && ! str_starts_with( $path, $base . '/' ) ) {
+			return null;
+		}
+
 		// Reduce a `.md` request to its HTML path, taken relative to the
 		// WordPress home so resolution works identically on a subdirectory
 		// install (a canonical path passes through unchanged on a root install).

@@ -20,6 +20,8 @@ declare( strict_types = 1 );
 namespace Kntnt\Ai_Visibility\Core\Cache;
 
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
+use Kntnt\Ai_Visibility\Core\Logger;
+use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 
 /**
  * Stores generated artifacts as files under a Core-owned cache directory.
@@ -45,8 +47,9 @@ final class File_Store implements Store {
 	 * @param callable(): string $base_dir_provider Returns the absolute cache
 	 *                                              base directory. Invoked once,
 	 *                                              on first use.
+	 * @param Logger             $logger            Receives controlled write failures.
 	 */
-	public function __construct( private $base_dir_provider ) {}
+	public function __construct( private $base_dir_provider, private readonly Logger $logger = new Plugin_Logger() ) {}
 
 	/**
 	 * Returns the resolved cache base directory.
@@ -111,22 +114,43 @@ final class File_Store implements Store {
 	 *
 	 * @param Identity $identity The artifact identity.
 	 * @param string   $bytes    The bytes to store.
-	 * @return void
+	 * @return bool True after atomic publication; false on a logged failure.
 	 */
-	public function write( Identity $identity, string $bytes ): void {
+	public function write( Identity $identity, string $bytes ): bool {
 
 		// Make sure the cache directory exists and is protected from listing.
-		$this->ensure_base();
+		if ( ! $this->ensure_base() ) {
+			return false;
+		}
 
 		// Create the file's parent directory (slash-bearing keys nest), then
 		// write atomically via a temporary file and rename so a concurrent
 		// reader never sees a half-written file.
 		$path = $this->path_for( $identity );
-		wp_mkdir_p( dirname( $path ) );
-		$tmp = $path . '.' . uniqid( '', true ) . '.tmp';
-		if ( file_put_contents( $tmp, $bytes, LOCK_EX ) !== false ) {
-			rename( $tmp, $path );
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- expected filesystem failures are logged through the plugin logger.
+		if ( ! @wp_mkdir_p( dirname( $path ) ) ) {
+			return $this->write_failed( 'mkdir', dirname( $path ) );
 		}
+		$tmp = $path . '.' . uniqid( '', true ) . '.tmp';
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- expected filesystem failures are logged through the plugin logger.
+		$written = @file_put_contents( $tmp, $bytes, LOCK_EX );
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- expected filesystem failures are logged through the plugin logger.
+		$published = $written === strlen( $bytes ) && @rename( $tmp, $path );
+		if ( ! $published ) {
+
+			// A partial write or failed rename must not abandon its temporary file.
+			if ( is_file( $tmp ) ) {
+				// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- cleanup failure is logged separately.
+				if ( ! @unlink( $tmp ) ) {
+					$this->write_failed( 'cleanup', $tmp );
+				}
+			}
+
+			return $this->write_failed( $written === strlen( $bytes ) ? 'rename' : 'write', $path );
+
+		}
+
+		return true;
 
 	}
 
@@ -231,18 +255,47 @@ final class File_Store implements Store {
 	 *
 	 * @since 0.1.0
 	 *
-	 * @return void
+	 * @return bool True when the guarded base is ready; false on a logged failure.
 	 */
-	private function ensure_base(): void {
+	private function ensure_base(): bool {
 
 		// Create the directory and drop an empty index.html so a misconfigured
 		// webserver cannot list the cache contents.
 		$base = $this->base();
-		wp_mkdir_p( $base );
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- expected filesystem failures are logged through the plugin logger.
+		if ( ! @wp_mkdir_p( $base ) ) {
+			return $this->write_failed( 'mkdir', $base );
+		}
 		$guard = $base . '/index.html';
 		if ( ! is_file( $guard ) ) {
-			file_put_contents( $guard, '' );
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- expected filesystem failures are logged through the plugin logger.
+			if ( @file_put_contents( $guard, '' ) === false ) {
+				return $this->write_failed( 'guard', $guard );
+			}
 		}
+
+		return true;
+
+	}
+
+	/**
+	 * Reports a persistence failure without exposing filesystem diagnostics.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param string $operation The failed filesystem operation.
+	 * @param string $path      The affected Core-owned path.
+	 * @return false
+	 */
+	private function write_failed( string $operation, string $path ): false {
+		$this->logger->warning(
+			'Cache write failed',
+			[
+				'operation' => $operation,
+				'path' => $path,
+			],
+		);
+		return false;
 
 	}
 
