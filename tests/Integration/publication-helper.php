@@ -163,6 +163,41 @@ add_action( 'template_redirect', static function (): void {
 		update_option( 'publication_queue', true );
 	}
 	$action = (string) ( $_GET['publication_action'] ?? '' );
+	if ( str_starts_with( $action, 'stampede-' ) ) {
+		$directories = glob( sys_get_temp_dir() . '/kntnt-ai-visibility-locks*', GLOB_ONLYDIR ) ?: [];
+		if ( $action === 'stampede-turn' ) {
+			$turn = (int) get_option( 'publication_stampede_turn', 0 ) + 1;
+			update_option( 'publication_stampede_turn', $turn );
+			$post = get_page_by_path( 'publication-sql-source' );
+			wp_insert_post( [
+				'ID' => $post?->ID ?? 0, 'post_type' => 'page', 'post_name' => 'publication-sql-source',
+				'post_status' => 'publish', 'post_title' => 'CURRENT-LOCK-' . $turn, 'post_content' => 'CURRENT-LOCK-' . $turn,
+			] );
+		}
+		if ( $action === 'stampede-obstruct' ) {
+			$directory = $directories[0];
+			// This single-worker fixture has no active producer or waiter here.
+			rename( $directory, sys_get_temp_dir() . '/publication-inactive-locks' );
+			file_put_contents( $directory, 'fixture obstruction' );
+			update_option( 'publication_stampede_directory', $directory );
+			( new File_Store( Plugin::cache_dir( ... ) ) )->flush_all();
+		}
+		if ( $action === 'stampede-restore' ) {
+			$directory = get_option( 'publication_stampede_directory' );
+			unlink( $directory );
+			rename( sys_get_temp_dir() . '/publication-inactive-locks', $directory );
+		}
+		$files = [];
+		foreach ( $directories as $directory ) {
+			$files = [ ...$files, ...( glob( $directory . '/*.lock' ) ?: [] ) ];
+		}
+		header( 'Content-Type: application/json' );
+		echo wp_json_encode( [
+			'php' => PHP_VERSION, 'directories' => count( $directories ), 'locks' => count( $files ),
+			'turn' => (int) get_option( 'publication_stampede_turn', 0 ), 'fork' => function_exists( 'pcntl_fork' ),
+		] );
+		exit;
+	}
 	if ( str_starts_with( $action, 'sql-policy-' ) ) {
 		global $wpdb;
 		$before = str_contains( $action, '-quiet' );
