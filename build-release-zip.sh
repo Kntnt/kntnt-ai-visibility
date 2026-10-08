@@ -54,9 +54,9 @@ Destination (defaults to dist/ in the repo root when none is given):
 Examples:
   build-release-zip.sh
   build-release-zip.sh --output ~/Desktop/custom-name.zip
-  build-release-zip.sh --tag 0.1.0 --output /tmp
-  build-release-zip.sh --tag 0.1.0 --create
-  build-release-zip.sh --tag 0.1.0 --update
+  build-release-zip.sh --tag v0.2.0 --output /tmp
+  build-release-zip.sh --tag v0.2.0 --create
+  build-release-zip.sh --tag v0.2.0 --update
 HELP
 	exit "${1:-0}"
 }
