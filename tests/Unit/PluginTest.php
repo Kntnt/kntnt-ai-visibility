@@ -38,6 +38,8 @@ describe('Plugin', function (): void {
             $GLOBALS['kntnt_test_added_actions'][$hook] = $callback;
             return true;
         });
+        Functions\when('get_option')->justReturn(false);
+        Functions\when('remove_action')->justReturn(true);
         Functions\when('apply_filters')->alias(static fn(string $hook, mixed $value = null): mixed => $value);
         Functions\when('__')->returnArg();
     });

@@ -108,4 +108,3 @@ def run(subpath):
 if __name__ == "__main__":
     for installation in ["", "/sub"]:
         run(installation)
-

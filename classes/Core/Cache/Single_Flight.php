@@ -111,6 +111,8 @@ final class Single_Flight {
 	 * @throws \Throwable When the producer fails; no stale bytes are substituted.
 	 */
 	public function once( Identity $identity, callable $produce, ?callable $validate = null ): Materialisation {
+
+		// Capture the epoch before waiting, reading a hit or invoking producers.
 		$barrier = $this->store->publication();
 		$generation = $barrier->current();
 		if ( $validate !== null ) {
@@ -129,6 +131,8 @@ final class Single_Flight {
 		// Single-flight: hold the lock, re-check, then produce and store.
 		$lock = $this->acquire_lock( $identity );
 		try {
+
+			// Recheck fresh policy and cache after the family lock has been acquired.
 			if ( $validate !== null ) {
 				$validate();
 			}
@@ -139,11 +143,15 @@ final class Single_Flight {
 					static fn(): Materialisation => new Materialisation( $cached, true ),
 				);
 			}
+
+			// Produce outside the publication barrier, then verify current work.
 			$barrier->publish( $generation, static fn(): null => null );
 			$bytes = $produce();
 			if ( $validate !== null ) {
 				$validate();
 			}
+
+			// Publish atomically only while the captured generation is still valid.
 			return $barrier->publish(
 				$generation,
 				fn(): Materialisation => new Materialisation(
@@ -151,6 +159,7 @@ final class Single_Flight {
 					$lock !== null && $this->store->write( $identity, $bytes ),
 				),
 			);
+
 		} finally {
 			$this->release_lock( $lock );
 		}
@@ -159,6 +168,8 @@ final class Single_Flight {
 
 	/**
 	 * Produces uncached bytes under the same revocation contract as once().
+	 *
+	 * @since 0.5.2
 	 *
 	 * @param callable(): string $produce  The uncached public renderer.
 	 * @param callable(): void   $validate Checks fresh source eligibility and identity.
@@ -232,7 +243,7 @@ final class Single_Flight {
 		}
 		self::$held[ $path ] = [
 			'handle' => $handle,
-			'depth'  => 1,
+			'depth' => 1,
 		];
 
 		return $path;
@@ -279,7 +290,7 @@ final class Single_Flight {
 			'Single-flight lock unavailable',
 			[
 				'operation' => $operation,
-				'path'      => $path,
+				'path' => $path,
 			]
 		);
 		return null;

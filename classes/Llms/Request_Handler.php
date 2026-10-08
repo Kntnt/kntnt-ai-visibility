@@ -22,6 +22,7 @@ declare( strict_types = 1 );
 
 namespace Kntnt\Ai_Visibility\Llms;
 
+use Kntnt\Ai_Visibility\Core\Http\Failure_Response;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Artifact\Provider;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
@@ -214,26 +215,11 @@ final class Request_Handler {
 		} catch ( Markdown_Conversion_Failed | Public_Content_Rendering_Failed ) {
 
 			// A failed render or conversion invalidates the complete aggregate.
-			status_header( 500 );
-			nocache_headers();
-			header( 'Content-Type: text/plain; charset=utf-8' );
-			header( 'X-Content-Type-Options: nosniff' );
-			if ( $request->method !== 'HEAD' ) {
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- This fixed translated response is plain text, never HTML.
-				echo __( 'This content could not be converted to Markdown.', 'kntnt-ai-visibility' );
-			}
-			exit;
+			Failure_Response::send( $request, 500, __( 'This content could not be converted to Markdown.', 'kntnt-ai-visibility' ) );
 
 		} catch ( \DomainException $exception ) {
 			$this->logger->warning( 'Refused unavailable or obsolete public artifact' );
-			status_header( 403 );
-			nocache_headers();
-			header( 'Content-Type: text/plain; charset=utf-8' );
-			header( 'X-Content-Type-Options: nosniff' );
-			if ( $request->method !== 'HEAD' ) {
-				echo 'This content cannot produce a public artifact.';
-			}
-			exit;
+			Failure_Response::send( $request, 403, Failure_Response::refusal_message() );
 		}
 		$path = $this->cache->path_for( $identity );
 		$snapshot = $result->persisted ? $this->router->snapshot_for( $path ) : null;

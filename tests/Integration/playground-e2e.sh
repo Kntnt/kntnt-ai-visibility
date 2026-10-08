@@ -49,6 +49,8 @@ HDR="$(mktemp)"
 BODYF="$(mktemp)"
 SERVER_PID=""
 
+# ShellCheck cannot follow this function through the EXIT trap.
+# shellcheck disable=SC2329
 cleanup() {
 	[[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null
 	[[ -n "$SERVER_PID" ]] && wait "$SERVER_PID" 2>/dev/null
@@ -135,11 +137,41 @@ do_req() {
 	STATUS="$(curl -sS --path-as-is -D "$HDR" -o "$BODYF" -w '%{http_code}' "$@" 2>/dev/null)"
 }
 
-expect_status() { [[ "$STATUS" == "$1" ]] && ok "$2 (status $1)" || no "$2 (expected $1, got $STATUS)"; }
-header_has() { grep -iqF -- "$1" "$HDR" && ok "$2" || no "$2 — header missing: $1"; }
-header_lacks() { ! grep -iqF -- "$1" "$HDR" && ok "$2" || no "$2 — header unexpectedly present: $1"; }
-body_has() { grep -qF -- "$1" "$BODYF" && ok "$2" || no "$2 — body missing: $1"; }
-body_lacks() { ! grep -qF -- "$1" "$BODYF" && ok "$2" || no "$2 — body unexpectedly contains: $1"; }
+expect_status() {
+	if [[ "$STATUS" == "$1" ]]; then
+		ok "$2 (status $1)"
+	else
+		no "$2 (expected $1, got $STATUS)"
+	fi
+}
+header_has() {
+	if grep -iqF -- "$1" "$HDR"; then
+		ok "$2"
+	else
+		no "$2 — header missing: $1"
+	fi
+}
+header_lacks() {
+	if ! grep -iqF -- "$1" "$HDR"; then
+		ok "$2"
+	else
+		no "$2 — header unexpectedly present: $1"
+	fi
+}
+body_has() {
+	if grep -qF -- "$1" "$BODYF"; then
+		ok "$2"
+	else
+		no "$2 — body missing: $1"
+	fi
+}
+body_lacks() {
+	if ! grep -qF -- "$1" "$BODYF"; then
+		ok "$2"
+	else
+		no "$2 — body unexpectedly contains: $1"
+	fi
+}
 
 echo ""
 echo "Scenario 1: a real .md request"
@@ -178,7 +210,11 @@ header_has 'rel="alternate"' "negotiated response steers to the .md alternate"
 body_has '# About Us' "negotiated body is the Markdown alternate"
 
 # Exercise quality, specificity and HTML ties on the actual canonical URL.
-bash "$SCRIPT_DIR/assert-negotiation.sh" "$BASE" && ok "canonical negotiation regression" || no "canonical negotiation regression"
+if bash "$SCRIPT_DIR/assert-negotiation.sh" "$BASE"; then
+	ok "canonical negotiation regression"
+else
+	no "canonical negotiation regression"
+fi
 
 echo ""
 echo "Scenario 4: /index/index.md for the actual index page on a blog home"
@@ -219,7 +255,11 @@ echo ""
 echo "Scenario 8: path-traversal payloads never leak"
 for payload in "/%2e%2e%2f%2e%2e%2fwp-config.php.md" "/../../wp-config.php.md"; do
 	do_req "${BASE}${payload}"
-	[[ "$STATUS" != "200" ]] && ok "traversal ${payload} is not served (status $STATUS)" || no "traversal ${payload} returned 200"
+	if [[ "$STATUS" != "200" ]]; then
+		ok "traversal ${payload} is not served (status $STATUS)"
+	else
+		no "traversal ${payload} returned 200"
+	fi
 	body_lacks 'DB_PASSWORD' "traversal ${payload} leaks no wp-config"
 	body_lacks 'DB_NAME' "traversal ${payload} leaks no DB credentials"
 done
@@ -275,14 +315,22 @@ ETAG1="$(grep -i '^ETag:' "$HDR" | tr -d '\r\n' | awk '{print $2}')"
 header_has 'ETag:' "GET /llms.txt carries an ETag validator"
 do_req "${BASE}/llms.txt"
 ETAG2="$(grep -i '^ETag:' "$HDR" | tr -d '\r\n' | awk '{print $2}')"
-[[ -n "$ETAG1" && "$ETAG1" == "$ETAG2" ]] && ok "the cached aggregate serves a stable ETag across requests" || no "ETag differed between requests ($ETAG1 vs $ETAG2)"
+if [[ -n "$ETAG1" && "$ETAG1" == "$ETAG2" ]]; then
+	ok "the cached aggregate serves a stable ETag across requests"
+else
+	no "ETag differed between requests ($ETAG1 vs $ETAG2)"
+fi
 do_req "${BASE}/llms.txt" -H "If-None-Match: ${ETAG1}"
 expect_status 304 "a matching If-None-Match yields 304"
 
 echo ""
 echo "Scenario 12: HEAD /llms.txt"
 HEAD_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' -I "${BASE}/llms.txt")"
-[[ "$HEAD_STATUS" == "200" ]] && ok "HEAD /llms.txt is 200" || no "HEAD /llms.txt expected 200, got $HEAD_STATUS"
+if [[ "$HEAD_STATUS" == "200" ]]; then
+	ok "HEAD /llms.txt is 200"
+else
+	no "HEAD /llms.txt expected 200, got $HEAD_STATUS"
+fi
 
 echo ""
 echo "Scenario 13: traversal and evasion against the singleton paths"
@@ -327,9 +375,17 @@ for _ in $(seq 1 20); do
 	fi
 	sleep 1
 done
-[[ "$reflected" == true ]] && ok "the rebuilt /llms.txt reflects the published page" || no "/llms.txt never reflected the published page"
+if [[ "$reflected" == true ]]; then
+	ok "the rebuilt /llms.txt reflects the published page"
+else
+	no "/llms.txt never reflected the published page"
+fi
 ETAG_AFTER="$(grep -i '^ETag:' "$HDR" | tr -d '\r\n' | awk '{print $2}')"
-[[ -n "$ETAG_BEFORE" && -n "$ETAG_AFTER" && "$ETAG_BEFORE" != "$ETAG_AFTER" ]] && ok "the ETag changed after the content change" || no "the ETag did not change across the bump ($ETAG_BEFORE vs $ETAG_AFTER)"
+if [[ -n "$ETAG_BEFORE" && -n "$ETAG_AFTER" && "$ETAG_BEFORE" != "$ETAG_AFTER" ]]; then
+	ok "the ETag changed after the content change"
+else
+	no "the ETag did not change across the bump ($ETAG_BEFORE vs $ETAG_AFTER)"
+fi
 
 # After the rebuild the handler pruned the orphaned previous version, so the kind
 # directory again holds exactly one aggregate file (this is task 1's behaviour;
@@ -359,7 +415,11 @@ header_has '/llms-full.txt' "blog index Link header references /llms-full.txt"
 
 # HEAD on a singular page: same Link headers as GET.
 STATUS="$(curl -sS -I --path-as-is -D "$HDR" -o "$BODYF" -w '%{http_code}' "${BASE}/about/" 2>/dev/null)"
-[[ "$STATUS" == "200" ]] && ok "HEAD /about/ is 200" || no "HEAD /about/ expected 200, got $STATUS"
+if [[ "$STATUS" == "200" ]]; then
+	ok "HEAD /about/ is 200"
+else
+	no "HEAD /about/ expected 200, got $STATUS"
+fi
 header_has 'rel="related"' "HEAD /about/ carries Link rel=related headers"
 
 # Warm artifact hit (early router): the early router exits before WordPress, so

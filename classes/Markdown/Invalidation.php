@@ -63,6 +63,7 @@ final class Invalidation {
 		}
 		foreach ( [
 			'page_on_front',
+			'page_for_posts',
 			'show_on_front',
 			'permalink_structure',
 			'home',
@@ -75,11 +76,30 @@ final class Invalidation {
 		foreach ( [ 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ] as $hook ) {
 			add_action( $hook, [ $this, 'on_meta' ], 10, 3 );
 		}
+		add_action( 'added_option', [ $this, 'on_role_option' ] );
+		add_action( 'deleted_option', [ $this, 'on_role_option' ] );
 		add_action( 'profile_update', [ $this, 'on_profile_update' ], 10, 2 );
 
 		// Integrations signal committed indirect public-body dependency changes.
 		add_action( 'kntnt_ai_visibility_indirect_content_changed', [ $this, 'flush' ] );
 
+	}
+
+	/**
+	 * Turns over canonical source roles after option creation or removal.
+	 *
+	 * Completed hooks ensure fresh policy is visible before cache revocation.
+	 * Updates use the dynamic hooks registered alongside other dependencies.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param string $option The successfully added or deleted option.
+	 * @return void
+	 */
+	public function on_role_option( string $option ): void {
+		if ( in_array( $option, [ 'show_on_front', 'page_on_front', 'page_for_posts' ], true ) ) {
+			$this->flush();
+		}
 	}
 
 	/**

@@ -21,6 +21,29 @@ use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 use Kntnt\Ai_Visibility\Core\Publication_Source;
 use Kntnt\Ai_Visibility\Plugin;
 
+// Real WordPress translation boundaries available before the early router.
+$publication_translation = $_SERVER['HTTP_X_PUBLICATION_TRANSLATION'] ?? '';
+if ( $publication_translation === 'loaded' ) {
+	$catalogue = new Translations();
+	$catalogue->add_entry( new Translation_Entry( [
+		'singular' => 'This content cannot produce a public artifact.',
+		'translations' => [ 'FIXTURE-LOADED-TRANSLATION' ],
+	] ) );
+	$GLOBALS['l10n']['kntnt-ai-visibility'] = $catalogue;
+} elseif ( $publication_translation === 'gettext' ) {
+	add_filter( 'gettext', static function ( string $translation, string $source, string $domain ): string {
+		return $source === 'This content cannot produce a public artifact.' && $domain === 'kntnt-ai-visibility'
+			? 'FIXTURE-GLOBAL-TRANSLATION'
+			: $translation;
+	}, 10, 3 );
+	add_filter( 'gettext_kntnt-ai-visibility', static function ( string $translation, string $source, string $domain ): string {
+		return $source === 'This content cannot produce a public artifact.' && $domain === 'kntnt-ai-visibility'
+			&& $translation === 'FIXTURE-GLOBAL-TRANSLATION'
+			? 'FIXTURE-DOMAIN-TRANSLATION'
+			: $translation;
+	}, 10, 3 );
+}
+
 /** Makes only the authoritative cache-version SELECT fail in the real adapter. */
 function publication_sql_failure(): void {
 	global $wpdb;

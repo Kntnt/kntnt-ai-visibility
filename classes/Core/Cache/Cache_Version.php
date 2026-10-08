@@ -36,6 +36,8 @@ final class Cache_Version {
 	/**
 	 * Binds version-only invalidations to the shared publication barrier.
 	 *
+	 * @since 0.5.2
+	 *
 	 * @param Store|null $store The production cache store.
 	 */
 	public function __construct( private readonly ?Store $store = null ) {}
@@ -49,11 +51,15 @@ final class Cache_Version {
 	 * @throws Obsolete_Artifact When authoritative generation state is unavailable.
 	 */
 	public function current(): int {
+
+		// Prepare the authoritative generation read before changing diagnostics.
 		$wpdb = $this->database();
 		$sql = $wpdb->prepare( 'SELECT option_value FROM %i WHERE option_name = %s', $wpdb->options, self::OPTION );
 		if ( ! is_string( $sql ) ) {
 			throw new Obsolete_Artifact( 'The public artifact database query is unavailable.' );
 		}
+
+		// Keep database failures silent and restore the exact caller policy.
 		$suppressed = $wpdb->suppress_errors( true );
 		try {
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
@@ -82,6 +88,8 @@ final class Cache_Version {
 		// Atomic SQL advancement cannot lose another writer's invalidation or
 		// reuse a request-local or persistent WordPress option-cache value.
 		$advance = function (): void {
+
+			// Prepare both statements before temporarily suppressing diagnostics.
 			$wpdb = $this->database();
 			$insert_sql = $wpdb->prepare(
 				"INSERT IGNORE INTO %i (option_name, option_value, autoload) VALUES (%s, '1', 'off')",
@@ -97,6 +105,8 @@ final class Cache_Version {
 			if ( ! is_string( $insert_sql ) || ! is_string( $update_sql ) ) {
 				throw new Obsolete_Artifact( 'The public artifact database query is unavailable.' );
 			}
+
+			// Execute the atomic increment with exact diagnostic-policy restoration.
 			$suppressed = $wpdb->suppress_errors( true );
 			try {
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
@@ -109,10 +119,15 @@ final class Cache_Version {
 			} finally {
 				$wpdb->suppress_errors( $suppressed );
 			}
+
+			// Evict cached option views only after successful SQL advancement.
 			wp_cache_delete( self::OPTION, 'options' );
 			wp_cache_delete( 'notoptions', 'options' );
 			wp_cache_delete( 'alloptions', 'options' );
+
 		};
+
+		// Coordinate invalidation when the production store is available.
 		if ( $this->store === null ) {
 			$advance();
 		} else {
@@ -136,6 +151,8 @@ final class Cache_Version {
 
 	/**
 	 * Requires the actual WordPress database boundary before reading state.
+	 *
+	 * @since 0.5.2
 	 *
 	 * @return \wpdb The initialised WordPress database.
 	 * @throws Obsolete_Artifact When authoritative state is unavailable.

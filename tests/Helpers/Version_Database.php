@@ -12,14 +12,43 @@ namespace Tests\Helpers;
 
 require_once __DIR__ . '/Database_Boundary.php';
 
-/** Database boundary adapter; concurrency and SQL writes remain real. */
+/**
+ * Database boundary adapter; concurrency and SQL writes remain real.
+ *
+ * @since 0.5.2
+ */
 final class Version_Database extends \wpdb
 {
+    /**
+     * The actual isolated options-table name.
+     *
+     * @since 0.5.2
+     */
     public string $options = 'options';
+    /**
+     * The last controlled database diagnostic.
+     *
+     * @since 0.5.2
+     */
     public string $last_error = '';
+    /**
+     * The caller-owned WordPress diagnostic policy.
+     *
+     * @since 0.5.2
+     */
     public bool $suppress_errors = false;
+    /**
+     * The real SQLite connection used by the adapter.
+     *
+     * @since 0.5.2
+     */
     private \PDO $connection;
 
+    /**
+     * Opens an isolated database and creates its structural options table.
+     *
+     * @since 0.5.2
+     */
     public function __construct(string $path = ':memory:')
     {
         $this->connection = new \PDO('sqlite:' . $path);
@@ -28,12 +57,22 @@ final class Version_Database extends \wpdb
         $this->connection->exec('CREATE TABLE IF NOT EXISTS options (option_name TEXT PRIMARY KEY, option_value TEXT, autoload TEXT)');
     }
 
+    /**
+     * Quotes placeholders through the actual database boundary.
+     *
+     * @since 0.5.2
+     */
     public function prepare(string $sql, mixed ...$arguments): string
     {
         $quoted = array_map(fn(mixed $value): string => $this->connection->quote((string) $value), $arguments);
         return vsprintf(str_replace('%i', '%s', $sql), $quoted);
     }
 
+    /**
+     * Returns the exact previous policy while selecting temporary suppression.
+     *
+     * @since 0.5.2
+     */
     public function suppress_errors(bool $suppress = true): bool
     {
         $previous = $this->suppress_errors;
@@ -41,6 +80,11 @@ final class Version_Database extends \wpdb
         return $previous;
     }
 
+    /**
+     * Executes real writes and retains errors for silent production handling.
+     *
+     * @since 0.5.2
+     */
     public function query(string $sql): int|false
     {
         $this->last_error = '';
@@ -52,6 +96,11 @@ final class Version_Database extends \wpdb
         }
     }
 
+    /**
+     * Reads one value without emitting visitor-facing database diagnostics.
+     *
+     * @since 0.5.2
+     */
     public function get_var(string $sql): mixed
     {
         $this->last_error = '';

@@ -21,6 +21,7 @@ declare( strict_types = 1 );
 
 namespace Kntnt\Ai_Visibility\Markdown;
 
+use Kntnt\Ai_Visibility\Core\Http\Failure_Response;
 use Kntnt\Ai_Visibility\Core\Artifact\Discovery_Context;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
@@ -282,18 +283,10 @@ final class Request_Handler {
 		} catch ( Markdown_Conversion_Failed | Public_Content_Rendering_Failed ) {
 
 			// Failed rendering or conversion has no representation or validators.
-			status_header( 500 );
-			nocache_headers();
-			header( 'Content-Type: text/plain; charset=utf-8' );
-			header( 'X-Content-Type-Options: nosniff' );
-			if ( $request->method !== 'HEAD' ) {
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- This fixed translated response is plain text, never HTML.
-				echo __( 'This content could not be converted to Markdown.', 'kntnt-ai-visibility' );
-			}
-			exit;
+			Failure_Response::send( $request, 500, __( 'This content could not be converted to Markdown.', 'kntnt-ai-visibility' ) );
 
 		} catch ( \DomainException $exception ) {
-			$this->forbidden( 'This content cannot produce a public artifact.' );
+			Failure_Response::send( $request, 403, Failure_Response::refusal_message() );
 		}
 
 	}
@@ -385,7 +378,7 @@ final class Request_Handler {
 		$etag = '"' . md5( $bytes ) . '"';
 		$headers = [
 			'Vary'                   => 'Accept',
-			'Cache-Control'          => 'private, no-store, no-cache, max-age=0, must-revalidate',
+			'Cache-Control' => 'private, no-store, no-cache, max-age=0, must-revalidate',
 			'X-Content-Type-Options' => 'nosniff',
 			'ETag'                   => $etag,
 			'Link'                   => '<' . $canonical_url . '>; rel="canonical", <' . $md_url . '>; rel="alternate"; type="text/markdown"',

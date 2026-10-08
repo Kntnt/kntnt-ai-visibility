@@ -7,18 +7,17 @@ Worker groups are always stopped.
 """
 
 import json
-from http.client import parse_headers
-from io import BytesIO
 import os
 from pathlib import Path
 import signal
-import socket
 import subprocess
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
-from urllib.parse import urlsplit
+
+
+from http_fixture import raw_head
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -32,19 +31,7 @@ class NoRedirect(HTTPRedirectHandler):
 def request(base, path, headers=None, method="GET"):
     """Read actual status, headers and source bytes from the public endpoint."""
     if method == "HEAD":
-        address = urlsplit(base + path)
-        fields = {"Host": address.netloc, "Connection": "close", **(headers or {})}
-        outgoing = "HEAD " + address.path + ("?" + address.query if address.query else "") + " HTTP/1.1\r\n"
-        outgoing += "".join(f"{key}: {value}\r\n" for key, value in fields.items()) + "\r\n"
-        with socket.create_connection((address.hostname, address.port), timeout=20) as connection:
-            connection.sendall(outgoing.encode("ascii"))
-            chunks = []
-            while chunk := connection.recv(65536):
-                chunks.append(chunk)
-        block, separator, body = b"".join(chunks).partition(b"\r\n\r\n")
-        assert separator, block
-        line, fields = block.split(b"\r\n", 1)
-        return int(line.split()[1]), parse_headers(BytesIO(fields)), body
+        return raw_head(base + path, headers, timeout=20)
     try:
         response = build_opener(NoRedirect).open(Request(base + path, headers=headers or {}, method=method), timeout=20)
     except HTTPError as error:
@@ -169,6 +156,7 @@ def verify_sql(base):
                             and "no-store" in headers.get("Cache-Control", "")
                             and headers.get("X-Content-Type-Options") == "nosniff"
                             and headers.get("ETag") is None
+                            and headers.get("Last-Modified") is None and headers.get("Link") is None
                             and b"CURRENT-SQL-SOURCE" not in body
                             and b"SELECT" not in body and b"database error" not in body
                             and (method != "HEAD" or body == b""))
@@ -180,6 +168,24 @@ def verify_sql(base):
                             raise AssertionError((label, status, body[:1200]))
                 status, _, body = request(base, path)
                 assert status == 200 and b"CURRENT-SQL-SOURCE" in body, (status, body[:1200])
+    for translation, expected in [("loaded", b"FIXTURE-LOADED-TRANSLATION"),
+                                  ("gettext", b"FIXTURE-DOMAIN-TRANSLATION")]:
+        for path in ["/llms.txt", "/llms-full.txt"]:
+            control(base, "sql-prepare")
+            for method in ["GET", "HEAD", "conditional"]:
+                fields = {"X-Publication-Sql-Failure": "early", "X-Publication-Translation": translation}
+                if method == "conditional":
+                    fields["If-None-Match"] = "*"
+                status, headers, body = request(base, path, fields, "HEAD" if method == "HEAD" else "GET")
+                okay = (status == 403 and headers.get_content_type() == "text/plain"
+                        and "no-store" in headers.get("Cache-Control", "")
+                        and headers.get("X-Content-Type-Options") == "nosniff"
+                        and all(headers.get(name) is None for name in ["ETag", "Last-Modified", "Link"])
+                        and body == (b"" if method == "HEAD" else expected))
+                label = f"Early translation {translation}/{path}/{method}"
+                print(f"{label}: HTTP {status}, controlled={okay}, body={body[:180]!r}", flush=True)
+                if not okay:
+                    failures.append(label)
     assert not failures, failures
     print("SQL failure HTTP: 0 failures", flush=True)
 

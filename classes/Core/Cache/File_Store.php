@@ -31,7 +31,7 @@ use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 final class File_Store implements Store {
 
 	/**
-	 * Bounds lazy cleanup work while normal requests drain an obsolete backlog.
+	 * Bounds generation probes while normal requests drain an obsolete backlog.
 	 *
 	 * @since 0.5.2
 	 *
@@ -365,25 +365,33 @@ final class File_Store implements Store {
 			return;
 		}
 
-		// Visit a bounded batch without globbing or sorting the entire directory.
-		$visited = 0;
-		$entries = new \FilesystemIterator( $dir, \FilesystemIterator::SKIP_DOTS );
-		foreach ( $entries as $entry ) {
-			if ( $visited++ >= self::PRUNE_BATCH_SIZE ) {
-				break;
-			}
-			if ( ! $entry instanceof \SplFileInfo ) {
+		// Persist a numeric cursor across requests without scanning retained names.
+		// Each call probes at most 32 owned generation paths, even behind an
+		// arbitrarily large prefix of unknown, current or future files.
+		$cursor_path = $dir . '/.prune-next';
+		$cursor_safe = ! is_link( $cursor_path ) && ( ! file_exists( $cursor_path ) || is_file( $cursor_path ) );
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- optional cursor failure restarts bounded cleanup safely.
+		$cursor = $cursor_safe && is_file( $cursor_path ) ? @file_get_contents( $cursor_path, false, null, 0, 32 ) : false;
+		$next = is_string( $cursor ) && preg_match( '/\A[1-9][0-9]*\n\z/', $cursor ) === 1 ? (int) $cursor : 1;
+		$next = $next > 0 && $next < $version ? $next : 1;
+		for ( $visited = 0; $visited < self::PRUNE_BATCH_SIZE && $next < $version; ++$visited, ++$next ) {
+			$path = $dir . '/' . $prefix . $next . '.md';
+			clearstatcache( true, $path );
+			if ( ! is_file( $path ) || is_link( $path ) ) {
 				continue;
 			}
-			$name = $entry->getFilename();
-			if ( preg_match( $pattern, $name, $candidate ) !== 1 || (int) $candidate[1] >= $version
-				|| ! $entry->isFile() || $entry->isLink() ) {
-				continue;
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- optional cleanup failure never changes captured response bytes.
+			if ( ! @unlink( $path ) ) {
+				$this->logger->warning( 'Aggregate cleanup failed', [ 'path' => $path ] );
 			}
-			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- optional cleanup failure is logged without affecting valid response bytes.
-			if ( ! @unlink( $entry->getPathname() ) ) {
-				$this->logger->warning( 'Aggregate cleanup failed', [ 'path' => $entry->getPathname() ] );
-			}
+		}
+
+		// A completed pass wraps so late older files are considered next time.
+		// The publication barrier serialises this one bounded metadata file.
+		$next = $next >= $version ? 1 : $next;
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- optional cursor persistence failure is logged without failing valid output.
+		if ( ! $cursor_safe || @file_put_contents( $cursor_path, $next . "\n" ) !== strlen( $next . "\n" ) ) {
+			$this->logger->warning( 'Aggregate cleanup cursor could not be saved', [ 'path' => $cursor_path ] );
 		}
 
 	}
@@ -441,7 +449,7 @@ final class File_Store implements Store {
 			'Cache write failed',
 			[
 				'operation' => $operation,
-				'path'      => $path,
+				'path' => $path,
 			],
 		);
 		return false;

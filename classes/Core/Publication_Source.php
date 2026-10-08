@@ -28,7 +28,18 @@ final class Publication_Source {
 	 * @param callable(): Eligibility $eligibility Creates a fresh policy gate.
 	 * @param Markdown_Alternate      $locator     Owns complete source identities.
 	 */
-	public function __construct( private $eligibility, private readonly Markdown_Alternate $locator ) {}
+	public function __construct( callable $eligibility, private readonly Markdown_Alternate $locator ) {
+		$this->eligibility = \Closure::fromCallable( $eligibility );
+	}
+
+	/**
+	 * Creates current policy independently of request-local saved options.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @var \Closure(): Eligibility
+	 */
+	private readonly \Closure $eligibility;
 
 	/**
 	 * Refuses a stale source, revoked eligibility or changed address.
@@ -37,10 +48,12 @@ final class Publication_Source {
 	 *
 	 * @param Identity $identity The requested publication identity.
 	 * @param \WP_Post $source   The queued source object used by the renderer.
+	 * @param bool     $supported_role Whether canonical alternate publication is required.
 	 * @return void
 	 * @throws Obsolete_Artifact When the queued work no longer represents public state.
 	 */
-	public function verify( Identity $identity, \WP_Post $source ): void {
+	public function verify( Identity $identity, \WP_Post $source, bool $supported_role = true ): void {
+
 		$queued_canonical = $this->locator->canonical_url_for( $source );
 
 		// Bypass rather than flush or restore stale entries into shared caches.
@@ -66,7 +79,10 @@ final class Publication_Source {
 					throw new Obsolete_Artifact( 'The queued public source has changed.' );
 				}
 			}
-			if ( ! ( $this->eligibility )()->is_eligible( $fresh ) ) {
+			// Raw explicit-source rendering keeps its fresh public-source checks.
+			$eligibility = ( $this->eligibility )();
+			$eligible = $supported_role ? $eligibility->is_eligible( $fresh ) : $eligibility->is_source_eligible( $fresh );
+			if ( ! $eligible ) {
 				throw new Obsolete_Artifact( 'The public source is no longer eligible.' );
 			}
 			$current = $this->locator->identity_for( $fresh );

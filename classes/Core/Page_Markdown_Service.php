@@ -44,9 +44,9 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 *
 	 * @since 0.1.0
 	 *
-	 * @var (callable(): string)|null
+	 * @var (\Closure(): string)|null
 	 */
-	private $domain_provider;
+	private readonly ?\Closure $conversion_base_provider;
 
 	/**
 	 * Binds the pipeline and an optional conversion-base override.
@@ -56,17 +56,19 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 * @param Front_Matter            $front_matter    The front-matter builder.
 	 * @param Single_Flight           $single_flight   The single-flight cache materialiser.
 	 * @param Logger                  $logger          The diagnostics logger.
-	 * @param callable(): string|null $domain_provider Overrides the base URL; defaults to the source canonical URL.
+	 * @param callable(): string|null $conversion_base_provider Overrides the complete source canonical conversion base.
 	 * @param Publication_Source|null $publication_source Authoritative guard used by the production service graph.
 	 */
 	public function __construct(
 		private readonly Front_Matter $front_matter,
 		private readonly Single_Flight $single_flight,
 		private readonly Logger $logger,
-		?callable $domain_provider = null,
+		?callable $conversion_base_provider = null,
 		private readonly ?Publication_Source $publication_source = null,
 	) {
-		$this->domain_provider = $domain_provider;
+		$this->conversion_base_provider = $conversion_base_provider === null
+			? null
+			: \Closure::fromCallable( $conversion_base_provider );
 	}
 
 	/**
@@ -94,7 +96,10 @@ final class Page_Markdown_Service implements Page_Markdown {
 						return $produce();
 				}
 				$identity = ( new Markdown_Alternate() )->identity_for( $post );
-				return $this->single_flight->uncached( $produce, fn() => $this->publication_source->verify( $identity, $post ) );
+				return $this->single_flight->uncached(
+					$produce,
+					fn() => $this->publication_source->verify( $identity, $post, supported_role: false ),
+				);
 			}
 		);
 
@@ -168,6 +173,11 @@ final class Page_Markdown_Service implements Page_Markdown {
 		// Do not let a preview context consult or populate the shared file cache.
 		Public_Rendering::assert_public_request( true );
 
+		// A raw source may be renderable while its canonical role is a listing.
+		if ( ! Source_Role::is_singular( $post ) ) {
+			throw new \DomainException( 'Posts listings cannot produce public Markdown artifacts.' );
+		}
+
 		// A warm file must not bypass the source's stored password.
 		if ( $post->post_password !== '' ) {
 			throw new \DomainException( 'Password-protected posts cannot produce public Markdown.' );
@@ -206,9 +216,9 @@ final class Page_Markdown_Service implements Page_Markdown {
 		// Resolve inside the source context, preserving its path/query/language.
 		$converter = new Converter( [ new BasePlugin(), new CommonmarkPlugin(), new TablePlugin(), new StrikethroughPlugin() ] );
 		try {
-			$base = $this->domain_provider === null
+			$base = $this->conversion_base_provider === null
 				? ( new Markdown_Alternate() )->canonical_url_for( $post )
-				: ( $this->domain_provider )();
+				: ( $this->conversion_base_provider )();
 			return $converter->convertString( $html, new Options( domain: $base ) );
 		} catch ( \Throwable $exception ) {
 			$this->logger->error( 'Markdown conversion failed', [ 'error' => $exception->getMessage() ] );

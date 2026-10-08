@@ -76,6 +76,22 @@ final class Eligibility {
 	 * @return bool
 	 */
 	public function is_eligible( \WP_Post $post ): bool {
+		return $this->is_source_eligible( $post ) && Source_Role::is_singular( $post );
+	}
+
+	/**
+	 * Checks explicit raw-source rendering without imposing a canonical role.
+	 *
+	 * Raw for_post callers supply their own singular rendering context. They
+	 * still obey public status, type policy and exclusions; publication adds
+	 * the canonical singular-role requirement through is_eligible().
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param \WP_Post $post The explicitly supplied source.
+	 * @return bool Whether the source may be rendered without publication.
+	 */
+	public function is_source_eligible( \WP_Post $post ): bool {
 		return $this->is_servable( $post )
 			&& in_array( $post->post_type, $this->md_types(), true )
 			&& ! $this->exclusions->is_excluded( $post );

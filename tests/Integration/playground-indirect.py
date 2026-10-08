@@ -5,37 +5,25 @@ KNTNT_INDIRECT_SUBPATH selects one installation; default runs root and /sub.
 KNTNT_SESSION_CLEANUP_SCRIPT registers its process group immediately.
 """
 
-from http.client import parse_headers
-from io import BytesIO
 import json
 import os
 from pathlib import Path
 import signal
-import socket
 import subprocess
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+
+from http_fixture import raw_head
 
 
 def request(base, path, method="GET", headers=None):
     """Observe actual headers and bytes, including raw bodyless HEAD responses."""
     if method == "HEAD":
-        address = urlsplit(base)
-        fields = {"Host": address.netloc, "Connection": "close", **(headers or {})}
-        outgoing = f"HEAD {address.path}{path} HTTP/1.1\r\n"
-        outgoing += "".join(f"{name}: {value}\r\n" for name, value in fields.items()) + "\r\n"
-        with socket.create_connection((address.hostname, address.port), timeout=30) as connection:
-            connection.sendall(outgoing.encode("ascii"))
-            chunks = []
-            while chunk := connection.recv(65536):
-                chunks.append(chunk)
-        head, separator, body = b"".join(chunks).partition(b"\r\n\r\n")
-        assert separator, head
-        status, fields = head.split(b"\r\n", 1)
-        return int(status.split()[1]), parse_headers(BytesIO(fields)), body
+        return raw_head(base + path, headers, timeout=30)
     try:
         response = urlopen(Request(base + path, method=method, headers=headers or {}), timeout=30)
     except HTTPError as error:

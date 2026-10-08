@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
 # Verify the serving Playground worker's actual PHP major/minor over HTTP.
 # Source this helper from an HTTP harness after the server is ready.
-# Returns 0 for PHP 8.4, 1 for a failed probe or a different runtime.
+# Requires Bash 5+ and curl. Returns 0 for PHP 8.4, 1 for a failed HTTP probe
+# or a different runtime. Safety flags are scoped to the function subshell.
 
 # Reject runtimes selected differently from the CLI's requested PHP version.
 assert_playground_php_version() (
