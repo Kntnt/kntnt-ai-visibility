@@ -38,6 +38,8 @@ interface Page_Markdown {
 	 * All content and metadata filters run as an anonymous WordPress user with
 	 * visitor credentials and request data hidden. Content and metadata run in
 	 * the source's isolated singular main query, active Loop and Bogo locale.
+	 * Links and images resolve against that source's complete canonical URL,
+	 * preserving URI-reference path, query and fragment semantics in all forms.
 	 * Mutable caller post/query/Loop/locale state and audience state are
 	 * restored after success or failure; private previews are never rendered.
 	 *
