@@ -34,7 +34,9 @@ interface Page_Markdown {
 	 * assembles. Used directly by the Markdown module and concatenated by the
 	 * llms.txt module.
 	 * All content and metadata filters run as an anonymous WordPress user with
-	 * visitor credentials and request data hidden. Mutable caller state is
+	 * visitor credentials and request data hidden. Content and metadata run in
+	 * the source's isolated singular main query, active Loop and Bogo locale.
+	 * Mutable caller post/query/Loop/locale state and audience state are
 	 * restored after success or failure; private previews are never rendered.
 	 *
 	 * @since 0.1.0
