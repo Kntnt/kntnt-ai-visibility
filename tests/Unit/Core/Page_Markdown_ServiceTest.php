@@ -21,16 +21,17 @@ use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Front_Matter;
-use Kntnt\Ai_Visibility\Core\Logger;
 use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
+use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 
 beforeEach(function (): void {
     Functions\when('setup_postdata')->justReturn(true);
     Functions\when('wp_mkdir_p')->alias(static fn(string $dir): bool => is_dir($dir) || mkdir($dir, 0777, true));
-    $this->logger = Mockery::mock(Logger::class)->shouldIgnoreMissing();
+    $this->logger = new Plugin_Logger(static function (string $line): void {});
     $this->base   = sys_get_temp_dir() . '/kntnt-pm-' . uniqid('', true);
     $this->store  = new File_Store(fn(): string => $this->base);
-    $this->single_flight = new Single_Flight($this->store, sys_get_temp_dir());
+    mkdir($this->base . '/locks', 0700, true);
+    $this->single_flight = new Single_Flight($this->store, $this->base . '/locks');
 });
 
 afterEach(function (): void {
@@ -92,9 +93,42 @@ describe('Page_Markdown_Service::for_post', function (): void {
         expect(substr_count($markdown, "\n# My Title\n"))->toBe(1);
     });
 
+    it('refuses protected source bytes even when this visitor passes the password gate', function (): void {
+        $post = new WP_Post();
+        $post->post_password = 'fixture';
+        $post->post_content = '<p>PASSWORD-CONTENT</p>';
+        Functions\when('post_password_required')->justReturn(false);
+        $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger);
+
+        expect(fn(): string => $service->for_post($post))->toThrow(DomainException::class);
+    });
+
 });
 
 describe('Page_Markdown_Service::materialise', function (): void {
+
+    it('does not publish a protected source through direct materialisation', function (): void {
+        $identity = new Identity('markdown-alternate', 'protected', 42);
+        $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger);
+        $post = new WP_Post();
+        $post->post_password = 'fixture';
+        $post->post_content = '<p>PASSWORD-CONTENT</p>';
+        Functions\when('post_password_required')->justReturn(false);
+
+        expect(fn(): string => $service->materialise($identity, $post))->toThrow(DomainException::class);
+        expect($this->store->has($identity))->toBeFalse();
+    });
+
+    it('refuses a protected source before consulting a warm public cache', function (): void {
+        $identity = new Identity('markdown-alternate', 'protected', 42);
+        $this->store->write($identity, 'PASSWORD-CONTENT');
+        $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger, fn(): string => 'https://example.com');
+        $post = new WP_Post();
+        $post->post_password = 'fixture';
+        Functions\when('post_password_required')->justReturn(false);
+
+        expect(fn(): string => $service->materialise($identity, $post))->toThrow(DomainException::class);
+    });
 
     it('renders, writes the cache and returns the bytes on a miss', function (): void {
         Functions\when('apply_filters')->alias(fn(string $hook, mixed $value): mixed => $value);

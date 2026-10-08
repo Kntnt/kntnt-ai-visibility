@@ -72,9 +72,17 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 *
 	 * @param \WP_Post $post The post to render.
 	 * @return string The assembled Markdown document.
+	 * @throws \DomainException When the source has a stored password.
 	 */
 	public function for_post( \WP_Post $post ): string {
+
+		// A visitor's password cookie cannot make a source public.
+		if ( $post->post_password !== '' ) {
+			throw new \DomainException( 'Password-protected posts cannot produce public Markdown.' );
+		}
+
 		return Post_Context::render( $post, fn(): string => $this->render_post( $post ) );
+
 	}
 
 	/**
@@ -108,8 +116,14 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 * @param Identity $identity The cache identity to materialise under.
 	 * @param \WP_Post $post     The post to render on a miss.
 	 * @return string
+	 * @throws \DomainException When the source has a stored password, even on a hit.
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): string {
+
+		// A warm file must not bypass the source's stored password.
+		if ( $post->post_password !== '' ) {
+			throw new \DomainException( 'Password-protected posts cannot produce public Markdown.' );
+		}
 
 		// Single-flight: serve the cache when warm, else render once under a
 		// per-identity lock and store. The lock and re-check live in Single_Flight.
