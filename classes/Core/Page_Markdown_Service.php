@@ -68,12 +68,14 @@ final class Page_Markdown_Service implements Page_Markdown {
 
 	/**
 	 * Renders a post to its Markdown alternate — front-matter plus body.
+	 * Conversion failures propagate without assembling a successful document.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param \WP_Post $post The post to render.
 	 * @return string The assembled Markdown document.
-	 * @throws \DomainException|Markdown_Conversion_Failed On public refusal or conversion failure.
+	 * @throws \DomainException When public rendering is refused.
+	 * @phpstan-throws \DomainException|Markdown_Conversion_Failed
 	 */
 	public function for_post( \WP_Post $post ): string {
 
@@ -111,13 +113,15 @@ final class Page_Markdown_Service implements Page_Markdown {
 
 	/**
 	 * Materialises a post's Markdown with an independent persistence outcome.
+	 * Conversion failures propagate without a result or a cache write.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param Identity $identity The cache identity to materialise under.
 	 * @param \WP_Post $post     The post to render on a miss.
 	 * @return Materialisation The valid bytes and independent persistence outcome.
-	 * @throws \DomainException|Markdown_Conversion_Failed On public refusal or conversion failure.
+	 * @throws \DomainException When public publication is refused, even on a hit.
+	 * @phpstan-throws \DomainException|Markdown_Conversion_Failed
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): Materialisation {
 
