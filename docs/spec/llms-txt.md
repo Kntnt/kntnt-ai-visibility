@@ -339,6 +339,8 @@ For downstream cache work (#19 and #32), preserve the distinction between lifeti
 Declared [public rendered metadata dependencies](markdown-alternate.md#43-generation-pipeline-core-page-markdown) use the same coordinated whole-cache turnover after native metadata writes. This removes non-versioned page artifacts and changes both aggregate identities, covering standalone API updates, final REST/field-writer values and featured-image changes without eager generation. Key-prefix declarations continue to match deleted repeater children. This generic writer contract does not certify an installed ACF package or a target theme; those integrations declare their actual field schema and retain separate site-specific verification.
 
 
+The same [indirect public rendering dependency contract](markdown-alternate.md#53-indirect-public-rendering-dependencies) covers site-name/tagline headers, author display names and declared menu/catalogue or global-field writers. Its post-write action advances both aggregate identities and removes non-versioned page files through the shared publication barrier, with lazy rebuilds and refusal of obsolete in-flight output.
+
 ## 6. Settings (Release 2 — the content-type matrix)
 
 The scattered per-module post-type fields are replaced by **one Core-owned matrix** (ADR-0010: modules contribute, Core composes — here at column granularity). Under the single option `kntnt_ai_visibility`, namespaced `content_types`:

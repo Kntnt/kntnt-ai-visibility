@@ -303,6 +303,24 @@ A fresh valid artifact is reused without conversion. Once generation is required
 
 The dedicated, query-form and negotiated inline HTTP paths, and the full aggregate handler, return a fixed plain-text `500` with `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. The underlying exception and diagnostic never enter the response. HEAD has no body; conditional headers cannot turn a failed conversion into `304`. Public-source refusals retain their separate `403` policy. Unsupported methods still fall through before generation (§4.2).
 
+### 5.3 Indirect public rendering dependencies
+
+Successful WordPress updates to `blogname` or `blogdescription` invalidate the site headers in both aggregates. A successful `profile_update` invalidates author front-matter when the stored `display_name` changes; changes to other profile fields leave artifacts intact. These known dependencies use the existing coordinated whole-cache flush and aggregate version advancement, keeping non-versioned page files and all public consumers consistent without eagerly enumerating or regenerating sources. Existing taxonomy, permalink, front-page and Bogo invalidation remains in effect.
+
+An integration signals a committed indirect public-body change with the zero-argument action `do_action( 'kntnt_ai_visibility_indirect_content_changed' )`. This uses the same whole-cache turnover and publication barrier. Register dependency adapters during writer requests as well as front-end requests and signal after the final successful write. Declare the actual public dependencies selected by the [public theme-body integration](#431-public-theme-body-integration), including values owned by non-viewable records or global options. Select exact relevant options or dependency identities rather than treating every option write as a rendering change. Rebuilds stay lazy; a producer that selected bytes before the signal cannot publish them after it, including a re-entrant signal from inside rendering.
+
+For a curated-resource list that consumes a WordPress menu as body content, map the final native menu-item event for that declared menu into the action. Register equivalent post-write signals for any other writer the integration supports, such as assigning its menu location, deleting a dependency or publishing a translation catalogue. Catalogue loaders run on ordinary requests, so signal catalogue publication rather than each `load_textdomain()` read. The integration owns this declaration and writer mapping; the plugin does not infer a theme's menu or translation storage from rendered HTML.
+
+```php
+add_action( 'wp_update_nav_menu_item', static function ( int $menu_id ): void {
+    if ( $menu_id === (int) get_option( 'example_public_resource_menu' ) ) {
+        do_action( 'kntnt_ai_visibility_indirect_content_changed' );
+    }
+} );
+```
+
+The same action applies after a declared field-backed global option or catalogue has been published. It selects no content and exposes no metadata; the renderer still supplies only the explicitly public body. Stored per-source fields retain the separate exact-key and prefix-family declaration in §4.3.
+
 ## 6. Settings (Release 1 Markdown section)
 
 The framework is not an empty shell — the Markdown module contributes a real section (ADR-0010):

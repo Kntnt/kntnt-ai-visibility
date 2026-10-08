@@ -61,12 +61,24 @@ final class Invalidation {
 		foreach ( [ 'set_object_terms', 'edited_term', 'delete_term' ] as $hook ) {
 			add_action( $hook, [ $this, 'flush' ] );
 		}
-		foreach ( [ 'page_on_front', 'show_on_front', 'permalink_structure', 'home', 'WPLANG' ] as $option ) {
+		foreach ( [
+			'page_on_front',
+			'show_on_front',
+			'permalink_structure',
+			'home',
+			'WPLANG',
+			'blogname',
+			'blogdescription',
+		] as $option ) {
 			add_action( 'update_option_' . $option, [ $this, 'flush' ] );
 		}
 		foreach ( [ 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ] as $hook ) {
 			add_action( $hook, [ $this, 'on_meta' ], 10, 3 );
 		}
+		add_action( 'profile_update', [ $this, 'on_profile_update' ], 10, 2 );
+
+		// Integrations signal committed indirect public-body dependency changes.
+		add_action( 'kntnt_ai_visibility_indirect_content_changed', [ $this, 'flush' ] );
 
 	}
 
@@ -150,6 +162,25 @@ final class Invalidation {
 			}
 		}
 
+	}
+
+	/**
+	 * Invalidates author front-matter after the stored display name changes.
+	 *
+	 * Other profile fields are not built-in rendering dependencies. Whole-cache
+	 * turnover avoids eagerly enumerating every source by the changed author.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param int      $user_id The updated WordPress user.
+	 * @param \WP_User $old_user_data The stored user before the successful update.
+	 * @return void
+	 */
+	public function on_profile_update( int $user_id, \WP_User $old_user_data ): void {
+		$current = get_userdata( $user_id );
+		if ( $current !== false && $current->display_name !== $old_user_data->display_name ) {
+			$this->flush();
+		}
 	}
 
 	/**

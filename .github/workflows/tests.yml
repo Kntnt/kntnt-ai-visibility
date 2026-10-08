@@ -137,6 +137,8 @@ jobs:
         run: python3 tests/Integration/playground-publication.py
       - name: Declared rendered metadata, final native writes and featured images
         run: python3 tests/Integration/playground-rendered-meta.py
+      - name: Site metadata, authors and declared menu/catalogue dependencies
+        run: python3 tests/Integration/playground-indirect.py
       - name: Effective TTL, regenerated validators and page/aggregate consistency
         run: python3 tests/Integration/playground-expiry.py
       - name: Bounded installation-scoped stampede locks and uncached fallback
