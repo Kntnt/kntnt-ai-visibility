@@ -127,6 +127,8 @@ jobs:
         run: python3 tests/Integration/playground-home-index.py
       - name: Negotiated canonical-page cache policy
         run: python3 tests/Integration/playground-negotiated-cache.py
+      - name: Dynamic inline Markdown validators
+        run: python3 tests/Integration/playground-inline-validators.py
       - name: Effective Markdown eligibility and deployment purge
         run: python3 tests/Integration/playground-eligibility.py
       - name: Stored-password public-artifact exclusion
