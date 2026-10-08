@@ -177,6 +177,9 @@ header_has 'Vary: Accept' "negotiated response varies on Accept"
 header_has 'rel="alternate"' "negotiated response steers to the .md alternate"
 body_has '# About Us' "negotiated body is the Markdown alternate"
 
+# Exercise quality, specificity and HTML ties on the actual canonical URL.
+bash "$SCRIPT_DIR/assert-negotiation.sh" "$BASE" && ok "canonical negotiation regression" || no "canonical negotiation regression"
+
 echo ""
 echo "Scenario 4: /index.md for the slug-index home"
 do_req "${BASE}/index.md"

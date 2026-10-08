@@ -260,7 +260,9 @@ final class Request_Handler {
 	}
 
 	/**
-	 * Reports whether an Accept header explicitly accepts Markdown.
+	 * Reports whether explicitly requested Markdown is preferred over HTML.
+	 * Exact HTML/XHTML ranges override type and then universal wildcards.
+	 * HTML wins ties. Invalid or repeated quality parameters reject their range.
 	 *
 	 * @since 0.1.0
 	 *
@@ -268,24 +270,55 @@ final class Request_Handler {
 	 * @return bool
 	 */
 	private function accepts_markdown( string $accept ): bool {
-		$markdown = 0.0;
-		$html = 0.0;
+
+		// Parse explicit Markdown preferences and the HTML alternative ranges.
+		$qualities = [];
 		foreach ( explode( ',', strtolower( $accept ) ) as $range ) {
+
+			// Normalise media types and parameters independently of their order.
 			$parts = array_map( 'trim', explode( ';', $range ) );
 			$type = array_shift( $parts );
 			$quality = 1.0;
+			$has_quality = false;
 			foreach ( $parts as $parameter ) {
-				if ( preg_match( '/^q\s*=\s*(.*)$/', $parameter, $match ) === 1 ) {
-					$quality = is_numeric( $match[1] ) ? max( 0.0, min( 1.0, (float) $match[1] ) ) : 0.0;
+
+				// Parameters other than the quality weight do not set preference.
+				if ( preg_match( '/^q(?:\s*=\s*(.*))?$/', $parameter, $match ) !== 1 ) {
+					continue;
 				}
+
+				// Repeated weights make the range ambiguous regardless of order.
+				if ( $has_quality ) {
+					$quality = 0.0;
+					break;
+				}
+
+				// Reject malformed weights: RFC 9110 permits 0–1 with at most
+				// three fractional digits at this untrusted header boundary.
+				$has_quality = true;
+				$value = $match[1] ?? '';
+				$is_quality = preg_match( '/^(?:0(?:\.[0-9]{0,3})?|1(?:\.0{0,3})?)$/D', $value ) === 1;
+				$quality = $is_quality ? (float) $value : 0.0;
+
 			}
-			if ( in_array( $type, [ 'text/markdown', 'text/x-markdown' ], true ) ) {
-				$markdown = max( $markdown, $quality );
-			} elseif ( $type === 'text/html' ) {
-				$html = max( $html, $quality );
-			}
+
+			// Repeated media ranges have the same result in either order.
+			$qualities[ $type ] = max( $qualities[ $type ] ?? 0.0, $quality );
+
 		}
-		return $markdown > 0.0 && $markdown >= $html;
+
+		// Wildcards can prefer HTML but never explicitly request Markdown.
+		$markdown = max( $qualities['text/markdown'] ?? 0.0, $qualities['text/x-markdown'] ?? 0.0 );
+
+		// Specific ranges determine each HTML alternative's effective quality,
+		// including explicit zeroes; keep HTML when either alternative ties.
+		$html = max(
+			$qualities['text/html'] ?? $qualities['text/*'] ?? $qualities['*/*'] ?? 0.0,
+			$qualities['application/xhtml+xml'] ?? $qualities['application/*'] ?? $qualities['*/*'] ?? 0.0,
+		);
+
+		return $markdown > 0.0 && $markdown > $html;
+
 	}
 
 	/**

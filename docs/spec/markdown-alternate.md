@@ -179,7 +179,7 @@ Four reachable forms; strict precedence **`.md` URL > `?format=markdown` > `Acce
 
 1. **`.md` suffix** on a slugged URL (`/about/team.md`, `/category/news.md` for a singular post under that path) — the cache-grade, advertised path. **Lowercase `.md` only**; uppercase/mixed → not matched (404).
 2. **`?format=markdown`** on the canonical URL — same provider/cache as the `.md` path.
-3. **`Accept: text/markdown`** on the canonical URL — the standards-correct form. Default (§1.1): serve Markdown **inline, uncached**, with `Vary: Accept` and a `Link: <…>.md; rel="alternate"` steering agents to the cache-grade URL.
+3. **`Accept: text/markdown`** on the canonical URL — the standards-correct form. Default (§1.1): serve Markdown **inline, uncached**, with `Vary: Accept` and a `Link: <…>.md; rel="alternate"` steering agents to the cache-grade URL. Select Markdown only when an explicit `text/markdown` or `text/x-markdown` range has positive quality strictly above the HTML alternative; HTML wins ties. Evaluate `text/html` and `application/xhtml+xml` using their most specific matching range (exact type, then `text/*` or `application/*`, then `*/*`), retaining explicit `q=0`. Wildcards alone never select Markdown. Media types and `q` names are case-insensitive; trim surrounding whitespace. A quality value outside RFC 9110's 0–1 grammar, more than three fractional digits, a missing value or repeated `q` parameters gives that range zero quality. These rules do not change `.md` or `?format=markdown` precedence.
 4. **`/index.md`** for the slug-less home.
 
 Mechanics, parity with the reference:
