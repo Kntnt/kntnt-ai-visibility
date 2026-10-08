@@ -284,7 +284,7 @@ On both the cache-serve path (router) and the PHP path:
    - These lifecycle guarantees apply after the native WordPress mutation completes. Preventing an already-running producer from publishing an invalidated generation is the separate in-flight publication contract.
    - Indirect changes (theme, menus, translations) bump a **cache-version stamp** held in its *own* option key (per ADR-0010's note — not a key inside the settings array). Core owns [exposure-setting creation, updates and removal](llms-txt.md#61-exposure-option-lifecycle): one version bump and whole-cache flush per relevant option transition, including a first matrix-only save from an absent option and restoration of zero-config defaults.
    - A **TTL safety net** (filterable) bounds staleness from changes no hook catches.
-5. **Single-flight:** lazy regeneration has a stampede risk — guard generation with a per-identity lock (lock file or short-lived transient) so concurrent misses do not all render. Required for correctness under load.
+5. **Single-flight:** lazy regeneration has a stampede risk – guard generation with the installation-scoped, stable per-kind lock described in [llms §3.3](llms-txt.md#33-single-flight-materialiser--core). Concurrent misses re-check the cache under exclusion; lock resources remain bounded across changing keys and versions. Unavailable exclusion permits only current validated uncached bytes, without persistence.
 
 ### 5.1 Unavailable persistence
 
