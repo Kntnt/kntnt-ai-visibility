@@ -144,6 +144,7 @@ run_e2e() {
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-exposure-options.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-conversion-failure.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-source-context.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-public-content.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-taxonomy-links.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-unicode-descriptions.py"; then
 		E2E_EXIT=0

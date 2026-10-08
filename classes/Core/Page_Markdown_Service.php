@@ -3,7 +3,7 @@
  * The shared page-to-Markdown service.
  *
  * Runs the Release-1 pipeline (docs/spec §4.3): render the post content through
- * `the_content`, convert the HTML to GitHub-Flavored Markdown with the full
+ * `the_content` and the explicit public HTML filter, convert the HTML to GitHub-Flavored Markdown with the full
  * converter — base, commonmark, table and strikethrough plugins — absolutising
  * relative URLs against the site domain, then assemble the front-matter, the
  * page's visible H1 (the post title) and the converted body. materialise() adds
@@ -75,7 +75,7 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 * @param \WP_Post $post The post to render.
 	 * @return string The assembled Markdown document.
 	 * @throws \DomainException When public rendering is refused.
-	 * @phpstan-throws \DomainException|Markdown_Conversion_Failed
+	 * @phpstan-throws \DomainException|Markdown_Conversion_Failed|Public_Content_Rendering_Failed
 	 */
 	public function for_post( \WP_Post $post ): string {
 
@@ -95,12 +95,40 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 *
 	 * @param \WP_Post $post The source post.
 	 * @return string The assembled Markdown document.
+	 * @throws Public_Content_Rendering_Failed When the public HTML adapter fails.
+	 * @throws \DomainException When an adapter refuses public publication.
 	 */
 	private function render_post( \WP_Post $post ): string {
 
-		// Render the content (shortcodes, blocks) and convert it to Markdown.
+		// Render ordinary blocks/shortcodes, then the explicit public theme body.
 		$rendered = apply_filters( 'the_content', $post->post_content );
-		$body = $this->convert( is_string( $rendered ) ? $rendered : '' );
+		$rendered = is_string( $rendered ) ? $rendered : '';
+		try {
+			/**
+			 * Selects the actual public body HTML for this source.
+			 *
+			 * Runs once per page generation inside the anonymous, source-specific
+			 * query/Loop/locale scope. Return a string (including a valid empty
+			 * string); never return all stored metadata or visitor-captured HTML.
+			 *
+			 * @since 0.5.2
+			 *
+			 * @param string   $rendered Default block/shortcode HTML from the_content.
+			 * @param \WP_Post $post     The source whose public body is being rendered.
+			 */
+			$rendered = apply_filters( 'kntnt_ai_visibility_public_content_html', $rendered, $post );
+		} catch ( \DomainException $exception ) {
+			throw $exception;
+		} catch ( \Throwable $exception ) {
+			$this->logger->error( 'Public content rendering failed', [ 'error' => $exception->getMessage() ] );
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The previous exception stays internal; HTTP shells emit a fixed message.
+			throw new Public_Content_Rendering_Failed( 'Public content rendering failed.', 0, $exception );
+		}
+		if ( ! is_string( $rendered ) ) {
+			$this->logger->error( 'Public content renderer returned non-string HTML' );
+			throw new Public_Content_Rendering_Failed( 'Public content renderer must return HTML as a string.' );
+		}
+		$body = $this->convert( $rendered );
 
 		// Assemble: front-matter, a blank line, the visible H1 from the post
 		// title, a blank line, then the converted body.
@@ -121,7 +149,7 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 * @param \WP_Post $post     The post to render on a miss.
 	 * @return Materialisation The valid bytes and independent persistence outcome.
 	 * @throws \DomainException When public publication is refused, even on a hit.
-	 * @phpstan-throws \DomainException|Markdown_Conversion_Failed
+	 * @phpstan-throws \DomainException|Markdown_Conversion_Failed|Public_Content_Rendering_Failed
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): Materialisation {
 
