@@ -41,7 +41,12 @@ function kntnt_unicode_index(string $excerpt): string
     Functions\when('is_post_type_hierarchical')->justReturn(true);
     Functions\when('get_posts')->justReturn([$post]);
     Functions\when('get_post_type_object')->justReturn((object) ['labels' => (object) ['name' => 'Pages']]);
-    Functions\when('get_option')->alias(fn(string $key): mixed => $key === 'home' ? 'https://example.test' : false);
+    Functions\when('get_option')->alias(fn(string $key): mixed => match ($key) {
+        'home' => 'https://example.test',
+        'show_on_front' => 'posts',
+        'permalink_structure' => '/%postname%/',
+        default => false,
+    });
     Functions\when('get_permalink')->justReturn('https://example.test/unicode/');
     Functions\when('wp_parse_url')->alias(fn(string $url, int $component = -1): mixed => parse_url($url, $component));
     Functions\when('get_the_title')->justReturn($post->post_title);
