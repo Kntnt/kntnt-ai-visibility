@@ -3,11 +3,12 @@
  * The shared page-to-Markdown service.
  *
  * Runs the Release-1 pipeline (docs/spec §4.3): render the post content through
- * `the_content` and the explicit public HTML filter, convert the HTML to GitHub-Flavored Markdown with the full
- * converter — base, commonmark, table and strikethrough plugins — absolutising
- * relative URLs against the site domain, then assemble the front-matter, the
- * page's visible H1 (the post title) and the converted body. materialise() adds
- * the single-flight cache write the serve paths rely on.
+ * `the_content` and the explicit public HTML filter, convert the HTML to
+ * GitHub-Flavored Markdown with the full converter — base, commonmark, table
+ * and strikethrough plugins — absolutising relative URLs against the source's
+ * canonical URL, then assemble front-matter, the page's visible H1 (the post
+ * title) and the converted body. materialise() adds the single-flight cache
+ * write the serve paths rely on.
  *
  * The converter is an internal collaborator, not a public seam, and is not a
  * sanitiser — acceptable because the input is the site's own rendered content,
@@ -39,23 +40,23 @@ use Kntnt\HtmlToMarkdown\Plugin\Table\TablePlugin;
 final class Page_Markdown_Service implements Page_Markdown {
 
 	/**
-	 * Resolves the site domain relative URLs are absolutised against.
+	 * Overrides the canonical source URL used as the conversion base.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @var callable(): string
+	 * @var (callable(): string)|null
 	 */
 	private $domain_provider;
 
 	/**
-	 * Binds the service to its front-matter builder, single-flight, logger and domain.
+	 * Binds the pipeline and an optional conversion-base override.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param Front_Matter            $front_matter    The front-matter builder.
 	 * @param Single_Flight           $single_flight   The single-flight cache materialiser.
 	 * @param Logger                  $logger          The diagnostics logger.
-	 * @param callable(): string|null $domain_provider Resolves the absolutising domain; defaults to home_url().
+	 * @param callable(): string|null $domain_provider Overrides the base URL; defaults to the source canonical URL.
 	 */
 	public function __construct(
 		private readonly Front_Matter $front_matter,
@@ -63,7 +64,7 @@ final class Page_Markdown_Service implements Page_Markdown {
 		private readonly Logger $logger,
 		?callable $domain_provider = null,
 	) {
-		$this->domain_provider = $domain_provider ?? 'home_url';
+		$this->domain_provider = $domain_provider;
 	}
 
 	/**
@@ -128,7 +129,7 @@ final class Page_Markdown_Service implements Page_Markdown {
 			$this->logger->error( 'Public content renderer returned non-string HTML' );
 			throw new Public_Content_Rendering_Failed( 'Public content renderer must return HTML as a string.' );
 		}
-		$body = $this->convert( $rendered );
+		$body = $this->convert( $rendered, $post );
 
 		// Assemble: front-matter, a blank line, the visible H1 from the post
 		// title, a blank line, then the converted body.
@@ -172,17 +173,20 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param string $html The rendered HTML.
+	 * @param string   $html The rendered HTML.
+	 * @param \WP_Post $post The source whose canonical URL supplies the base.
 	 * @return string The Markdown body, which may legitimately be empty.
 	 * @throws Markdown_Conversion_Failed When conversion fails; no bytes are valid.
 	 */
-	private function convert( string $html ): string {
+	private function convert( string $html, \WP_Post $post ): string {
 
-		// The full converter gives GFM tables and strikethrough; the domain
-		// absolutises relative links and images so the .md is self-contained.
+		// Resolve inside the source context, preserving its path/query/language.
 		$converter = new Converter( [ new BasePlugin(), new CommonmarkPlugin(), new TablePlugin(), new StrikethroughPlugin() ] );
 		try {
-			return $converter->convertString( $html, new Options( domain: ( $this->domain_provider )() ) );
+			$base = $this->domain_provider === null
+				? ( new Markdown_Alternate() )->canonical_url_for( $post )
+				: ( $this->domain_provider )();
+			return $converter->convertString( $html, new Options( domain: $base ) );
 		} catch ( \Throwable $exception ) {
 			$this->logger->error( 'Markdown conversion failed', [ 'error' => $exception->getMessage() ] );
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The previous exception stays internal; HTTP shells emit a fixed message.
