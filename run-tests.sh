@@ -135,7 +135,8 @@ run_e2e() {
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-negotiated-cache.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-methods.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-password.py" \
-		&& python3 "$SCRIPT_DIR/tests/Integration/playground-eligibility.py"; then
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-eligibility.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-cache-failure.py"; then
 		E2E_EXIT=0
 	else
 		E2E_EXIT=$?

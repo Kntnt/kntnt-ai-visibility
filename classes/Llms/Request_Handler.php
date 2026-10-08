@@ -149,28 +149,37 @@ final class Request_Handler {
 		// Materialise the aggregate once (single-flight), then serve the resulting
 		// cache file with the router's file-based headers so the validators match
 		// every later early-router serve.
-		$this->single_flight->once( $identity, static fn(): string => $provider->generate( $identity )->bytes );
+		$result = $this->single_flight->once( $identity, static fn(): string => $provider->generate( $identity )->bytes );
 		$path = $this->cache->path_for( $identity );
-		if ( ! is_file( $path ) ) {
-			$this->logger->warning( 'Cache file missing after materialise', [ 'key' => $identity->key ] );
-			return;
+		$is_persisted = $result->persisted && is_file( $path );
+		if ( ! $is_persisted ) {
+			$this->logger->warning( 'Serving generated artifact without cache', [ 'key' => $identity->key ] );
 		}
 
 		// Prune the stale, version-stamped aggregates a cache-version bump orphaned
 		// (e.g. llms-v7.md after a bump to v8); scoped to this kind directory, it
 		// never touches the per-page markdown-alternate cache (spec §5.5).
-		$this->cache->prune_siblings( $identity );
+		if ( $is_persisted ) {
+			$this->cache->prune_siblings( $identity );
+		}
 
 		// Serve with the matched pattern's Content-Type; the singletons have no
 		// canonical back-link.
-		$response = $this->router->headers_for( $path, $request, $provider->serve_pattern()->content_type );
+		$response = $is_persisted
+			? $this->router->headers_for( $path, $request, $provider->serve_pattern()->content_type )
+			: $this->router->headers_for_bytes( $result->bytes, time(), $request, $provider->serve_pattern()->content_type );
 		status_header( $response['status'] );
 		foreach ( $response['headers'] as $name => $value ) {
 			header( $name . ': ' . $value );
 		}
 		if ( $response['send_body'] ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a Core-owned cache file is the point of the serve path.
-			readfile( $path );
+			if ( $is_persisted ) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a Core-owned cache file is the point of the serve path.
+				readfile( $path );
+			} else {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the generated plain-text artifact must retain its exact bytes.
+				echo $result->bytes;
+			}
 		}
 
 		exit;
