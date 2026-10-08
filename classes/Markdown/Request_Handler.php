@@ -180,8 +180,14 @@ final class Request_Handler {
 	 */
 	public function handle(): void {
 
-		// Normalise a trailing-slashed `.md` URL with a 301 to the canonical form.
+		// Leave form submissions and other non-read methods to WordPress before
+		// negotiation, redirects, generation or conditional response handling.
 		$request = Request_Factory::from_globals();
+		if ( ! $request->is_read() ) {
+			return;
+		}
+
+		// Normalise a trailing-slashed `.md` URL with a 301 to the canonical form.
 		$target = $this->trailing_slash_target( $request->path );
 		if ( $target !== null ) {
 			wp_safe_redirect( $target, 301 );
@@ -240,6 +246,11 @@ final class Request_Handler {
 	 * @return string|null 'cache', 'inline', or null.
 	 */
 	public function negotiate( Request $request ): ?string {
+
+		// Early cache integrations also consult this seam, before handle() runs.
+		if ( ! $request->is_read() ) {
+			return null;
+		}
 
 		// The cache-grade forms: the advertised `.md` path and its `?format` twin.
 		if ( str_ends_with( $request->path, '.md' ) ) {
@@ -539,6 +550,7 @@ final class Request_Handler {
 	 */
 	private function forbidden(): void {
 		status_header( 403 );
+		nocache_headers();
 		header( 'Content-Type: text/plain; charset=utf-8' );
 		echo 'This content is password protected.';
 

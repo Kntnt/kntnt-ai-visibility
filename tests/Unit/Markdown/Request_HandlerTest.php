@@ -52,6 +52,18 @@ describe('Request_Handler::register_rewrite_rules', function (): void {
 
 describe('Request_Handler::negotiate', function (): void {
 
+    it('does not negotiate artifacts for unsupported methods', function (): void {
+        foreach (['POST', 'OPTIONS', 'PUT'] as $method) {
+            foreach ([
+                new Request($method, '/about.md'),
+                new Request($method, '/about/', ['format' => 'markdown']),
+                new Request($method, '/about/', [], 'text/markdown'),
+            ] as $request) {
+                expect($this->handler->negotiate($request))->toBeNull();
+            }
+        }
+    });
+
     it('keeps the canonical HTML representation when Markdown and HTML tie', function (): void {
         $request = new Request('GET', '/about/', [], 'text/html, text/markdown');
 
