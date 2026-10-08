@@ -30,6 +30,7 @@ use Kntnt\Ai_Visibility\Core\Http\Conditional_Request;
 use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
 use Kntnt\Ai_Visibility\Core\Logger;
 use Kntnt\Ai_Visibility\Core\Markdown_Conversion_Failed;
+use Kntnt\Ai_Visibility\Core\Public_Content_Rendering_Failed;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
 
 /**
@@ -234,9 +235,9 @@ final class Request_Handler {
 			} else {
 				$this->serve_cache_grade( $identity, $post, $request );
 			}
-		} catch ( Markdown_Conversion_Failed ) {
+		} catch ( Markdown_Conversion_Failed | Public_Content_Rendering_Failed ) {
 
-			// A failed conversion has no valid representation or validators.
+			// Failed rendering or conversion has no representation or validators.
 			status_header( 500 );
 			nocache_headers();
 			header( 'Content-Type: text/plain; charset=utf-8' );

@@ -141,3 +141,5 @@ jobs:
         run: python3 tests/Integration/playground-exposure-options.py
       - name: Source query, Loop and locale rendering context
         run: python3 tests/Integration/playground-source-context.py
+      - name: Explicit public theme-body rendering and failure recovery
+        run: python3 tests/Integration/playground-public-content.py
