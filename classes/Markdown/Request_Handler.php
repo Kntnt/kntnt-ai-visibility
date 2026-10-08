@@ -648,8 +648,11 @@ final class Request_Handler {
 		status_header( 403 );
 		nocache_headers();
 		header( 'Content-Type: text/plain; charset=utf-8' );
+		header( 'X-Content-Type-Options: nosniff' );
+		if ( Request_Factory::from_globals()->method !== 'HEAD' ) {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text response, never HTML.
-		echo $message;
+			echo $message;
+		}
 
 		exit;
 

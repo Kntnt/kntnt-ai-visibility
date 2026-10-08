@@ -29,7 +29,7 @@ beforeEach(function (): void {
     touch($this->file, 1_700_000_000);
     clearstatcache(true, $this->file);
 
-    $store = new File_Store(fn(): string => $this->base);
+    $store = kntnt_test_file_store(fn(): string => $this->base);
     $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
     $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
     $this->router = new Serve_Router($store, $registry);

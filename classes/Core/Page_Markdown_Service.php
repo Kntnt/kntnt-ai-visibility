@@ -57,12 +57,14 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 * @param Single_Flight           $single_flight   The single-flight cache materialiser.
 	 * @param Logger                  $logger          The diagnostics logger.
 	 * @param callable(): string|null $domain_provider Overrides the base URL; defaults to the source canonical URL.
+	 * @param Publication_Source|null $publication_source Authoritative guard used by the production service graph.
 	 */
 	public function __construct(
 		private readonly Front_Matter $front_matter,
 		private readonly Single_Flight $single_flight,
 		private readonly Logger $logger,
 		?callable $domain_provider = null,
+		private readonly ?Publication_Source $publication_source = null,
 	) {
 		$this->domain_provider = $domain_provider;
 	}
@@ -85,7 +87,16 @@ final class Page_Markdown_Service implements Page_Markdown {
 			throw new \DomainException( 'Password-protected posts cannot produce public Markdown.' );
 		}
 
-		return Public_Rendering::run( fn(): string => Post_Context::render( $post, fn(): string => $this->render_post( $post ) ) );
+		return Public_Rendering::run(
+			function () use ( $post ): string {
+				$produce = fn(): string => Post_Context::render( $post, fn(): string => $this->render_post( $post ) );
+				if ( $this->publication_source === null ) {
+						return $produce();
+				}
+				$identity = ( new Markdown_Alternate() )->identity_for( $post );
+				return $this->single_flight->uncached( $produce, fn() => $this->publication_source->verify( $identity, $post ) );
+			}
+		);
 
 	}
 
@@ -164,7 +175,19 @@ final class Page_Markdown_Service implements Page_Markdown {
 
 		// Single-flight: serve the cache when warm, else render once under a
 		// per-identity lock and store. The lock and re-check live in Single_Flight.
-		return $this->single_flight->once( $identity, fn(): string => $this->for_post( $post ) );
+		return $this->single_flight->once(
+			$identity,
+			fn(): string => $this->for_post( $post ),
+			function () use ( $identity, $post ): void {
+				Public_Rendering::run(
+					function () use ( $identity, $post ): string {
+						$this->publication_source?->verify( $identity, $post );
+						return '';
+					},
+					persistent: true
+				);
+			},
+		);
 
 	}
 

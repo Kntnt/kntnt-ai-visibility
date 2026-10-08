@@ -48,7 +48,7 @@ beforeEach(function (): void {
     mkdir($this->base . '/markdown-alternate/about', 0777, true);
     file_put_contents($this->base . '/markdown-alternate/about/team.md', "# Team\n");
 
-    $this->store = new File_Store(fn(): string => $this->base);
+    $this->store = kntnt_test_file_store(fn(): string => $this->base);
     // Cache version 8 → the early router computes the key 'llms-v8'.
     $this->router = new Serve_Router($this->store, kntnt_exact_registry(), null, 0, null, null, fn(): int => 8);
 });

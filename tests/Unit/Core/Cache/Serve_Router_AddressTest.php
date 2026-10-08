@@ -31,7 +31,7 @@ it('recognises only registered installation-relative artifact addresses before a
         $locator,
     ));
     // Address classification cannot depend on the cache directory or a warm file.
-    $store = new File_Store(static fn(): string => throw new RuntimeException('No cache lookup is allowed'));
+    $store = kntnt_test_file_store(static fn(): string => throw new RuntimeException('No cache lookup is allowed'));
     $router = new Serve_Router($store, $registry, base_path: fn(): string => '/sub');
 
     expect($router->is_artifact_path('/sub/llms.txt'))->toBeTrue();

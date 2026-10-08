@@ -75,7 +75,7 @@ final class Module implements Module_Contract {
 
 		// Per-entity, delete-on-change invalidation, plus the indirect-change
 		// whole-cache flush.
-		( new Invalidation( $provider, $core->cache(), new Cache_Version() ) )->register();
+		( new Invalidation( $provider, $core->cache(), new Cache_Version( $core->cache() ) ) )->register();
 
 	}
 

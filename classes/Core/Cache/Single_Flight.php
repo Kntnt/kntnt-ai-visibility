@@ -79,32 +79,71 @@ final class Single_Flight {
 	 *
 	 * @since 0.2.0
 	 *
-	 * @param Identity           $identity The cache identity to materialise under.
-	 * @param callable(): string $produce The producer run on a confirmed miss.
+	 * @param Identity              $identity The cache identity to materialise under.
+	 * @param callable(): string    $produce The producer run on a confirmed miss.
+	 * @param callable(): void|null $validate Fresh source validation before hits and publication.
 	 * @return Materialisation Valid bytes and the independent persistence outcome.
 	 * @throws \Throwable When the producer fails; no stale bytes are substituted.
 	 */
-	public function once( Identity $identity, callable $produce ): Materialisation {
+	public function once( Identity $identity, callable $produce, ?callable $validate = null ): Materialisation {
+		$barrier = $this->store->publication();
+		$generation = $barrier->current();
+		if ( $validate !== null ) {
+			$validate();
+		}
 
 		// Serve an existing cache file without producing.
 		$cached = $this->read_fresh( $identity );
 		if ( $cached !== null ) {
-			return new Materialisation( $cached, true );
+			return $barrier->publish(
+				$generation,
+				static fn(): Materialisation => new Materialisation( $cached, true ),
+			);
 		}
 
 		// Single-flight: hold the lock, re-check, then produce and store.
 		$lock = $this->acquire_lock( $identity );
 		try {
+			if ( $validate !== null ) {
+				$validate();
+			}
 			$cached = $this->read_fresh( $identity );
 			if ( $cached !== null ) {
-				return new Materialisation( $cached, true );
+				return $barrier->publish(
+					$generation,
+					static fn(): Materialisation => new Materialisation( $cached, true ),
+				);
 			}
+			$barrier->publish( $generation, static fn(): null => null );
 			$bytes = $produce();
-			return new Materialisation( $bytes, $this->store->write( $identity, $bytes ) );
+			if ( $validate !== null ) {
+				$validate();
+			}
+			return $barrier->publish(
+				$generation,
+				fn(): Materialisation => new Materialisation( $bytes, $this->store->write( $identity, $bytes ) ),
+			);
 		} finally {
 			$this->release_lock( $lock );
 		}
 
+	}
+
+	/**
+	 * Produces uncached bytes under the same revocation contract as once().
+	 *
+	 * @param callable(): string $produce  The uncached public renderer.
+	 * @param callable(): void   $validate Checks fresh source eligibility and identity.
+	 * @return string Current public bytes.
+	 * @throws \DomainException When the work is obsolete or publication is refused.
+	 */
+	public function uncached( callable $produce, callable $validate ): string {
+		$barrier = $this->store->publication();
+		$generation = $barrier->current();
+		$validate();
+		$bytes = $produce();
+		$validate();
+		return $barrier->publish( $generation, static fn(): string => $bytes );
 	}
 
 	/**

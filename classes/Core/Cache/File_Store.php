@@ -40,6 +40,24 @@ final class File_Store implements Store {
 	private ?string $base = null;
 
 	/**
+	 * The lazily resolved publication coordinator.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @var Publication_Barrier|null
+	 */
+	private ?Publication_Barrier $publication = null;
+
+	/**
+	 * Avoids repeating the same controlled cache refusal in one store instance.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @var bool
+	 */
+	private bool $refusal_logged = false;
+
+	/**
 	 * Binds the store to a lazy base-directory provider.
 	 *
 	 * @since 0.1.0
@@ -48,8 +66,24 @@ final class File_Store implements Store {
 	 *                                              base directory. Invoked once,
 	 *                                              on first use.
 	 * @param Logger             $logger            Receives controlled write failures.
+	 * @param string|null        $barrier_directory Isolates coordination resources; defaults to system temp.
 	 */
-	public function __construct( private $base_dir_provider, private readonly Logger $logger = new Plugin_Logger() ) {}
+	public function __construct(
+		private $base_dir_provider,
+		private readonly Logger $logger = new Plugin_Logger(),
+		private readonly ?string $barrier_directory = null,
+	) {}
+
+	/**
+	 * Resolves one coordinator shared by every generator and invalidation writer.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return Publication_Barrier The stable store coordinator.
+	 */
+	public function publication(): Publication_Barrier {
+		return $this->publication ??= new Publication_Barrier( $this->base(), $this->barrier_directory );
+	}
 
 	/**
 	 * Returns the resolved cache base directory.
@@ -83,7 +117,7 @@ final class File_Store implements Store {
 	 * @return bool
 	 */
 	public function has( Identity $identity ): bool {
-		return is_file( $this->path_for( $identity ) );
+		return $this->readable() && is_file( $this->path_for( $identity ) );
 	}
 
 	/**
@@ -95,6 +129,9 @@ final class File_Store implements Store {
 	 * @return string|null
 	 */
 	public function read( Identity $identity ): ?string {
+		if ( ! $this->readable() ) {
+			return null;
+		}
 
 		// Return the bytes only when the file exists and is readable.
 		$path = $this->path_for( $identity );
@@ -117,6 +154,9 @@ final class File_Store implements Store {
 	 * @return bool True after atomic publication; false on a logged failure.
 	 */
 	public function write( Identity $identity, string $bytes ): bool {
+		if ( ! $this->readable() ) {
+			return false;
+		}
 
 		// Make sure the cache directory exists and is protected from listing.
 		if ( ! $this->ensure_base() ) {
@@ -163,12 +203,26 @@ final class File_Store implements Store {
 	 * @return void
 	 */
 	public function delete( Identity $identity ): void {
+		$this->publication()->revoke(
+			function () use ( $identity ): void {
+				$barrier = $this->publication();
+				$readable = $barrier->readable();
+				$barrier->poison();
 
-		// Remove the file when present; an absent file is a no-op.
-		$path = $this->path_for( $identity );
-		if ( is_file( $path ) ) {
-			unlink( $path );
-		}
+				// Remove the file when present; an absent file is a no-op.
+				$path = $this->path_for( $identity );
+				if ( is_file( $path ) ) {
+					// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failed erasure retains durable poison and is logged.
+					if ( ! @unlink( $path ) ) {
+						$this->erasure_failed( $path );
+						return;
+					}
+				}
+				if ( $readable ) {
+					$barrier->recover();
+				}
+			}
+		);
 
 	}
 
@@ -180,24 +234,46 @@ final class File_Store implements Store {
 	 * @return void
 	 */
 	public function flush_all(): void {
+		$this->publication()->revoke(
+			function (): void {
+				$barrier = $this->publication();
+				$barrier->poison();
 
-		// Nothing to do when the cache directory was never created.
-		$base = $this->base();
-		if ( ! is_dir( $base ) ) {
-			return;
-		}
+				// Nothing to do when the cache directory was never created.
+				$base = $this->base();
+				if ( ! is_dir( $base ) ) {
+					$barrier->recover();
+					return;
+				}
 
-		// Walk the tree depth-first, removing files before their directories.
-		$entries = new \RecursiveIteratorIterator(
-			new \RecursiveDirectoryIterator( $base, \FilesystemIterator::SKIP_DOTS ),
-			\RecursiveIteratorIterator::CHILD_FIRST,
+				// Walk the tree depth-first, removing files before their directories.
+				try {
+					$entries = new \RecursiveIteratorIterator(
+						new \RecursiveDirectoryIterator( $base, \FilesystemIterator::SKIP_DOTS ),
+						\RecursiveIteratorIterator::CHILD_FIRST,
+					);
+					// phpcs:ignore Generic.Commenting.DocComment.MissingShort -- inline @var to type the iterator value.
+					/** @var \SplFileInfo $entry */
+					foreach ( $entries as $entry ) {
+						// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failed erasure retains durable poison and is logged.
+						$removed = $entry->isDir() ? @rmdir( $entry->getPathname() ) : @unlink( $entry->getPathname() );
+						if ( ! $removed ) {
+							$this->erasure_failed( $entry->getPathname() );
+							return;
+						}
+					}
+				} catch ( \UnexpectedValueException ) {
+					$this->erasure_failed( $base );
+					return;
+				}
+				// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failed erasure retains durable poison and is logged.
+				if ( ! @rmdir( $base ) ) {
+					$this->erasure_failed( $base );
+					return;
+				}
+				$barrier->recover();
+			}
 		);
-		// phpcs:ignore Generic.Commenting.DocComment.MissingShort -- inline @var to type the iterator value.
-		/** @var \SplFileInfo $entry */
-		foreach ( $entries as $entry ) {
-			$entry->isDir() ? rmdir( $entry->getPathname() ) : unlink( $entry->getPathname() );
-		}
-		rmdir( $base );
 
 	}
 
@@ -292,11 +368,41 @@ final class File_Store implements Store {
 			'Cache write failed',
 			[
 				'operation' => $operation,
-				'path' => $path,
+				'path'      => $path,
 			],
 		);
 		return false;
 
+	}
+
+	/**
+	 * Reports failed revocation while the stable poison keeps readers closed.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param string $path The affected Core-owned path.
+	 * @return void
+	 */
+	private function erasure_failed( string $path ): void {
+		$this->logger->warning( 'Cache erasure failed; repair storage and flush the whole cache', [ 'path' => $path ] );
+	}
+
+	/**
+	 * Refuses leftovers and reports unavailable coordination or failed erasure.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return bool Whether cached bytes may be trusted.
+	 */
+	private function readable(): bool {
+		if ( $this->publication()->readable() ) {
+			return true;
+		}
+		if ( ! $this->refusal_logged ) {
+			$this->refusal_logged = true;
+			$this->logger->warning( 'Cache refused: unverified erasure or unavailable publication state' );
+		}
+		return false;
 	}
 
 }

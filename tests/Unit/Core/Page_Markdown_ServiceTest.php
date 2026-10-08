@@ -37,7 +37,7 @@ beforeEach(function (): void {
     Functions\when('wp_mkdir_p')->alias(static fn(string $dir): bool => is_dir($dir) || mkdir($dir, 0777, true));
     $this->logger = new Plugin_Logger(static function (string $line): void {});
     $this->base   = sys_get_temp_dir() . '/kntnt-pm-' . uniqid('', true);
-    $this->store  = new File_Store(fn(): string => $this->base);
+    $this->store  = kntnt_test_file_store(fn(): string => $this->base);
     mkdir($this->base . '/locks', 0700, true);
     $this->single_flight = new Single_Flight($this->store, $this->base . '/locks');
 });

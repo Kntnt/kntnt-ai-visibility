@@ -275,7 +275,6 @@ final class Plugin {
 		$store = new File_Store( static fn(): string => self::cache_dir(), $logger );
 		$ttl = apply_filters( 'kntnt_ai_visibility_cache_ttl', WEEK_IN_SECONDS );
 		$single_flight = new Single_Flight( $store, ttl: is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS );
-		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $single_flight, $logger );
 		$router = new Serve_Router(
 			$store,
 			$artifacts,
@@ -302,19 +301,27 @@ final class Plugin {
 		$exclusions = new Exclusions( static fn(): string => self::exclusion_patterns_option(), static fn(): string => Site_Url::home() );
 		$eligibility = new Eligibility( $matrix, $exclusions );
 		$markdown_alternate = new Markdown_Alternate();
+		$publication_source = new \Kntnt\Ai_Visibility\Core\Publication_Source(
+			static fn(): Eligibility => new Eligibility(
+				$matrix,
+				new Exclusions( static fn(): string => self::exclusion_patterns_option(), static fn(): string => Site_Url::home() ),
+			),
+			$markdown_alternate,
+		);
+		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $single_flight, $logger, publication_source: $publication_source );
 		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router, $matrix, $eligibility, $markdown_alternate, $single_flight );
 
 		// Core owns the settings sections: the content-type matrix with the
 		// clear-cache action beside it, and the path-exclusion patterns that curate
 		// individual entries out of every artifact. Modules contribute only their
 		// matrix columns.
-		$content_settings = new Content_Settings( $matrix, $store, new Cache_Version() );
+		$content_settings = new Content_Settings( $matrix, $store, new Cache_Version( $store ) );
 		$settings->register_section( $content_settings->section() );
 		$content_settings->register();
 
 		$exclusion_settings = new Exclusion_Settings();
 		$settings->register_section( $exclusion_settings->section() );
-		( new Exposure_Invalidation( $store, new Cache_Version() ) )->register();
+		( new Exposure_Invalidation( $store, new Cache_Version( $store ) ) )->register();
 
 		// Boot the feature modules against Core, in dependency order. The Markdown
 		// module registers the `.md` column the llms columns depend on, so it boots

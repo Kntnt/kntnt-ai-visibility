@@ -163,7 +163,7 @@ final class Serve_Router {
 			return false;
 		}
 
-		return $this->identify( $path ) !== null;
+		return $this->identify( $path, false ) !== null;
 
 	}
 
@@ -200,6 +200,10 @@ final class Serve_Router {
 			return null;
 		}
 		[ $identity, $pattern ] = $match;
+		if ( ! $this->store->publication()->readable() ) {
+			$this->logger?->warning( 'Cache refused: unverified erasure or unavailable publication state' );
+			return null;
+		}
 
 		// Build the candidate path from the validated key, then realpath-contain
 		// it strictly inside the cache base — the backstop against traversal and
@@ -242,7 +246,19 @@ final class Serve_Router {
 	public function serve( Request $request ): bool {
 
 		// Fall through whenever the request is not a contained cache hit.
-		$resolved = $this->resolve( $request );
+		try {
+			$resolved = $this->resolve( $request );
+		} catch ( Obsolete_Artifact ) {
+			$this->logger?->warning( 'Refused unavailable artifact generation' );
+			http_response_code( 403 );
+			header( 'Cache-Control: no-store' );
+			header( 'Content-Type: text/plain; charset=utf-8' );
+			header( 'X-Content-Type-Options: nosniff' );
+			if ( $request->method !== 'HEAD' ) {
+				echo 'This content cannot produce a public artifact.';
+			}
+			exit;
+		}
 		if ( $resolved === null ) {
 			return false;
 		}
@@ -402,11 +418,12 @@ final class Serve_Router {
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param string $path The request path (leading slash, query already stripped).
+	 * @param string $path      The request path (leading slash, query already stripped).
+	 * @param bool   $versioned Whether serving needs the current generation.
 	 * @return array{0: Identity, 1: Serve_Pattern}|null The validated identity and the
 	 *               pattern that matched, or null when no shape matches or the key is unsafe.
 	 */
-	private function identify( string $path ): ?array {
+	private function identify( string $path, bool $versioned = true ): ?array {
 
 		// An out-of-installation path must never alias a contained cache key.
 		$base = rtrim( ( $this->base_path )(), '/' );
@@ -421,7 +438,7 @@ final class Serve_Router {
 		// Find the first registered serve shape the path matches, by its mode.
 		foreach ( $this->registry->serve_patterns() as $pattern ) {
 			$key = $pattern->match === 'exact'
-				? $this->exact_key( $path, $pattern )
+				? $this->exact_key( $path, $pattern, $versioned )
 				: $this->suffix_key( $path, $pattern );
 			if ( $key !== null ) {
 				return [ new Identity( $pattern->kind, $key ), $pattern ];
@@ -467,15 +484,16 @@ final class Serve_Router {
 	 *
 	 * @param string        $path    The home-relative request path.
 	 * @param Serve_Pattern $pattern The exact pattern.
+	 * @param bool          $versioned Whether serving needs the current generation.
 	 * @return string|null The validated key, or null when the path does not match exactly.
 	 */
-	private function exact_key( string $path, Serve_Pattern $pattern ): ?string {
+	private function exact_key( string $path, Serve_Pattern $pattern, bool $versioned ): ?string {
 
 		// Exact, case-sensitive path match; only then read the cache version.
 		if ( $path !== $pattern->path ) {
 			return null;
 		}
-		$key = $pattern->key . ( $pattern->versioned ? '-v' . ( $this->cache_version )() : '' );
+		$key = $pattern->key . ( $pattern->versioned && $versioned ? '-v' . ( $this->cache_version )() : '' );
 
 		return preg_match( self::SAFE_KEY, $key ) === 1 ? $key : null;
 

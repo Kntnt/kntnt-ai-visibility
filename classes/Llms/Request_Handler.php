@@ -26,6 +26,7 @@ use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Artifact\Provider;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
+use Kntnt\Ai_Visibility\Core\Cache\Obsolete_Artifact;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
@@ -184,24 +185,32 @@ final class Request_Handler {
 			return;
 		}
 
-		// Match the request; a non-match is left to WordPress.
-		$match = $this->match_provider( $request );
-		if ( $match === null ) {
-			return;
-		}
-		[ $provider, $identity ] = $match;
-
-		// This dedicated-path shell leaves query-only providers to their handler.
-		$pattern = $provider->serve_pattern();
-		if ( $pattern === null ) {
-			return;
-		}
-
 		// Materialise the aggregate once (single-flight), then serve the resulting
 		// cache file with the router's file-based headers so the validators match
 		// every later early-router serve.
 		try {
-			$result = $this->single_flight->once( $identity, static fn(): string => $provider->generate( $identity )->bytes );
+			// Identity selection can itself refuse unavailable generation state.
+			$match = $this->match_provider( $request );
+			if ( $match === null ) {
+				return;
+			}
+			[ $provider, $identity ] = $match;
+
+			// This shell leaves query-only providers to their own handler.
+			$pattern = $provider->serve_pattern();
+			if ( $pattern === null ) {
+				return;
+			}
+			$result = $this->single_flight->once(
+				$identity,
+				static fn(): string => $provider->generate( $identity )->bytes,
+				static function () use ( $provider, $request, $identity ): void {
+					$current = $provider->match( $request );
+					if ( $current === null || $current->kind !== $identity->kind || $current->key !== $identity->key ) {
+						throw new Obsolete_Artifact( 'The aggregate generation was revoked.' );
+					}
+				},
+			);
 		} catch ( Markdown_Conversion_Failed | Public_Content_Rendering_Failed ) {
 
 			// A failed render or conversion invalidates the complete aggregate.
@@ -216,10 +225,14 @@ final class Request_Handler {
 			exit;
 
 		} catch ( \DomainException $exception ) {
+			$this->logger->warning( 'Refused unavailable or obsolete public artifact' );
 			status_header( 403 );
 			nocache_headers();
 			header( 'Content-Type: text/plain; charset=utf-8' );
-			echo 'This content cannot produce a public artifact.';
+			header( 'X-Content-Type-Options: nosniff' );
+			if ( $request->method !== 'HEAD' ) {
+				echo 'This content cannot produce a public artifact.';
+			}
 			exit;
 		}
 		$path = $this->cache->path_for( $identity );

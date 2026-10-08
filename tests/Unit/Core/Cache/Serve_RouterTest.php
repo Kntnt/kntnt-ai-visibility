@@ -31,7 +31,7 @@ beforeEach(function (): void {
     file_put_contents($this->base . '/markdown-alternate/about/team.md', "# Team\n");
     file_put_contents($this->base . '/markdown-alternate/index.md', "# Home\n");
 
-    $store = new File_Store(fn(): string => $this->base);
+    $store = kntnt_test_file_store(fn(): string => $this->base);
 
     // A registry whose only allowlisted shape is the Markdown `.md` suffix.
     $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
@@ -88,7 +88,7 @@ describe('Serve_Router::resolve — legitimate requests', function (): void {
 describe('Serve_Router::resolve — subdirectory install', function (): void {
 
     it('refuses an existing artifact outside the configured home base', function (): void {
-        $store = new File_Store(fn(): string => $this->base);
+        $store = kntnt_test_file_store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
         $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         $router = new Serve_Router($store, $registry, null, 0, null, fn(): string => '/blog');
@@ -99,7 +99,7 @@ describe('Serve_Router::resolve — subdirectory install', function (): void {
     });
 
     it('strips the home base path before deriving the key', function (): void {
-        $store = new File_Store(fn(): string => $this->base);
+        $store = kntnt_test_file_store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
         $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         $router = new Serve_Router($store, $registry, null, 0, null, fn(): string => '/blog');
@@ -111,7 +111,7 @@ describe('Serve_Router::resolve — subdirectory install', function (): void {
     });
 
     it('still rejects traversal once the base is stripped', function (): void {
-        $store = new File_Store(fn(): string => $this->base);
+        $store = kntnt_test_file_store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
         $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         $router = new Serve_Router($store, $registry, null, 0, null, fn(): string => '/blog');
@@ -143,7 +143,7 @@ describe('Serve_Router::resolve — refusals', function (): void {
     });
 
     it('serves nothing when no provider allowlists the shape', function (): void {
-        $store = new File_Store(fn(): string => $this->base);
+        $store = kntnt_test_file_store(fn(): string => $this->base);
         $empty = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
         $empty->shouldReceive('serve_patterns')->andReturn([]);
         $router = new Serve_Router($store, $empty);
@@ -172,7 +172,7 @@ describe('Serve_Router::resolve — refusals', function (): void {
     });
 
     it('treats a cache file older than the TTL as a miss', function (): void {
-        $store = new File_Store(fn(): string => $this->base);
+        $store = kntnt_test_file_store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
         $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         // A clock 200s ahead of the file, with a 100s TTL, makes the file stale.
@@ -183,7 +183,7 @@ describe('Serve_Router::resolve — refusals', function (): void {
     });
 
     it('serves a cache file within the TTL', function (): void {
-        $store = new File_Store(fn(): string => $this->base);
+        $store = kntnt_test_file_store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
         $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
         $mtime = (int) filemtime($this->base . '/markdown-alternate/about/team.md');
