@@ -56,6 +56,39 @@ if (!class_exists('WP_Term')) {
     }
 }
 
+// The unit suite treats WordPress query/Loop operations as a system boundary.
+// This stand-in only lets existing service tests enter that boundary; actual
+// conditionals, queried objects, Loop state and locale are verified in Playground.
+if (!class_exists('WP_Query')) {
+    /** System-boundary stand-in; query semantics are tested in real WordPress. */
+    #[\AllowDynamicProperties]
+    class WP_Query
+    {
+        /** Source query arguments, without request credentials. */
+        public array $query = [];
+        /** Parsed arguments supplied to the boundary. */
+        public array $query_vars = [];
+        /** The source object handed to the Loop boundary. */
+        public array $posts = [];
+        /** Public service tests start outside preview context. */
+        public bool $is_preview = false;
+
+        /** Accept source arguments without copying WordPress query semantics. */
+        public function parse_query(array $query): void
+        {
+            $this->query = $query;
+            $this->query_vars = $query;
+        }
+
+        /** Delegate post-data setup to the per-test WordPress function stub. */
+        public function the_post(): void
+        {
+            $GLOBALS['post'] = $this->posts[0];
+            setup_postdata($GLOBALS['post']);
+        }
+    }
+}
+
 // Initialise Patchwork before any plugin class is autoloaded so every class
 // passes through Patchwork's source-transformation pipeline (call interception,
 // internal-function redefinition, and the final-stripping registered below).

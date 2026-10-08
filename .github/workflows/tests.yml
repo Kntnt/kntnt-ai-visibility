@@ -139,3 +139,5 @@ jobs:
         run: python3 tests/Integration/playground-conversion-failure.py
       - name: Exposure settings option lifecycle
         run: python3 tests/Integration/playground-exposure-options.py
+      - name: Source query, Loop and locale rendering context
+        run: python3 tests/Integration/playground-source-context.py
