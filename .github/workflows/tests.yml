@@ -129,8 +129,14 @@ jobs:
         run: python3 tests/Integration/playground-plain-permalink.py
       - name: Sequential source, descendant and aggregate lifecycle
         run: python3 tests/Integration/playground-lifecycle.py
+      - name: Generation-safe aggregate pruning and immutable responses
+        run: python3 tests/Integration/playground-pruning.py
       - name: Concurrent publication, revocation and queued source freshness
         run: python3 tests/Integration/playground-publication.py
+      - name: Declared rendered metadata, final native writes and featured images
+        run: python3 tests/Integration/playground-rendered-meta.py
+      - name: Effective TTL, regenerated validators and page/aggregate consistency
+        run: python3 tests/Integration/playground-expiry.py
       - name: Bounded installation-scoped stampede locks and uncached fallback
         run: python3 tests/Integration/playground-stampede.py
       - name: Native deactivation and reactivation rewrite lifecycle
