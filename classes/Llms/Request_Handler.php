@@ -132,8 +132,14 @@ final class Request_Handler {
 	 */
 	public function handle(): void {
 
-		// Match the request; a non-match is left to WordPress.
+		// Leave unsupported methods to the ordinary WordPress workflow on both
+		// cold and warm artifact paths, before matching or materialisation.
 		$request = Request_Factory::from_globals();
+		if ( ! $request->is_read() ) {
+			return;
+		}
+
+		// Match the request; a non-match is left to WordPress.
 		$match = $this->match_provider( $request );
 		if ( $match === null ) {
 			return;
