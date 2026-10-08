@@ -28,7 +28,7 @@ beforeEach(function (): void {
         Mockery::mock(Page_Markdown_Provider::class),
         Mockery::mock(Page_Markdown::class),
         Mockery::mock(Store::class),
-        Mockery::mock(Serve_Router::class),
+        Mockery::mock(Serve_Router::class)->shouldReceive('is_artifact_path')->andReturnFalse()->getMock(),
         Mockery::mock(Logger::class)->shouldIgnoreMissing(),
     );
 });

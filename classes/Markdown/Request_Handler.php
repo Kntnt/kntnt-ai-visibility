@@ -120,7 +120,7 @@ final class Request_Handler {
 
 		// Dedicated artifact addresses do not vary their representation on Accept.
 		$request = Request_Factory::from_globals();
-		if ( $this->negotiate( $request ) === 'cache' ) {
+		if ( $this->router->is_artifact_path( $request->path ) || $this->negotiate( $request ) === 'cache' ) {
 			return $headers;
 		}
 
@@ -273,6 +273,11 @@ final class Request_Handler {
 		// The cache-grade forms: the advertised `.md` path and its `?format` twin.
 		if ( str_ends_with( $request->path, '.md' ) ) {
 			return 'cache';
+		}
+
+		// Core's registered dedicated addresses belong to their artifact provider.
+		if ( $this->router->is_artifact_path( $request->path ) ) {
+			return null;
 		}
 		if ( ( $request->query['format'] ?? '' ) === 'markdown' ) {
 			return 'cache';
@@ -467,6 +472,9 @@ final class Request_Handler {
 		$relations = $this->provider->advertise( new Discovery_Context( $post ) );
 		$md_url = $relations === [] ? '' : $relations[0]->href;
 		$response = $this->inline_response( $bytes, $request, (string) get_permalink( $post ), $md_url );
+
+		// An HTML integration's source date cannot validate dynamic Markdown.
+		header_remove( 'Last-Modified' );
 		$this->send( $response['status'], $response['headers'] );
 		if ( $response['send_body'] ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the body is Markdown served as text/markdown; HTML escaping would corrupt it.

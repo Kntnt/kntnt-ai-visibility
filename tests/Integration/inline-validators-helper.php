@@ -19,6 +19,12 @@ add_shortcode( 'inline_fixture_meta', static fn(): string => (string) get_post_m
 header( 'Vary: Cookie' );
 add_action( 'template_redirect', static function (): void {
 	header( 'Vary: Accept-Encoding', false );
+
+	// Reproduce an HTML integration that already supplied the source date.
+	$post = get_queried_object();
+	if ( $post instanceof \WP_Post ) {
+		header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', (int) get_post_modified_time( 'U', true, $post ) ) . ' GMT' );
+	}
 }, -100 );
 
 // Fixed controls are available only in this disposable WordPress filesystem.

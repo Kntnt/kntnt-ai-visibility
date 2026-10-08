@@ -31,7 +31,7 @@ final class Conditional_Request {
 	 * @param string   $if_none_match     The If-None-Match request header, or ''.
 	 * @param string   $if_modified_since The If-Modified-Since request header, or ''.
 	 * @param string   $etag              The current content ETag (quoted).
-	 * @param int|null $last_modified     The representation's known modification time, or null.
+	 * @param int|null $last_modified     The known modification time, or null.
 	 * @return bool True when the client may be answered with 304.
 	 */
 	public static function is_fresh( string $if_none_match, string $if_modified_since, string $etag, ?int $last_modified ): bool {
@@ -69,7 +69,7 @@ final class Conditional_Request {
 	 *
 	 * @since 0.2.3
 	 *
-	 * @param string   $etag A quoted ETag string, optionally prefixed with `W/`.
+	 * @param string $etag A quoted ETag string, optionally prefixed with `W/`.
 	 * @return string The ETag with any `W/` prefix removed.
 	 */
 	private static function strip_weak( string $etag ): string {

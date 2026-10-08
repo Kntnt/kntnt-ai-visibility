@@ -45,9 +45,12 @@ def verify(base):
     initial = state()
     assert re.fullmatch(r"8\.4\.[0-9]+", initial["php"]), initial
     print("Actual Playground PHP " + initial["php"], flush=True)
+    status, fields, _ = fetch(base, "/ordinary/")
+    assert status == 200 and fields.get("Last-Modified") == initial["source_date"], fields
     selection = {"Accept": "text/markdown"}
     status, headers, body = fetch(base, "/ordinary/", selection)
     assert status == 200 and b"META-ORIGINAL" in body and b"SHARED-ORIGINAL" in body, (status, body)
+    policy(headers)
     previous_etag = headers.get("ETag")
     for action, marker in [("metadata", b"META-CHANGED"), ("shared", b"SHARED-CHANGED")]:
         changed = state(action)
