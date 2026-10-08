@@ -8,8 +8,8 @@
 
 declare( strict_types = 1 );
 
-// Change source language and permalink policy through real WordPress writes.
-add_action( 'init', static function (): void {
+// Let Bogo finish its initial rewrite refresh before fixture controls exit.
+add_action( 'wp_loaded', static function (): void {
     if ( ( $_GET['canonical_token'] ?? '' ) !== 'fixture-only' ) {
         return;
     }
