@@ -1,0 +1,32 @@
+{
+    "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "preferredVersions": {
+        "php": "8.4",
+        "wp": "latest"
+    },
+    "steps": [
+        {
+            "step": "setSiteLanguage",
+            "language": "sv_SE"
+        },
+        {
+            "step": "setSiteLanguage",
+            "language": "en_GB"
+        },
+        {
+            "step": "installPlugin",
+            "pluginData": {
+                "resource": "url",
+                "url": "https://downloads.wordpress.org/plugin/bogo.3.9.3.zip"
+            }
+        },
+        {
+            "step": "activatePlugin",
+            "pluginPath": "kntnt-ai-visibility/kntnt-ai-visibility.php"
+        },
+        {
+            "step": "runPHP",
+            "code": "<?php require '/wordpress/wp-content/plugins/kntnt-ai-visibility/tests/Integration/lifecycle-seed.php';"
+        }
+    ]
+}
