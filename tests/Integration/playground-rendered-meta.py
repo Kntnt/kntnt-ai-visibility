@@ -171,4 +171,3 @@ def run(subpath):
 if __name__ == "__main__":
     for installation in ([""] if os.environ.get("KNTNT_RENDERED_META_SLICE") else ["", "/sub"]):
         run(installation)
-
