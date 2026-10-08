@@ -74,7 +74,8 @@ def run(subpath):
         ], stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             tracker = Path.home() / ".agents/skills/kntnt/features/session-cleanup/scripts/session_cleanup.py"
-            subprocess.run(["uv", "run", str(tracker), "add", "pid", str(worker.pid), "#32 stampede Playground"], check=True, stdout=subprocess.DEVNULL)
+            if tracker.exists():
+                subprocess.run(["uv", "run", str(tracker), "add", "pid", str(worker.pid), "#32 stampede Playground"], check=True, stdout=subprocess.DEVNULL)
             print("Playground process group: " + str(worker.pid), flush=True)
             for _ in range(90):
                 if worker.poll() is not None:
