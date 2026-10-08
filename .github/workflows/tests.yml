@@ -129,5 +129,7 @@ jobs:
         run: python3 tests/Integration/playground-eligibility.py
       - name: Stored-password public-artifact exclusion
         run: python3 tests/Integration/playground-password.py
+      - name: Anonymous public artifact rendering
+        run: python3 tests/Integration/playground-public-rendering.py
       - name: Generated artifact responses when persistence fails
         run: python3 tests/Integration/playground-cache-failure.py

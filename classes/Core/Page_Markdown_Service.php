@@ -82,7 +82,7 @@ final class Page_Markdown_Service implements Page_Markdown {
 			throw new \DomainException( 'Password-protected posts cannot produce public Markdown.' );
 		}
 
-		return Post_Context::render( $post, fn(): string => $this->render_post( $post ) );
+		return Public_Rendering::run( fn(): string => Post_Context::render( $post, fn(): string => $this->render_post( $post ) ) );
 
 	}
 
@@ -120,6 +120,9 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 * @throws \DomainException When the source has a stored password, even on a hit.
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): Materialisation {
+
+		// Do not let a preview context consult or populate the shared file cache.
+		Public_Rendering::assert_public_request( true );
 
 		// A warm file must not bypass the source's stored password.
 		if ( $post->post_password !== '' ) {
