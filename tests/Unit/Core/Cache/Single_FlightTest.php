@@ -4,7 +4,7 @@
  *
  * once() is the lock-and-cache stampede guard shared by the per-page Markdown and
  * the O(site) llms aggregates (docs/spec/llms-txt.md §3.3): a cache hit returns
- * the bytes without producing; a miss holds a per-identity advisory lock outside
+ * the bytes without producing; a miss holds a per-family advisory lock outside
  * the cache tree, re-checks the cache, runs the producer, writes and returns.
  *
  * @package Tests\Unit
@@ -86,6 +86,121 @@ it('preserves unrelated locks and cleans its resources when the single-flight su
 });
 
 describe('Single_Flight::once', function (): void {
+
+    it('keeps one owner through a waiter and a third contender even when writes are unavailable', function (): void {
+        file_put_contents($this->base, 'actual cache obstruction');
+        $project = dirname(__DIR__, 4);
+        $workers = [];
+        foreach (['first', 'second', 'third'] as $role) {
+            $workers[$role] = new Process([
+                PHP_BINARY, $project . '/tests/Integration/stampede-worker.php',
+                $this->base, $this->lockdir, kntnt_test_publication_directory(), $role,
+            ]);
+        }
+        $wait = static function (string $path): void {
+            $deadline = microtime(true) + 3;
+            while (!is_file($path) && microtime(true) < $deadline) { usleep(10000); }
+            expect(is_file($path))->toBeTrue('Missing public producer/validation signal: ' . $path);
+        };
+        try {
+            $workers['first']->start();
+            $wait($this->lockdir . '/started-first');
+            $workers['second']->start();
+            $wait($this->lockdir . '/queued-second');
+            expect(is_file($this->lockdir . '/started-second'))->toBeFalse();
+            file_put_contents($this->lockdir . '/release-first', 'release');
+            $workers['first']->wait();
+            $wait($this->lockdir . '/started-second');
+            $workers['third']->start();
+            $wait($this->lockdir . '/queued-third');
+            usleep(150000);
+            expect(is_file($this->lockdir . '/started-third'))->toBeFalse();
+            file_put_contents($this->lockdir . '/release-second', 'release');
+            foreach ($workers as $role => $worker) {
+                $worker->wait();
+                expect($worker->getExitCode())->toBe(0, $worker->getErrorOutput());
+                expect(json_decode($worker->getOutput(), true))->toBe(['bytes' => strtoupper($role), 'persisted' => false]);
+            }
+            expect(is_file($this->lockdir . '/overlap'))->toBeFalse();
+            expect(glob($this->lockdir . '/*.lock'))->toHaveCount(1);
+        } finally {
+            foreach ($workers as $worker) { $worker->stop(); }
+            if (is_file($this->base)) { unlink($this->base); }
+        }
+    });
+
+    it('lets another installation generate while the same family is busy elsewhere', function (): void {
+        $otherBase = $this->base . '-other-installation';
+        $arguments = [PHP_BINARY, dirname(__DIR__, 4) . '/tests/Integration/stampede-worker.php'];
+        $first = new Process([...$arguments, $this->base, $this->lockdir, kntnt_test_publication_directory(), 'first']);
+        $other = new Process([...$arguments, $otherBase, $this->lockdir, kntnt_test_publication_directory(), 'third']);
+        $other->setTimeout(1.5);
+        try {
+            $first->start();
+            $deadline = microtime(true) + 3;
+            while (!is_file($this->lockdir . '/started-first') && microtime(true) < $deadline) { usleep(10000); }
+            expect(is_file($this->lockdir . '/started-first'))->toBeTrue();
+            $other->run();
+            expect($other->getExitCode())->toBe(0, $other->getErrorOutput());
+            expect(json_decode($other->getOutput(), true))->toBe(['bytes' => 'THIRD', 'persisted' => true]);
+            expect($first->isRunning())->toBeTrue();
+            file_put_contents($this->lockdir . '/release-first', 'release');
+            $first->wait();
+            expect($first->getExitCode())->toBe(0, $first->getErrorOutput());
+            expect(is_file($this->lockdir . '/overlap'))->toBeFalse();
+        } finally {
+            $first->stop();
+            $other->stop();
+            kntnt_rmtree($otherBase);
+        }
+    });
+
+    it('completes nested generation by separate same-store objects without deadlock', function (): void {
+        $worker = new Process([
+            PHP_BINARY, dirname(__DIR__, 4) . '/tests/Integration/stampede-worker.php',
+            $this->base, $this->lockdir, kntnt_test_publication_directory(), 'nested',
+        ]);
+        $worker->setTimeout(1.5);
+        try {
+            $worker->run();
+            expect($worker->getExitCode())->toBe(0, $worker->getErrorOutput());
+            expect(json_decode($worker->getOutput(), true))->toBe(['bytes' => 'OUTER-INNER', 'persisted' => true]);
+            expect($this->store->read(new Identity('markdown-alternate', 'inner', 2)))->toBe('INNER');
+            expect($this->store->read(new Identity('markdown-alternate', 'outer', 1)))->toBe('OUTER-INNER');
+        } finally {
+            $worker->stop();
+        }
+    });
+
+    it('isolates installations even when their injected coordination root is shared', function (): void {
+        $otherBase = $this->base . '-other-installation';
+        $other = kntnt_test_file_store(static fn(): string => $otherBase);
+        $identity = new Identity('llms-txt', 'llms-v1');
+        try {
+            expect((new Single_Flight($this->store, $this->lockdir))->once($identity, fn(): string => 'ONE')->bytes)->toBe('ONE');
+            expect((new Single_Flight($other, $this->lockdir))->once($identity, fn(): string => 'TWO')->bytes)->toBe('TWO');
+            expect($this->store->read($identity))->toBe('ONE');
+            expect($other->read($identity))->toBe('TWO');
+            expect(glob($this->lockdir . '/*.lock'))->toHaveCount(2);
+        } finally {
+            kntnt_rmtree($otherBase);
+        }
+    });
+
+    it('bounds historical aggregate locks while retaining only the current document', function (): void {
+        $flight = new Single_Flight($this->store, $this->lockdir);
+        $previous = null;
+        for ($version = 1; $version <= 40; ++$version) {
+            $identity = new Identity('llms-txt', 'llms-v' . $version);
+            $result = $flight->once($identity, static fn(): string => 'CURRENT-' . $version);
+            expect($result->bytes)->toBe('CURRENT-' . $version);
+            if ($previous !== null) { $this->store->delete($previous); }
+            $previous = $identity;
+        }
+        expect(glob($this->base . '/llms-txt/*.md'))->toHaveCount(1);
+        expect(glob($this->lockdir . '/*.lock'))->toHaveCount(1);
+    });
+
 
     it('rejects active and queued obsolete processes before a fresh writer fills the identity', function (): void {
         $project = dirname(__DIR__, 4);
@@ -203,7 +318,7 @@ describe('Single_Flight::once', function (): void {
         expect($bytes->persisted)->toBeTrue();
         expect($produced)->toBeTrue();
         expect($this->store->read($identity))->toBe('BYTES');
-        // The lock path is exercised: a per-identity lock file was created.
+        // The lock path is exercised: a stable family lock file was created.
         expect(glob($this->lockdir . '/*.lock'))->not->toBeEmpty();
     });
 
@@ -220,18 +335,68 @@ describe('Single_Flight::once', function (): void {
         expect($bytes->persisted)->toBeTrue();
     });
 
-    it('still produces and caches when the lock cannot be acquired', function (): void {
-        $identity = new Identity('markdown-alternate', 'nolock', 9);
-        $produced = false;
-        $flight = new Single_Flight($this->store, $this->base . '/does-not-exist');
-        $bytes = $flight->once($identity, function () use (&$produced): string {
-            $produced = true;
-            return 'BYTES';
+    it('degrades silently when its default directory cannot be created', function (): void {
+        Functions\when('wp_json_encode')->alias('json_encode');
+        $obstruction = $this->lockdir . '/system-temp-obstruction';
+        file_put_contents($obstruction, 'ordinary file');
+        $temporaryRoot = \Patchwork\redefine('sys_get_temp_dir', static fn(): string => $obstruction);
+        $lines = [];
+        $logger = new Plugin_Logger(static function (string $line) use (&$lines): void { $lines[] = $line; });
+        $warnings = [];
+        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+            if (error_reporting() & $severity) { $warnings[] = $message; }
+            return true;
         });
-        expect($bytes->bytes)->toBe('BYTES');
-        expect($bytes->persisted)->toBeTrue();
-        expect($produced)->toBeTrue();
-        expect($this->store->read($identity))->toBe('BYTES');
+        try {
+            $result = (new Single_Flight($this->store, logger: $logger))->once(
+                new Identity('llms-txt', 'llms-v1'), fn(): string => 'VALID CURRENT',
+            );
+            expect($result->bytes)->toBe('VALID CURRENT');
+            expect($result->persisted)->toBeFalse();
+            expect($warnings)->toBeEmpty();
+            expect(implode("\n", $lines))->toContain('Single-flight lock unavailable', 'mkdir');
+        } finally {
+            restore_error_handler();
+            \Patchwork\restore($temporaryRoot);
+        }
+    });
+
+    it('never treats a real failed flock as successful ownership', function (): void {
+        Functions\when('wp_json_encode')->alias('json_encode');
+        $lines = [];
+        $logger = new Plugin_Logger(static function (string $line) use (&$lines): void { $lines[] = $line; });
+        // PHP's actual temporary-memory stream opens successfully but cannot flock.
+        $flight = new Single_Flight($this->store, 'php://temp', logger: $logger);
+        $identity = new Identity('markdown-alternate', 'unlocked-stream', 1);
+        $result = $flight->once($identity, static fn(): string => 'VALID CURRENT');
+        expect($result->bytes)->toBe('VALID CURRENT');
+        expect($result->persisted)->toBeFalse();
+        expect($this->store->read($identity))->toBeNull();
+        expect(implode("\n", $lines))->toContain('Single-flight lock unavailable', 'flock');
+    });
+
+    it('returns valid uncached bytes and controlled diagnostics when lock storage is unavailable', function (): void {
+        Functions\when('wp_json_encode')->alias('json_encode');
+        $identity = new Identity('markdown-alternate', 'nolock', 9);
+        $diagnostic = $this->lockdir . '/diagnostics.log';
+        $previousLog = ini_set('error_log', $diagnostic);
+        $warnings = [];
+        set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
+            if (error_reporting() & $severity) { $warnings[] = $message; }
+            return true;
+        });
+        try {
+            $flight = new Single_Flight($this->store, $this->base . '/does-not-exist');
+            $result = $flight->once($identity, static fn(): string => 'VALID CURRENT');
+        } finally {
+            restore_error_handler();
+            ini_set('error_log', $previousLog);
+        }
+        expect($result->bytes)->toBe('VALID CURRENT');
+        expect($result->persisted)->toBeFalse();
+        expect($this->store->read($identity))->toBeNull();
+        expect($warnings)->toBeEmpty();
+        expect(file_get_contents($diagnostic))->toContain('Single-flight lock unavailable', 'open');
     });
 
     it('creates a plugin-owned lock directory when none is injected', function (): void {
@@ -240,7 +405,7 @@ describe('Single_Flight::once', function (): void {
         $temporary_root = $this->base . '/system-temp';
         mkdir($temporary_root, 0700, true);
         $temporary_root_mock = \Patchwork\redefine('sys_get_temp_dir', static fn(): string => $temporary_root);
-        $managed = $temporary_root . '/kntnt-ai-visibility-locks';
+        $managed = $temporary_root . '/kntnt-ai-visibility-locks-' . hash('sha256', $this->base);
         $identity = new Identity('markdown-alternate', 'managed', 7);
 
         // Construction stays lazy; the first miss creates the owned directory.
@@ -249,7 +414,7 @@ describe('Single_Flight::once', function (): void {
             expect(is_dir($managed))->toBeFalse();
             $bytes = $flight->once($identity, static fn(): string => 'BYTES');
             expect($bytes->bytes)->toBe('BYTES');
-        expect($bytes->persisted)->toBeTrue();
+            expect($bytes->persisted)->toBeTrue();
             expect(is_dir($managed))->toBeTrue();
             expect(glob($managed . '/*.lock'))->not->toBeEmpty();
         } finally {
