@@ -141,3 +141,5 @@ jobs:
         run: python3 tests/Integration/playground-exposure-options.py
       - name: Source query, Loop and locale rendering context
         run: python3 tests/Integration/playground-source-context.py
+      - name: Front-matter taxonomy links and actual HTML archives
+        run: python3 tests/Integration/playground-taxonomy-links.py
