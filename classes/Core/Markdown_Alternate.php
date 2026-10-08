@@ -62,9 +62,14 @@ final class Markdown_Alternate {
 	 */
 	public function url_for( \WP_Post $post ): string {
 
+		// Query canonicals need composition, never a suffix in a query value.
+		if ( get_option( 'permalink_structure' ) === '' ) {
+			return add_query_arg( 'format', 'markdown', $this->canonical_url_for( $post ) );
+		}
+
 		// Reserve /index.md for the home. Ordinary index leaves append another
 		// index segment, so repeated index paths remain distinct at every depth.
-		$permalink = rtrim( $this->permalink_for( $post ), '/' );
+		$permalink = rtrim( $this->canonical_url_for( $post ), '/' );
 		return $this->is_front( $post ) || $this->key_for( $post ) === 'index' || str_ends_with( $permalink, '/index' )
 			? $permalink . '/index.md'
 			: $permalink . '.md';
@@ -110,12 +115,18 @@ final class Markdown_Alternate {
 	 */
 	private function key_for( \WP_Post $post ): string {
 
+		// Plain canonicals carry source identity in their query, not their path.
+		// Only the stored numeric post ID enters this internal filesystem key.
+		if ( get_option( 'permalink_structure' ) === '' ) {
+			return 'plain/' . $post->ID;
+		}
+
 		// The key is the permalink path relative to the WordPress home, without
 		// surrounding slashes; the slug-less home maps to the 'index' key the
 		// router serves at /index.md. Keeping the key home-relative means the same
 		// key is derived on root and subdirectory installs. Ordinary index leaves
 		// append one segment too, preventing collisions with a home or a parent.
-		$path = $this->home_relative( (string) wp_parse_url( $this->permalink_for( $post ), PHP_URL_PATH ) );
+		$path = $this->home_relative( (string) wp_parse_url( $this->canonical_url_for( $post ), PHP_URL_PATH ) );
 		$key = trim( $path, '/' );
 
 		return $key === '' || $this->is_front( $post ) || str_ends_with( '/' . $key, '/index' )
@@ -125,14 +136,14 @@ final class Markdown_Alternate {
 	}
 
 	/**
-	 * Resolves a front-page permalink before Bogo's home_url filter is active.
+	 * Returns the source canonical URL, including Bogo's front-page language.
 	 *
 	 * @since 0.5.2
 	 *
 	 * @param \WP_Post $post The source post, whose locale determines the URL.
 	 * @return string The permalink with the site's configured language policy.
 	 */
-	private function permalink_for( \WP_Post $post ): string {
+	public function canonical_url_for( \WP_Post $post ): string {
 
 		// Bogo leaves the selected front page's permalink unchanged until
 		// template_redirect. HTTP discovery runs earlier, on send_headers.

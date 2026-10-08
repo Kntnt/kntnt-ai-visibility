@@ -136,6 +136,7 @@ run_e2e() {
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-methods.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-canonical.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-home-index.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-plain-permalink.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-password.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-eligibility.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-cache-failure.py" \

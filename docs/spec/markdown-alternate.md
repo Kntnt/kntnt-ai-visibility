@@ -75,8 +75,8 @@ interface Provider {
     // (Release 1: the page's own `.md` alternate). Consumed by module (c).
     public function advertise( Discovery_Context $context ): array; // Link_Relation[]
 
-    // The request shape this provider serves — feeds the router allowlist.
-    public function serve_pattern(): Serve_Pattern;
+    // A dedicated request path, or null for query-only providers.
+    public function serve_pattern(): ?Serve_Pattern;
 }
 ```
 
@@ -85,6 +85,8 @@ interface Provider {
 ### 3.3 The artifact registry (ADR-0008)
 
 One registry, three internal **ISP slices** over a single source of truth (the registry stays deep externally; the slices never surface on the provider interface):
+
+`Registry::serve_patterns()` returns a concrete list of dedicated patterns, omitting providers whose `serve_pattern()` is null. A query-only provider still participates in matching and discovery; its private cache key does not become a public path.
 
 ```php
 namespace Kntnt\Ai_Visibility\Core\Artifact;
@@ -174,12 +176,18 @@ A request resolves to a Markdown alternate iff it resolves to a **single, public
 
 ### 4.2 Request forms, routing and precedence (ADR-0009)
 
-Four reachable forms; strict precedence **`.md` URL > `?format=markdown` > `Accept`**:
+With pretty permalinks, four reachable forms use strict precedence **`.md` URL > `?format=markdown` > `Accept`**:
 
 1. **`.md` suffix** on a slugged URL (`/about/team.md`, `/category/news.md` for a singular post under that path) – the cache-grade, advertised path. An ordinary canonical path ending in `/index/` appends `/index.md` instead: `/index/` advertises `/index/index.md` and `/index/index/` advertises `/index/index/index.md`. Their home-relative keys append the same extra `index` segment, keeping every ordinary index leaf distinct from the home and from deeper index pages. The provider reverses exactly one segment only for dedicated `.md` requests and refuses shorter aliases. Canonical `/index/` negotiation still resolves the ordinary page. **Lowercase `.md` only**; uppercase/mixed → not matched (404).
 2. **`?format=markdown`** on the canonical URL — same provider/cache as the `.md` path.
 3. **`Accept: text/markdown`** on the canonical URL — the standards-correct form. Default (§1.1): serve Markdown **inline, uncached**, with `Vary: Accept` and a `Link: <…>.md; rel="alternate"` steering agents to the cache-grade URL. Select Markdown only when an explicit `text/markdown` or `text/x-markdown` range has positive quality strictly above the HTML alternative; HTML wins ties. Evaluate `text/html` and `application/xhtml+xml` using their most specific matching range (exact type, then `text/*` or `application/*`, then `*/*`), retaining explicit `q=0`. Wildcards alone never select Markdown. Media types and `q` names are case-insensitive; trim surrounding whitespace. A quality value outside RFC 9110's 0–1 grammar, more than three fractional digits, a missing value or repeated `q` parameters gives that range zero quality. These rules do not change `.md` or `?format=markdown` precedence.
 4. **`/index.md`** reserved for the static home; a blog home has no per-page alternate. Translated homes keep their source-language prefix and subdirectory installations keep their configured base.
+
+**Plain permalinks:** the supported and advertised alternate is the source's canonical query URL composed with `format=markdown`, for example `/?page_id=16&format=markdown` or `/?p=21&lang=sv&format=markdown`. `Accept: text/markdown` on that same canonical also works. No `.md` path or synthetic public path is supported in plain mode, including `/index.md`; reaching the query alternate needs no pretty-permalink webserver rewrites. Each source, including a translated static front, has the internal cache key `plain/<positive stored post ID>`. The static front retains its canonical home URL (plus Bogo's canonical `lang` query where required), while ordinary pages retain their native ID selectors. A blog home has no alternate.
+
+`Request_Factory` preserves decoded scalar query fields and retains invalid structured values as invalid scalar markers. In plain mode only one positive `p` or `page_id` selects a source; the remaining fields, including Bogo's language and a custom post type, must equal the source's canonical query after removing `format`. Parameter order is irrelevant. Unsupported extra fields, invalid IDs, conflicting selectors, wrong-language queries and out-of-installation paths fall through without Markdown. The provider never derives a filesystem path from query text. After switching to pretty mode, old plain selectors fall through instead of selecting the home by path. Normal option invalidation purges old identities and changes both aggregate generations before a new mode is served.
+
+**Downstream identity contract (#10, #18, #23, #24, #31):** use `Markdown_Alternate::identity_for()` for source cache invalidation, `url_for()` for advertised alternates and `canonical_url_for()` for the source-language canonical URL. Keep plain keys internal, compose query parameters rather than appending path suffixes and make redirect and deactivation policy respect the currently configured supported forms. Pretty home/index escaping and language/installation prefixes remain the scheme above. Canonical metadata and `rel="canonical"` must name the HTML source, and deactivation must leave native WordPress query URLs usable. This contract does not implement those follow-up tickets.
 
 **HTTP methods:** only `GET` and `HEAD` enter artifact handling. Every other method falls through to the ordinary WordPress workflow before negotiation, trailing-slash redirects, generation or conditional serving. This applies to canonical URLs (including `?format=markdown` and Markdown in `Accept`) and dedicated `.md` paths alike, on cold and warm caches. The plugin does not emit a rejection or an `Allow` header for this fall-through policy; downstream page and form handlers retain control of the response. Unsupported methods never materialise an artifact or receive a plugin-generated `304`.
 

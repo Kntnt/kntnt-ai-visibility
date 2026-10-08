@@ -112,18 +112,22 @@ final class Markdown_Alternate {
     // The cache identity: KIND, the home-relative key and the source ID.
     // An unprefixed home uses 'index'; source-language prefixes survive.
     // Ordinary index leaves append '/index'. Root and subdirectory installs
-    // derive the same key.
+    // derive the same key. Plain permalinks use 'plain/<stored post ID>'.
     public function identity_for( \WP_Post $post ): Identity;
 
     // The absolute `.md` URL advertised and linked for a post: the source-language
     // home plus '/index.md' for a static front. Ordinary index leaves append
     // '/index.md'; other pages append '.md' to the permalink minus its trailing slash.
     public function url_for( \WP_Post $post ): string;
+
+    // The HTML source canonical, including its Bogo language policy.
+    public function canonical_url_for( \WP_Post $post ): string;
 }
 ```
 
 - The locator owns `key_for`, the advertised URL and `home_relative`; the Markdown provider and both aggregates use this same identity scheme. Home `index` keys are reserved for configured static fronts. An ordinary canonical index leaf gains one additional `index` segment in both its key and its dedicated URL, at every nesting depth and with source-language prefixes preserved. Dedicated-path resolution reverses this escape; canonical negotiation uses the original page path. No shorter compatibility aliases are provided.
 - The llms index builder calls `url_for()` for each link; the llms full builder calls `identity_for()` to materialise each page's Markdown.
+- Plain permalinks use distinct `plain/<stored post ID>` cache keys for every source, including static fronts. The locator composes `format=markdown` onto the canonical query URL; the index advertises that reachable form and the full builder materialises the same source identities. No raw query text enters a key, and no plain `.md` or synthetic path is advertised or registered for early serving. Both canonical query and `Accept` forms are supported as specified in [Markdown §4.2](markdown-alternate.md#42-request-forms-routing-and-precedence-adr-0009).
 - The `.md` URL for a non-ASCII slug is still a valid URL — it just resolves through the uncached PHP path (the Release-1 deferred limitation), so the link works; it is simply not early-cached. No new issue for Release 2 (§10).
 
 ### 3.3 Single-flight materialiser → Core
@@ -179,7 +183,7 @@ final readonly class Serve_Pattern {
 }
 ```
 
-The Markdown provider's `serve_pattern()` becomes `Serve_Pattern::suffix( Markdown_Alternate::KIND, '.md' )`. The router changes:
+The Markdown provider's `serve_pattern()` is `Serve_Pattern::suffix( Markdown_Alternate::KIND, '.md' )` with pretty permalinks and null with plain permalinks. The registry omits nulls from its concrete dedicated-path allowlist; aggregate providers retain their exact patterns. The router changes:
 
 - **Constructor** gains a lazy `cache_version` callback (`callable(): int`, default `static fn(): int => 1`), invoked **only** when an exact-versioned pattern matches — so a normal request (HTML, asset, `.md`) never reads the option. Wire it in `Plugin` to `static fn(): int => ( new Cache_Version() )->current()`.
 - **`identify()`** branches per pattern mode. Suffix mode is unchanged (strip the leading slash and suffix, validate against `SAFE_KEY`). Exact mode: the home-relative path must equal `$pattern->path` exactly (case-sensitive); the key is `$pattern->key` plus, when versioned, `'-v' . ($cache_version)()`; the derived key is still validated against `SAFE_KEY` as defence-in-depth (it always passes — `llms`, `llms-full-v8` all match the whitelist). No part of the URL ever reaches the key in exact mode.

@@ -31,7 +31,7 @@ beforeEach(function (): void {
     Functions\when('untrailingslashit')->alias(fn(string $s): string => rtrim($s, '/'));
     Functions\when('get_page_by_path')->justReturn(null);
     Functions\when('get_posts')->justReturn([]);
-    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com' : '');
+    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com' : '/%postname%/');
 
     $this->page_markdown = Mockery::mock(Page_Markdown::class);
     $this->eligibility   = Mockery::mock(Eligibility::class);
@@ -39,6 +39,12 @@ beforeEach(function (): void {
 });
 
 describe('Page_Markdown_Provider::serve_pattern', function (): void {
+
+    it('declares no early suffix path for query-only plain alternates', function (): void {
+        Functions\when('get_option')->alias(fn(string $name): string => $name === 'permalink_structure' ? '' : 'https://example.com');
+
+        expect($this->provider->serve_pattern())->toBeNull();
+    });
 
     it('declares the markdown-alternate .md shape', function (): void {
         $pattern = $this->provider->serve_pattern();
@@ -51,6 +57,47 @@ describe('Page_Markdown_Provider::serve_pattern', function (): void {
 
 describe('Page_Markdown_Provider::match', function (): void {
 
+    it('rejects an old plain selector after switching to pretty permalinks', function (): void {
+        $front = new WP_Post();
+        $front->ID = 2;
+        Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'home' => 'https://example.com',
+            'permalink_structure' => '/%postname%/',
+            'show_on_front' => 'page',
+            'page_on_front' => 2,
+            default => '',
+        });
+        Functions\when('get_post')->justReturn($front);
+        Functions\when('get_permalink')->justReturn('https://example.com/');
+        $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
+
+        expect($this->provider->match(new Request('GET', '/', ['page_id' => '16', 'format' => 'markdown'])))->toBeNull();
+    });
+
+    it('resolves a plain canonical query to its own source rather than the front', function (): void {
+        $front = new WP_Post();
+        $front->ID = 2;
+        $front->post_type = 'page';
+        $page = new WP_Post();
+        $page->ID = 16;
+        $page->post_type = 'page';
+        Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'home' => 'https://example.com',
+            'permalink_structure' => '',
+            'show_on_front' => 'page',
+            'page_on_front' => 2,
+            default => false,
+        });
+        Functions\when('get_post')->alias(fn(int $id): WP_Post => $id === 2 ? $front : $page);
+        Functions\when('get_permalink')->alias(fn(WP_Post $post): string => $post->ID === 2 ? 'https://example.com/' : 'https://example.com/?page_id=16');
+        $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
+
+        $identity = $this->provider->match(new Request('GET', '/', ['page_id' => '16', 'format' => 'markdown']));
+
+        expect($identity?->source_id)->toBe(16);
+        expect($identity?->key)->toBe('plain/16');
+    });
+
     it('negotiates the configured front even when another page has the index slug', function (): void {
         $front = new WP_Post();
         $front->ID = 2;
@@ -58,6 +105,7 @@ describe('Page_Markdown_Provider::match', function (): void {
         $index->ID = 11;
         Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
             'home' => 'https://example.com',
+            'permalink_structure' => '/%postname%/',
             'show_on_front' => 'page',
             'page_on_front' => 2,
             default => '',
@@ -74,7 +122,7 @@ describe('Page_Markdown_Provider::match', function (): void {
     it('rejects a real canonical leaf path outside its configured installation', function (): void {
         $post = new WP_Post();
         $post->ID = 30;
-        Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '');
+        Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '/%postname%/');
         Functions\when('url_to_postid')->justReturn(30);
         Functions\when('get_post')->justReturn($post);
         Functions\when('get_permalink')->justReturn('https://example.com/blog/about/');
@@ -166,7 +214,7 @@ describe('Page_Markdown_Provider::match', function (): void {
     });
 
     it('derives a home-relative key on a subdirectory install', function (): void {
-        Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '');
+        Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '/%postname%/');
         // WordPress at /blog/: keys must be relative to the home so the router
         // (which strips the same base) and the provider agree.
         $page     = new WP_Post();
@@ -189,6 +237,7 @@ describe('Page_Markdown_Provider::match', function (): void {
         $front->ID = 31;
         Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/blog' . $path);
         Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'permalink_structure' => '/%postname%/',
             'show_on_front' => 'page',
             'page_on_front' => 31,
             'home' => 'https://example.com/blog',
@@ -208,6 +257,7 @@ describe('Page_Markdown_Provider::match', function (): void {
         $front     = new WP_Post();
         $front->ID = 2;
         Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'permalink_structure' => '/%postname%/',
             'show_on_front' => 'page',
             'page_on_front' => 2,
             'home' => 'https://example.com',

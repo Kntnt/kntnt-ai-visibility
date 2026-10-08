@@ -59,12 +59,13 @@ interface Provider {
 	public function advertise( Discovery_Context $context ): array;
 
 	/**
-	 * The request shape this provider serves, for the router allowlist.
+	 * The dedicated path shape this provider permits in the early router.
+	 * Query-only alternates return null and stay in the WordPress handler.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @return Serve_Pattern
+	 * @return Serve_Pattern|null
 	 */
-	public function serve_pattern(): Serve_Pattern;
+	public function serve_pattern(): ?Serve_Pattern;
 
 }

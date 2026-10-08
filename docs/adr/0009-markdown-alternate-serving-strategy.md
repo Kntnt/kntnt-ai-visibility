@@ -1,6 +1,6 @@
 # Markdown-alternate serving: four request forms, HTML canonical
 
-A page's Markdown alternate is reachable four ways, carried over from the behavioural reference `Kntnt/markdown-alternate`:
+A page's Markdown alternate with pretty permalinks is reachable four ways, carried over from the behavioural reference `Kntnt/markdown-alternate`:
 
 1. **`.md` suffix** on a slugged URL – `/hello-world.md`, `/about/team.md`, `/category/news.md`.
 2. **`?format=markdown`** on the canonical URL.
@@ -8,6 +8,8 @@ A page's Markdown alternate is reachable four ways, carried over from the behavi
 4. **`/index.md`** for the slug-less **root/home** (by analogy with Apache serving `/index.html` for a directory).
 
 The `.md` URL (including `/index.md`) is the **cache-grade, advertised** path; `?format=markdown` routes to the same provider/cache; **`Accept`-on-canonical is the uncached PHP path** ([ADR-0007](0007-file-cached-artifacts-early-contained-router.md)), emitting `Vary: Accept` and a `Link: <…>.md; rel="alternate"` so well-behaved agents migrate to the cacheable URL.
+
+With plain permalinks, the advertised alternate is the native canonical query URL composed with `format=markdown`; `Accept` negotiation also works on that canonical. There is no dedicated `.md` or synthetic public path in this mode, so the supported form does not depend on pretty-permalink webserver rewrites. Sources use distinct internal `plain/<stored post ID>` keys, including static fronts; raw queries never become filesystem paths. Exact canonical selectors, language and installation path must agree. The [concrete contract](../spec/markdown-alternate.md#42-request-forms-routing-and-precedence-adr-0009) records switching and home/index behaviour.
 
 **Canonical relationship:** the HTML response stays `rel="canonical"`; the `.md` is advertised from the HTML as `rel="alternate"; type="text/markdown"` and itself carries `rel="canonical"` back to the HTML, to avoid duplicate-content confusion.
 

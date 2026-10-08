@@ -38,9 +38,26 @@ beforeEach(function (): void {
 
 describe('Markdown_Alternate::identity_for', function (): void {
 
+    it('keeps plain-permalink sources distinct from the configured front', function (): void {
+        Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'home' => 'https://example.com/blog',
+            'permalink_structure' => '',
+            'show_on_front' => 'page',
+            'page_on_front' => 2,
+            default => false,
+        });
+        Functions\when('get_permalink')->alias(fn(WP_Post $post): string => $post->ID === 2 ? 'https://example.com/blog/' : 'https://example.com/blog/?page_id=' . $post->ID);
+        $locator = new Markdown_Alternate();
+
+        expect($locator->identity_for(kntnt_md_post(2))->key)->toBe('plain/2');
+        expect($locator->identity_for(kntnt_md_post(8))->key)->toBe('plain/8');
+        expect($locator->identity_for(kntnt_md_post(11))->key)->toBe('plain/11');
+    });
+
     it('gives the static home and a literal index page distinct advertised identities', function (): void {
         Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
             'home' => 'https://example.com',
+            'permalink_structure' => '/%postname%/',
             'show_on_front' => 'page',
             'page_on_front' => 2,
             default => '',
@@ -83,6 +100,23 @@ describe('Markdown_Alternate::identity_for', function (): void {
 
 describe('Markdown_Alternate::url_for', function (): void {
 
+    it('advertises a composed query alternate for a plain canonical URL', function (): void {
+        Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
+            'home' => 'https://example.com/blog',
+            'permalink_structure' => '',
+            default => false,
+        });
+        Functions\when('get_permalink')->justReturn('https://example.com/blog/?page_id=8&lang=sv');
+        Functions\when('add_query_arg')->alias(function (string $name, string $value, string $url): string {
+            $query = [];
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+            $query[$name] = $value;
+            return explode('?', $url, 2)[0] . '?' . http_build_query($query);
+        });
+
+        expect((new Markdown_Alternate())->url_for(kntnt_md_post(8)))->toBe('https://example.com/blog/?page_id=8&lang=sv&format=markdown');
+    });
+
     it('appends .md to a permalink minus its trailing slash', function (): void {
         Functions\when('get_permalink')->justReturn('https://example.com/about/team/');
 
@@ -106,7 +140,7 @@ describe('Markdown_Alternate::KIND', function (): void {
 });
 
 it('preserves the language prefix when home_url is translated', function (): void {
-    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com' : '');
+    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com' : '/%postname%/');
     Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/sv' . $path);
     Functions\when('get_permalink')->justReturn('https://example.com/sv/same-slug/');
 
@@ -114,7 +148,7 @@ it('preserves the language prefix when home_url is translated', function (): voi
 });
 
 it('keeps the configured installation base separate from the language prefix', function (): void {
-    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '');
+    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '/%postname%/');
     Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/blog/sv' . $path);
     Functions\when('get_permalink')->justReturn('https://example.com/blog/sv/about/');
 
