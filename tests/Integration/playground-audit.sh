@@ -30,6 +30,10 @@ for _ in $(seq 1 90); do
 done
 if [[ "$ready" != true ]]; then cat "$SCRATCH/log"; exit 1; fi
 
+# Assert the worker's runtime before any language or cache result is accepted.
+source "$SCRIPT_DIR/playground-php-version.sh"
+assert_playground_php_version "$BASE" || exit 1
+
 PASS=0
 FAIL=0
 check() {

@@ -91,6 +91,10 @@ if [[ "$ready" != true ]]; then
 	exit 1
 fi
 
+# Assert the serving worker's runtime before accepting behavioural results.
+source "$SCRIPT_DIR/playground-php-version.sh"
+assert_playground_php_version "$BASE" || exit 1
+
 # Warm the Markdown path. Playground's WASM SQLite intermittently fails the very
 # first content query of a fresh boot (the page lookup returns nothing, so the
 # first cold `.md` request 404s), but it resolves correctly once warm — every
