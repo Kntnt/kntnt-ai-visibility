@@ -3,6 +3,7 @@
         "header",
         "setcookie",
         "exit",
-        "readfile"
+        "readfile",
+        "sys_get_temp_dir"
     ]
 }

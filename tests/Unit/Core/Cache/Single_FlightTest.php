@@ -17,6 +17,7 @@ use Brain\Monkey\Functions;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
+use Symfony\Component\Process\Process;
 
 /**
  * Recursively removes a directory tree.
@@ -47,6 +48,38 @@ beforeEach(function (): void {
 afterEach(function (): void {
     kntnt_rmtree($this->base);
     kntnt_rmtree($this->lockdir);
+});
+
+it('preserves unrelated locks and cleans its resources when the single-flight suite runs', function (): void {
+
+    // Emulate an installation's shared locks inside a disposable system root.
+    $temporary_root = $this->base . '/system-temp';
+    $shared = $temporary_root . '/kntnt-ai-visibility-locks';
+    mkdir($shared, 0700, true);
+    $sentinel = $shared . '/unrelated.lock';
+    file_put_contents($sentinel, 'ACTIVE');
+
+    // Limit the child to the functional tests so this regression cannot recurse.
+    $project = dirname(__DIR__, 4);
+    $suite = new Process([
+        PHP_BINARY,
+        '-d',
+        'sys_temp_dir=' . $temporary_root,
+        $project . '/vendor/bin/pest',
+        __FILE__,
+        '--filter=Single_Flight::once',
+        '--no-coverage',
+        '--colors=never',
+        '--do-not-cache-result',
+    ], $project);
+    $suite->run();
+
+    // Observe only filesystem resources owned by the fake installation/suite.
+    expect($suite->getExitCode())->toBe(0, $suite->getOutput() . $suite->getErrorOutput());
+    expect(is_file($sentinel))->toBeTrue();
+    expect(file_get_contents($sentinel))->toBe('ACTIVE');
+    expect(glob($temporary_root . '/kntnt-sf-*'))->toBe([]);
+
 });
 
 describe('Single_Flight::once', function (): void {
@@ -102,15 +135,25 @@ describe('Single_Flight::once', function (): void {
     });
 
     it('creates a plugin-owned lock directory when none is injected', function (): void {
-        $managed = sys_get_temp_dir() . '/kntnt-ai-visibility-locks';
-        kntnt_rmtree($managed);
+
+        // Keep the default path inside this test's root, including on failure.
+        $temporary_root = $this->base . '/system-temp';
+        $temporary_root_mock = \Patchwork\redefine('sys_get_temp_dir', static fn(): string => $temporary_root);
+        $managed = $temporary_root . '/kntnt-ai-visibility-locks';
         $identity = new Identity('markdown-alternate', 'managed', 7);
-        $flight = new Single_Flight($this->store);
-        $bytes = $flight->once($identity, static fn(): string => 'BYTES');
-        expect($bytes)->toBe('BYTES');
-        expect(is_dir($managed))->toBeTrue();
-        expect(glob($managed . '/*.lock'))->not->toBeEmpty();
-        kntnt_rmtree($managed);
+
+        // Construction stays lazy; the first miss creates the owned directory.
+        try {
+            $flight = new Single_Flight($this->store);
+            expect(is_dir($managed))->toBeFalse();
+            $bytes = $flight->once($identity, static fn(): string => 'BYTES');
+            expect($bytes)->toBe('BYTES');
+            expect(is_dir($managed))->toBeTrue();
+            expect(glob($managed . '/*.lock'))->not->toBeEmpty();
+        } finally {
+            \Patchwork\restore($temporary_root_mock);
+        }
+
     });
 
 });
