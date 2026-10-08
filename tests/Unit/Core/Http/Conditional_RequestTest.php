@@ -17,6 +17,10 @@ use Kntnt\Ai_Visibility\Core\Http\Conditional_Request;
 
 describe('Conditional_Request::is_fresh', function (): void {
 
+    it('cannot establish date freshness when the representation modification time is unknown', function (): void {
+        expect(Conditional_Request::is_fresh('', 'Fri, 01 Jan 2100 00:00:00 GMT', '"current"', null))->toBeFalse();
+    });
+
     it('is fresh when If-None-Match equals the etag', function (): void {
         expect(Conditional_Request::is_fresh('"abc"', '', '"abc"', 1_700_000_000))->toBeTrue();
     });
