@@ -140,6 +140,7 @@ run_e2e() {
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-plain-permalink.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-lifecycle.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-publication.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-expiry.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-pruning.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-stampede.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-deactivation.py" \
