@@ -151,3 +151,5 @@ jobs:
         run: python3 tests/Integration/playground-taxonomy-links.py
       - name: Unicode llms.txt description boundaries
         run: python3 tests/Integration/playground-unicode-descriptions.py
+      - name: Complete safe Markdown trailing-slash redirects
+        run: python3 tests/Integration/playground-trailing-slash.py

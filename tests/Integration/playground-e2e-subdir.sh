@@ -124,6 +124,17 @@ do_req() {
 }
 expect_status() { [[ "$STATUS" == "$1" ]] && ok "$2 (status $1)" || no "$2 (expected $1, got $STATUS)"; }
 header_has() { grep -iqF -- "$1" "$HDR" && ok "$2" || no "$2 — header missing: $1"; }
+
+# Compare the complete Location, including one installation prefix.
+location_is() {
+	local actual
+	actual="$(awk 'tolower($1) == "location:" {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$HDR")"
+	if [[ "$actual" == "$1" ]]; then
+		ok "$2"
+	else
+		no "$2 — expected Location $1, got $actual"
+	fi
+}
 body_has() { grep -qF -- "$1" "$BODYF" && ok "$2" || no "$2 — body missing: $1"; }
 body_lacks() { ! grep -qF -- "$1" "$BODYF" && ok "$2" || no "$2 — body unexpectedly contains: $1"; }
 
@@ -134,6 +145,16 @@ expect_status 200 "GET ${SUBPATH}/about.md is 200"
 header_has 'text/markdown; charset=utf-8' "subdirectory .md is text/markdown"
 body_has '# About Us' "subdirectory .md leads with the visible H1"
 body_has "canonical_url: \"${BASE}/about/\"" "subdirectory .md carries the subpath-aware canonical URL"
+
+echo ""
+echo "Scenario S1a: trailing slashes normalise once without repeating the base"
+for slashes in '/' '///'; do
+	do_req "${BASE}/about.md${slashes}"
+	expect_status 301 "subdirectory .md${slashes} normalises with 301"
+	location_is "${SUBPATH}/about.md" "the complete Location retains the installation prefix once"
+done
+do_req "${BASE}/about.md"
+expect_status 200 "the exact redirect destination needs no further redirect"
 
 echo ""
 echo "Scenario S2: the actual index page has its own alternate"
