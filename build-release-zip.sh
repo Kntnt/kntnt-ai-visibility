@@ -29,7 +29,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Print usage and exit with the given code (default 0).
 usage() {
-	cat <<'HELP'
+	cat << 'HELP'
 Usage:
   build-release-zip.sh [--output <path>]
   build-release-zip.sh --tag <tag> [--output <path>]
@@ -149,10 +149,10 @@ fi
 # Verify that the required tools are available.
 MISSING=()
 for cmd in zip composer; do
-	command -v "$cmd" &>/dev/null || MISSING+=("$cmd")
+	command -v "$cmd" &> /dev/null || MISSING+=("$cmd")
 done
-[[ -n "$TAG" ]] && { command -v git &>/dev/null || MISSING+=("git"); }
-[[ -n "$RELEASE_ACTION" ]] && { command -v gh &>/dev/null || MISSING+=("gh"); }
+[[ -n "$TAG" ]] && { command -v git &> /dev/null || MISSING+=("git"); }
+[[ -n "$RELEASE_ACTION" ]] && { command -v gh &> /dev/null || MISSING+=("gh"); }
 if [[ ${#MISSING[@]} -gt 0 ]]; then
 	echo "Missing required tools: ${MISSING[*]}" >&2
 	exit 1
@@ -165,11 +165,11 @@ if [[ -n "$TAG" ]]; then
 		echo "Create it first:  git tag $TAG && git push origin $TAG" >&2
 		exit 1
 	fi
-	if [[ "$RELEASE_ACTION" == "update" ]] && ! gh release view "$TAG" --repo "$REPO" &>/dev/null; then
+	if [[ "$RELEASE_ACTION" == "update" ]] && ! gh release view "$TAG" --repo "$REPO" &> /dev/null; then
 		echo "Error: Release '$TAG' does not exist. Use --create instead." >&2
 		exit 1
 	fi
-	if [[ "$RELEASE_ACTION" == "create" ]] && gh release view "$TAG" --repo "$REPO" &>/dev/null; then
+	if [[ "$RELEASE_ACTION" == "create" ]] && gh release view "$TAG" --repo "$REPO" &> /dev/null; then
 		echo "Error: Release '$TAG' already exists. Use --update instead." >&2
 		exit 1
 	fi
@@ -207,6 +207,27 @@ else
 		--exclude='dist' \
 		--exclude="$ZIP_NAME" \
 		"$SCRIPT_DIR/" "$TMPDIR/$PLUGIN_DIR/"
+fi
+
+# Capture release notes from the staged source before the runtime keep-list
+# removes CHANGELOG.md (ADR-0011). A tagged build uses the same commit for its
+# notes and ZIP; local builds continue to stage the working copy above.
+if [[ "$RELEASE_ACTION" == "create" ]]; then
+
+	# The tag is v-prefixed; changelog headings carry the bare version.
+	version="${TAG#v}"
+	notes_file="$TMPDIR/release-notes.md"
+	if [[ -f "$TMPDIR/$PLUGIN_DIR/CHANGELOG.md" ]]; then
+		awk -v ver="$version" '
+			index($0, "## [" ver "]") == 1 { capture = 1; next }
+			capture && /^## \[/ { exit }
+			capture && /^\[[^][]+\]:[[:space:]]/ { exit }
+			capture { print }
+		' "$TMPDIR/$PLUGIN_DIR/CHANGELOG.md" > "$notes_file"
+	else
+		# Historical tags without a changelog use the empty-section fallback.
+		: > "$notes_file"
+	fi
 fi
 
 # Install the runtime dependencies into the staging tree so vendor/ ships only
@@ -249,18 +270,6 @@ if [[ -n "$OUTPUT_FILE" ]]; then
 fi
 
 if [[ "$RELEASE_ACTION" == "create" ]]; then
-
-	# Source the release body from the matching CHANGELOG.md section rather than
-	# GitHub's auto-generated digest (docs/adr/0011). The tag is v-prefixed; the
-	# changelog heading carries the bare version, so strip the leading `v`.
-	version="${TAG#v}"
-	notes_file="$TMPDIR/release-notes.md"
-	awk -v ver="$version" '
-		index($0, "## [" ver "]") == 1 { capture = 1; next }
-		capture && /^## \[/ { exit }
-		capture && /^\[[^][]+\]:[[:space:]]/ { exit }
-		capture { print }
-	' "$SCRIPT_DIR/CHANGELOG.md" > "$notes_file"
 
 	# Use the changelog notes when the section had real content; otherwise fall
 	# back to auto-generated notes so a release is never published note-less.
