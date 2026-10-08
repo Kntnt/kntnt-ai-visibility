@@ -4,7 +4,7 @@
  *
  * Runs inside WordPress Playground (WASM PHP 8.4) at boot, after the plugin is
  * activated, to create the fixtures the behavioural e2e (playground-e2e.sh)
- * requests over HTTP: a published page, a slug-`index` home page, a
+ * requests over HTTP: a published page, a literal `index` page, a
  * password-protected page and a draft, plus a published post. Explicit excerpts
  * give the llms.txt index deterministic descriptions to assert. It switches the
  * site to pretty permalinks and flushes the rewrite cache so the Markdown `.md`

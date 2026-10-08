@@ -10,9 +10,9 @@
  *
  * Resolution is permalink-driven: it hands the reconstructed URL to
  * url_to_postid(), which handles nested and dated permalinks for free, and maps
- * the slug-less root (or an explicit /index) to the home entry. The home alternate
- * is supported on root installs; per-page alternates work regardless of the
- * install path.
+ * the canonical home and its reserved index.md to the static front. Ordinary
+ * index leaves carry one extra index segment in their dedicated paths. Both
+ * forms remain source-language-aware and installation-relative.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -90,6 +90,15 @@ final class Page_Markdown_Provider implements Provider {
 		$post = $this->resolve_post( $request->path );
 		if ( $post === null || ! $this->eligibility->is_eligible( $post ) ) {
 			return null;
+		}
+
+		// Dedicated paths must name the source's actual advertised alternate.
+		// This rejects shorter index aliases after reversing the index escape.
+		if ( str_ends_with( $request->path, '.md' ) ) {
+			$advertised = (string) wp_parse_url( $this->markdown_alternate->url_for( $post ), PHP_URL_PATH );
+			if ( rawurldecode( $request->path ) !== rawurldecode( $advertised ) ) {
+				return null;
+			}
 		}
 
 		return $this->identity_for_post( $post );
@@ -173,14 +182,22 @@ final class Page_Markdown_Provider implements Provider {
 		// Reduce a `.md` request to its HTML path, taken relative to the
 		// WordPress home so resolution works identically on a subdirectory
 		// install (a canonical path passes through unchanged on a root install).
-		$html_path = str_ends_with( $path, '.md' ) ? substr( $path, 0, -3 ) : $path;
+		$is_suffix = str_ends_with( $path, '.md' );
+		$html_path = $is_suffix ? substr( $path, 0, -3 ) : $path;
 		$relative = $this->markdown_alternate->home_relative( (string) wp_parse_url( $html_path, PHP_URL_PATH ) );
 		$slug = trim( $relative, '/' );
 
-		// The slug-less root, or an explicit /index, resolves to the home entry.
+		// Canonical roots and their reserved /index.md represent only the home.
+		// Canonical /index/ remains an ordinary page, even with a static front.
 		$home_path = trim( $this->markdown_alternate->home_relative( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) ), '/' );
-		if ( $slug === $home_path || $slug === ltrim( $home_path . '/index', '/' ) ) {
+		if ( $slug === $home_path || ( $is_suffix && $slug === ltrim( $home_path . '/index', '/' ) ) ) {
 			return $this->resolve_home( $home_path );
+		}
+
+		// Reverse exactly one escape segment on an ordinary index alternate.
+		if ( $is_suffix && str_ends_with( '/' . $slug, '/index/index' ) ) {
+			$relative = substr( $relative, 0, -strlen( '/index' ) );
+			$slug = trim( $relative, '/' );
 		}
 
 		// Let url_to_postid() resolve the permalink first, trying the
@@ -251,7 +268,7 @@ final class Page_Markdown_Provider implements Provider {
 	}
 
 	/**
-	 * Resolves the home entry: a real page slugged 'index', else the front page.
+	 * Resolves only the configured static front in the current language.
 	 *
 	 * @since 0.1.0
 	 *
@@ -260,15 +277,8 @@ final class Page_Markdown_Provider implements Provider {
 	 */
 	private function resolve_home( string $home_path ): ?\WP_Post {
 
-		// A real page slugged 'index' takes precedence over the configured front
-		// page, mirroring how a webserver prefers an explicit index document.
-		$page = get_page_by_path( 'index' );
-		if ( $page instanceof \WP_Post && $this->matches_path( $page, $home_path . '/index' ) ) {
-			return $page;
-		}
-
-		// Otherwise the home alternate exists only when a static page fronts the
-		// site (show_on_front === 'page').
+		// Listings have no per-page alternate; an index-slugged page cannot
+		// substitute for either a blog home or another page chosen as the front.
 		if ( get_option( 'show_on_front' ) === 'page' ) {
 			$front_id = get_option( 'page_on_front' );
 			$front = is_numeric( $front_id ) ? (int) $front_id : 0;

@@ -123,6 +123,8 @@ jobs:
         run: python3 tests/Integration/playground-methods.py
       - name: Exercise complete canonical paths and source-language identities
         run: python3 tests/Integration/playground-canonical.py
+      - name: Exercise separate home and actual index page identities
+        run: python3 tests/Integration/playground-home-index.py
       - name: Negotiated canonical-page cache policy
         run: python3 tests/Integration/playground-negotiated-cache.py
       - name: Effective Markdown eligibility and deployment purge
