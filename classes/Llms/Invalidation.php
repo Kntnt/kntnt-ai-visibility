@@ -57,6 +57,7 @@ final class Invalidation {
 	public function register(): void {
 		add_action( 'save_post', [ $this, 'on_save' ], 10, 2 );
 		add_action( 'transition_post_status', [ $this, 'on_transition' ], 10, 3 );
+		add_action( 'deleted_post', [ $this, 'on_save' ], 10, 2 );
 	}
 
 	/**

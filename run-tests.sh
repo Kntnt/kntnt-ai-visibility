@@ -129,7 +129,9 @@ run_e2e() {
 	[[ "$VERBOSE" == true ]] && args+=(--verbose)
 	if bash "$SCRIPT_DIR/tests/Integration/playground-smoke.sh" "${args[@]}" \
 		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e.sh" "${args[@]}" \
-		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e-subdir.sh" "${args[@]}"; then
+		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e-subdir.sh" "${args[@]}" \
+		&& bash "$SCRIPT_DIR/tests/Integration/playground-audit.sh" "${args[@]}" \
+		&& KNTNT_AUDIT_EXPLICIT=1 bash "$SCRIPT_DIR/tests/Integration/playground-audit.sh" "${args[@]}"; then
 		E2E_EXIT=0
 	else
 		E2E_EXIT=$?

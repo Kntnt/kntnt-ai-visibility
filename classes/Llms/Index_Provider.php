@@ -29,6 +29,7 @@ use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Artifact\Serve_Pattern;
 use Kntnt\Ai_Visibility\Core\Cache\Cache_Version;
 use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
+use Kntnt\Ai_Visibility\Core\Site_Url;
 
 /**
  * Provides the singleton llms.txt index artifact.
@@ -141,7 +142,7 @@ final class Index_Provider implements Provider {
 			return [];
 		}
 
-		return [ new Link_Relation( home_url( self::PATH ), 'related', 'text/plain' ) ];
+		return [ new Link_Relation( Site_Url::home( self::PATH ), 'related', 'text/plain' ) ];
 
 	}
 

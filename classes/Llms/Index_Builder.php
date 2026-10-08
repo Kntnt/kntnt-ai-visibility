@@ -192,8 +192,8 @@ final class Index_Builder {
 		// Strip shortcodes and tags, decode entities, collapse to one line, cap.
 		$excerpt = wp_strip_all_tags( strip_shortcodes( (string) get_the_excerpt( $post ) ) );
 		$excerpt = $this->one_line( html_entity_decode( $excerpt, ENT_QUOTES ) );
-		if ( strlen( $excerpt ) > self::EXCERPT_CAP ) {
-			$excerpt = rtrim( substr( $excerpt, 0, self::EXCERPT_CAP ) ) . '…';
+		if ( mb_strlen( $excerpt, 'UTF-8' ) > self::EXCERPT_CAP ) {
+			$excerpt = rtrim( mb_substr( $excerpt, 0, self::EXCERPT_CAP, 'UTF-8' ) ) . '…';
 		}
 
 		return $excerpt;

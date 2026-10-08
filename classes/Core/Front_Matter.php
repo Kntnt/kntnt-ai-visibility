@@ -5,7 +5,7 @@
  * The block carries parity metadata plus the canonical URL, in a fixed key
  * order: title, canonical_url, date, author, featured_image, categories, tags
  * (docs/spec §4.3). The last three are conditional, omitted when empty. Category
- * and tag URLs point at the term's `.md` path. The title is page metadata — it
+ * and tag URLs point at the term's HTML archive. The title is page metadata — it
  * lives only here and is never injected into the body. The assembled lines are
  * filterable before serialisation.
  *
@@ -48,7 +48,7 @@ final class Front_Matter {
 			$lines[] = 'featured_image: ' . $this->quote( $thumbnail );
 		}
 
-		// Categories and tags as name/.md-url lists, each omitted when empty.
+		// Categories and tags as name/HTML-url lists, each omitted when empty.
 		$lines = [ ...$lines, ...$this->term_lines( 'categories', get_the_terms( $post, 'category' ) ) ];
 		$lines = [ ...$lines, ...$this->term_lines( 'tags', get_the_terms( $post, 'post_tag' ) ) ];
 
@@ -76,14 +76,14 @@ final class Front_Matter {
 			return [];
 		}
 
-		// One name/url pair per term, the url being the term's `.md` path.
+		// Archives have no Markdown provider, so link to their real HTML URLs.
 		$lines = [ $key . ':' ];
 		foreach ( $terms as $term ) {
 			if ( ! $term instanceof \WP_Term ) {
 				continue;
 			}
 			$link = get_term_link( $term );
-			$url = is_string( $link ) ? rtrim( $link, '/' ) . '.md' : '';
+			$url = is_string( $link ) ? $link : '';
 			$lines[] = '  - name: ' . $this->quote( $term->name );
 			$lines[] = '    url: ' . $this->quote( $url );
 		}

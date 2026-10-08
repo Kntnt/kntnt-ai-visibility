@@ -52,6 +52,12 @@ describe('Request_Handler::register_rewrite_rules', function (): void {
 
 describe('Request_Handler::negotiate', function (): void {
 
+    it('honours a zero quality and exact media types', function (): void {
+        foreach (['text/markdown;q=0', 'text/markdown-fake', 'text/markdown;q=0.2, text/html;q=1'] as $accept) {
+            expect($this->handler->negotiate(new Request('GET', '/about/', [], $accept)))->toBeNull();
+        }
+    });
+
     it('picks the cache mode for a .md path', function (): void {
         expect($this->handler->negotiate(new Request('GET', '/about/team.md')))->toBe('cache');
     });

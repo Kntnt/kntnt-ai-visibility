@@ -227,7 +227,7 @@ final class Serve_Router {
 
 		// Build the response from the matched pattern: its Content-Type, and a
 		// canonical back-link only when the pattern declares one (i.e. for `.md`).
-		$canonical = $resolved->pattern->canonical ? $this->canonical_for( $request->path ) : '';
+		$canonical = $resolved->pattern->canonical ? $this->canonical_for( $request->path, $resolved->path ) : '';
 		$response = $this->headers_for( $resolved->path, $request, $resolved->pattern->content_type, $canonical );
 		http_response_code( $response['status'] );
 		foreach ( $response['headers'] as $name => $value ) {
@@ -414,14 +414,30 @@ final class Serve_Router {
 	 * @since 0.1.0
 	 *
 	 * @param string $path The `.md` request path.
+	 * @param string $cache_path The contained cache file with canonical metadata.
 	 * @return string The reconstructed canonical URL, or '' when unavailable.
 	 */
-	private function canonical_for( string $path ): string {
+	private function canonical_for( string $path, string $cache_path ): string {
 
 		// Without a trustworthy origin there is nothing safe to point at.
 		$origin = ( $this->canonical_origin )();
 		if ( $origin === '' ) {
 			return '';
+		}
+
+		// Prefer the exact canonical stored by WordPress. Path reconstruction
+		// cannot distinguish a translated home from a page named "index", or
+		// honour a site's no-trailing-slash permalink policy.
+		$head = file_get_contents( $cache_path, false, null, 0, 65536 );
+		if ( is_string( $head ) && str_starts_with( $head, "---\n" ) ) {
+			$front = explode( "\n---", $head, 2 )[0];
+			if ( preg_match( '/^canonical_url: ("[^\r\n]*")$/m', $front, $match ) === 1 ) {
+				$url = json_decode( $match[1], true );
+				if ( is_string( $url ) && str_starts_with( $url, $origin . '/' )
+					&& preg_match( '/[\x00-\x20<>]/', $url ) === 0 ) {
+					return $url;
+				}
+			}
 		}
 
 		// Strip the home base and the `.md`, treat the home key specially, re-add

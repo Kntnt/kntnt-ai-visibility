@@ -53,11 +53,58 @@ final class Invalidation {
 		// Per-entity invalidation on content changes and status transitions.
 		add_action( 'save_post', [ $this, 'on_save' ], 10, 2 );
 		add_action( 'transition_post_status', [ $this, 'on_transition' ], 10, 3 );
+		add_action( 'pre_post_update', [ $this, 'before_update' ] );
+		add_action( 'before_delete_post', [ $this, 'before_update' ] );
 
 		// Whole-cache invalidation on indirect changes.
 		add_action( 'switch_theme', [ $this, 'flush' ] );
 		add_action( 'update_option_kntnt_ai_visibility', [ $this, 'flush' ] );
+		foreach ( [ 'set_object_terms', 'edited_term', 'delete_term' ] as $hook ) {
+			add_action( $hook, [ $this, 'flush' ] );
+		}
+		foreach ( [ 'page_on_front', 'show_on_front', 'permalink_structure', 'home' ] as $option ) {
+			add_action( 'update_option_' . $option, [ $this, 'flush' ] );
+		}
+		foreach ( [ 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ] as $hook ) {
+			add_action( $hook, [ $this, 'on_meta' ], 10, 3 );
+		}
 
+	}
+
+	/**
+	 * Removes the old permalink before WordPress changes the stored post.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param int $post_id The post being changed.
+	 * @return void
+	 */
+	public function before_update( int $post_id ): void {
+		$post = get_post( $post_id );
+		if ( $post instanceof \WP_Post ) {
+			// A parent page's address also changes all descendant addresses.
+			if ( is_post_type_hierarchical( $post->post_type ) ) {
+				$this->flush();
+			} else {
+				$this->delete( $post );
+			}
+		}
+	}
+
+	/**
+	 * Flushes when Bogo changes a language or translation group after save_post.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param int|array<int> $meta_id The changed metadata ID or deleted IDs.
+	 * @param int            $post_id The owning post ID.
+	 * @param string         $meta_key The changed metadata key.
+	 * @return void
+	 */
+	public function on_meta( int|array $meta_id, int $post_id, string $meta_key ): void {
+		if ( in_array( $meta_key, [ '_locale', '_original_post' ], true ) ) {
+			$this->flush();
+		}
 	}
 
 	/**

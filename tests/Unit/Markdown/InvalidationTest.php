@@ -37,6 +37,30 @@ beforeEach(function (): void {
 
 describe('Invalidation', function (): void {
 
+    it('deletes the old identity before a non-hierarchical post changes', function (): void {
+        Functions\when('get_post')->justReturn($this->post);
+        Functions\when('is_post_type_hierarchical')->justReturn(false);
+        $this->provider->shouldReceive('identity_for_post')->with($this->post)->andReturn($this->identity);
+        $this->cache->shouldReceive('delete')->once()->with($this->identity);
+        $this->invalidation->before_update(42);
+    });
+
+    it('flushes descendants when a hierarchical post changes', function (): void {
+        Functions\when('get_post')->justReturn($this->post);
+        Functions\when('is_post_type_hierarchical')->justReturn(true);
+        $this->cache->shouldReceive('flush_all')->once();
+        $this->version->shouldReceive('bump')->once();
+        $this->invalidation->before_update(42);
+    });
+
+    it('flushes on Bogo metadata changes but not unrelated metadata', function (): void {
+        $this->cache->shouldReceive('flush_all')->twice();
+        $this->version->shouldReceive('bump')->twice();
+        $this->invalidation->on_meta(1, 42, '_locale');
+        $this->invalidation->on_meta([1], 42, '_original_post');
+        $this->invalidation->on_meta(1, 42, '_edit_lock');
+    });
+
     it('deletes the post cache on save', function (): void {
         $this->provider->shouldReceive('identity_for_post')->with($this->post)->andReturn($this->identity);
         $this->cache->shouldReceive('delete')->once()->with($this->identity);

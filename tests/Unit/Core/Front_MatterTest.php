@@ -78,12 +78,12 @@ describe('Front_Matter', function (): void {
         expect($yaml)->toContain(
             "categories:\n"
             . "  - name: \"News\"\n"
-            . "    url: \"https://example.com/category/news.md\"\n",
+            . "    url: \"https://example.com/category/news/\"\n",
         );
         expect($yaml)->toContain(
             "tags:\n"
             . "  - name: \"Tips\"\n"
-            . "    url: \"https://example.com/tag/tips.md\"\n",
+            . "    url: \"https://example.com/tag/tips/\"\n",
         );
     });
 

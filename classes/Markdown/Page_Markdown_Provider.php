@@ -32,6 +32,7 @@ use Kntnt\Ai_Visibility\Core\Artifact\Serve_Pattern;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
+use Kntnt\Ai_Visibility\Core\Site_Url;
 
 /**
  * Provides per-page Markdown alternates.
@@ -170,18 +171,19 @@ final class Page_Markdown_Provider implements Provider {
 		$slug = trim( $relative, '/' );
 
 		// The slug-less root, or an explicit /index, resolves to the home entry.
-		if ( $slug === '' || $slug === 'index' ) {
-			return $this->resolve_home();
+		$home_path = trim( $this->markdown_alternate->home_relative( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) ), '/' );
+		if ( $slug === $home_path || $slug === ltrim( $home_path . '/index', '/' ) ) {
+			return $this->resolve_home( $home_path );
 		}
 
 		// Let url_to_postid() resolve the permalink first, trying the
 		// trailing-slash and bare forms so dated and nested post permalinks work.
-		// The home-relative path keeps home_url() from doubling the base prefix.
+		// Use the installation base; the candidate already includes its language.
 		foreach ( [ trailingslashit( $relative ), untrailingslashit( $relative ) ] as $candidate ) {
-			$id = url_to_postid( home_url( $candidate ) );
+			$id = url_to_postid( Site_Url::home( $candidate ) );
 			if ( $id > 0 ) {
 				$post = get_post( $id );
-				if ( $post instanceof \WP_Post ) {
+				if ( $post instanceof \WP_Post && $this->matches_path( $post, $relative ) ) {
 					return $post;
 				}
 			}
@@ -192,7 +194,7 @@ final class Page_Markdown_Provider implements Provider {
 		// page slug with the post-name rule and return 0; a page's path resolves
 		// the same regardless of the current query (handles nested pages too).
 		$page = get_page_by_path( $slug );
-		if ( $page instanceof \WP_Post ) {
+		if ( $page instanceof \WP_Post && $this->matches_path( $page, $relative ) ) {
 			return $page;
 		}
 
@@ -220,19 +222,24 @@ final class Page_Markdown_Provider implements Provider {
 			return null;
 		}
 
-		// One published entry of any public type with this slug; eligibility is
-		// re-checked by the caller, so a wrong-type hit is harmless.
+		// Shared leaf slugs can belong to different hierarchies or languages.
+		// Keep language query filters and require the complete canonical path.
 		$posts = get_posts(
 			[
 				'name'           => $name,
 				'post_type'      => 'any',
 				'post_status'    => 'publish',
-				'posts_per_page' => 1,
+				'posts_per_page' => -1,
+				'suppress_filters' => false,
 			],
 		);
-		$post = is_array( $posts ) ? ( $posts[0] ?? null ) : null;
+		foreach ( $posts as $post ) {
+			if ( $post instanceof \WP_Post && $this->matches_path( $post, $slug ) ) {
+				return $post;
+			}
+		}
 
-		return $post instanceof \WP_Post ? $post : null;
+		return null;
 
 	}
 
@@ -241,14 +248,15 @@ final class Page_Markdown_Provider implements Provider {
 	 *
 	 * @since 0.1.0
 	 *
+	 * @param string $home_path The current language's installation-relative home.
 	 * @return \WP_Post|null
 	 */
-	private function resolve_home(): ?\WP_Post {
+	private function resolve_home( string $home_path ): ?\WP_Post {
 
 		// A real page slugged 'index' takes precedence over the configured front
 		// page, mirroring how a webserver prefers an explicit index document.
 		$page = get_page_by_path( 'index' );
-		if ( $page instanceof \WP_Post ) {
+		if ( $page instanceof \WP_Post && $this->matches_path( $page, $home_path . '/index' ) ) {
 			return $page;
 		}
 
@@ -259,11 +267,26 @@ final class Page_Markdown_Provider implements Provider {
 			$front = is_numeric( $front_id ) ? (int) $front_id : 0;
 			if ( $front > 0 ) {
 				$post = get_post( $front );
-				return $post instanceof \WP_Post ? $post : null;
+				return $post instanceof \WP_Post && $this->matches_path( $post, $home_path ) ? $post : null;
 			}
 		}
 
 		return null;
+
+	}
+
+	/**
+	 * Rejects aliases and wrong-language results from WordPress's slug fallbacks.
+	 *
+	 * @since 0.5.2
+	 * @param \WP_Post $post Candidate post.
+	 * @param string   $path Installation-relative HTML path.
+	 * @return bool
+	 */
+	private function matches_path( \WP_Post $post, string $path ): bool {
+		$canonical = $this->markdown_alternate->home_relative( (string) wp_parse_url( (string) get_permalink( $post ), PHP_URL_PATH ) );
+
+		return trim( rawurldecode( $canonical ), '/' ) === trim( rawurldecode( $path ), '/' );
 
 	}
 

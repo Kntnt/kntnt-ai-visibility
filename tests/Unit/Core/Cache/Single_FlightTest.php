@@ -51,6 +51,14 @@ afterEach(function (): void {
 
 describe('Single_Flight::once', function (): void {
 
+    it('regenerates an expired file instead of resurrecting it after a router miss', function (): void {
+        $identity = new Identity('markdown-alternate', 'expired', 3);
+        $this->store->write($identity, 'STALE');
+        touch($this->store->path_for($identity), time() - 120);
+        $flight = new Single_Flight($this->store, $this->lockdir, 60);
+        expect($flight->once($identity, static fn(): string => 'FRESH'))->toBe('FRESH');
+    });
+
     it('produces, writes the cache and returns the bytes on a miss', function (): void {
         $identity = new Identity('markdown-alternate', 'hello', 1);
         $produced = false;

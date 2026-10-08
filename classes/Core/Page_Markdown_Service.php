@@ -74,6 +74,18 @@ final class Page_Markdown_Service implements Page_Markdown {
 	 * @return string The assembled Markdown document.
 	 */
 	public function for_post( \WP_Post $post ): string {
+		return Post_Context::render( $post, fn(): string => $this->render_post( $post ) );
+	}
+
+	/**
+	 * Renders within the source post's isolated WordPress context.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param \WP_Post $post The source post.
+	 * @return string The assembled Markdown document.
+	 */
+	private function render_post( \WP_Post $post ): string {
 
 		// Render the content (shortcodes, blocks) and convert it to Markdown.
 		$rendered = apply_filters( 'the_content', $post->post_content );

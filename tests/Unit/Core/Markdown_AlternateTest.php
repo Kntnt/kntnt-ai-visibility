@@ -31,6 +31,7 @@ function kntnt_md_post(int $id = 8): WP_Post
 }
 
 beforeEach(function (): void {
+    Functions\when('get_option')->justReturn('https://example.com');
     Functions\when('wp_parse_url')->alias(fn(string $url, int $component = -1): mixed => parse_url($url, $component));
     Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com' . $path);
 });
@@ -55,6 +56,7 @@ describe('Markdown_Alternate::identity_for', function (): void {
     });
 
     it('derives a home-relative key on a subdirectory install', function (): void {
+        Functions\when('get_option')->justReturn('https://example.com/blog');
         Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/blog' . $path);
         Functions\when('get_permalink')->justReturn('https://example.com/blog/about/team/');
 
@@ -85,4 +87,20 @@ describe('Markdown_Alternate::KIND', function (): void {
         expect(Markdown_Alternate::KIND)->toBe('markdown-alternate');
     });
 
+});
+
+it('preserves the language prefix when home_url is translated', function (): void {
+    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com' : '');
+    Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/sv' . $path);
+    Functions\when('get_permalink')->justReturn('https://example.com/sv/same-slug/');
+
+    expect((new Markdown_Alternate())->identity_for(kntnt_md_post())->key)->toBe('sv/same-slug');
+});
+
+it('keeps the configured installation base separate from the language prefix', function (): void {
+    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '');
+    Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/blog/sv' . $path);
+    Functions\when('get_permalink')->justReturn('https://example.com/blog/sv/about/');
+
+    expect((new Markdown_Alternate())->identity_for(kntnt_md_post())->key)->toBe('sv/about');
 });

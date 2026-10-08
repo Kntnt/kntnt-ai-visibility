@@ -25,6 +25,7 @@ use Kntnt\Ai_Visibility\Core\Logger;
 use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
 
 beforeEach(function (): void {
+    Functions\when('setup_postdata')->justReturn(true);
     Functions\when('wp_mkdir_p')->alias(static fn(string $dir): bool => is_dir($dir) || mkdir($dir, 0777, true));
     $this->logger = Mockery::mock(Logger::class)->shouldIgnoreMissing();
     $this->base   = sys_get_temp_dir() . '/kntnt-pm-' . uniqid('', true);

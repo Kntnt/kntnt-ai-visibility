@@ -56,10 +56,12 @@ final class Single_Flight {
 	 * @param Store       $store    The cache store read and written through.
 	 * @param string|null $lock_dir The lock directory; defaults to a plugin-owned
 	 *                              subdirectory of the system temp dir.
+	 * @param int         $ttl      Maximum age in seconds; zero disables expiry.
 	 */
 	public function __construct(
 		private readonly Store $store,
 		?string $lock_dir = null,
+		private readonly int $ttl = 604800,
 	) {
 		$this->owns_lock_dir = $lock_dir === null;
 		$this->lock_dir = $lock_dir ?? sys_get_temp_dir() . '/kntnt-ai-visibility-locks';
@@ -81,7 +83,7 @@ final class Single_Flight {
 	public function once( Identity $identity, callable $produce ): string {
 
 		// Serve an existing cache file without producing.
-		$cached = $this->store->read( $identity );
+		$cached = $this->read_fresh( $identity );
 		if ( $cached !== null ) {
 			return $cached;
 		}
@@ -89,7 +91,7 @@ final class Single_Flight {
 		// Single-flight: hold the lock, re-check, then produce and store.
 		$lock = $this->acquire_lock( $identity );
 		try {
-			$cached = $this->store->read( $identity );
+			$cached = $this->read_fresh( $identity );
 			if ( $cached !== null ) {
 				return $cached;
 			}
@@ -100,6 +102,23 @@ final class Single_Flight {
 			$this->release_lock( $lock );
 		}
 
+	}
+
+	/**
+	 * Reads only files within the same lifetime enforced by the early router.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param Identity $identity The cache identity.
+	 * @return string|null The fresh bytes, or null on a miss or expiry.
+	 */
+	private function read_fresh( Identity $identity ): ?string {
+		$path = $this->store->path_for( $identity );
+		clearstatcache( true, $path );
+		if ( $this->ttl > 0 && is_file( $path ) && time() - (int) filemtime( $path ) > $this->ttl ) {
+			return null;
+		}
+		return $this->store->read( $identity );
 	}
 
 	/**

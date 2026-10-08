@@ -83,6 +83,17 @@ function kntnt_index_builder(array $type_sets, array $enumerations, array $urls)
 
 describe('Index_Builder::build', function (): void {
 
+    it('truncates Swedish excerpts by characters without splitting UTF-8', function (): void {
+        $excerpt = 'a' . str_repeat('å', 210);
+        kntnt_index_stubs(excerpts: [1 => $excerpt]);
+        $builder = kntnt_index_builder(
+            ['llms' => ['page'], 'md' => ['page']],
+            ['page' => [kntnt_llms_post('page', 1, 'About')]],
+            [1 => 'https://example.com/about.md'],
+        );
+        expect($builder->build())->toContain('a' . str_repeat('å', 199) . '…');
+    });
+
     it('renders the H1, a section and an item linking to the .md alternate', function (): void {
         kntnt_index_stubs(excerpts: [1 => 'A page about us']);
         $about = kntnt_llms_post('page', 1, 'About');

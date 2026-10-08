@@ -64,9 +64,10 @@ final class Markdown_Alternate {
 
 		// The home alternate lives at /index.md; every other page appends `.md`
 		// to its permalink (minus the trailing slash).
-		return $this->key_for( $post ) === 'index'
-			? home_url( '/index.md' )
-			: rtrim( (string) get_permalink( $post ), '/' ) . '.md';
+		$permalink = rtrim( $this->permalink_for( $post ), '/' );
+		return $this->is_front( $post ) || $this->key_for( $post ) === 'index'
+			? $permalink . '/index.md'
+			: $permalink . '.md';
 
 	}
 
@@ -76,8 +77,8 @@ final class Markdown_Alternate {
 	 * On a root install the base is empty and the path passes through; on a
 	 * subdirectory install (e.g. WordPress at `/blog/`) it removes the `/blog`
 	 * prefix, so keys and resolution are relative to the site root and the home
-	 * collapses to `index` on both. The base comes from `home_url()` (site
-	 * configuration), never the request, so it opens no traversal surface.
+	 * collapses to `index` on both. The base comes from the stored home option,
+	 * not the request-language-filtered home_url(), so language prefixes survive.
 	 *
 	 * @since 0.2.0
 	 *
@@ -87,7 +88,7 @@ final class Markdown_Alternate {
 	public function home_relative( string $path ): string {
 
 		// Remove the base prefix only when the path actually sits under it.
-		$base = rtrim( (string) wp_parse_url( (string) home_url( '/' ), PHP_URL_PATH ), '/' );
+		$base = rtrim( (string) wp_parse_url( Site_Url::home( '/' ), PHP_URL_PATH ), '/' );
 		if ( $base !== '' && str_starts_with( $path, $base . '/' ) ) {
 			return substr( $path, strlen( $base ) );
 		}
@@ -110,11 +111,61 @@ final class Markdown_Alternate {
 		// surrounding slashes; the slug-less home maps to the 'index' key the
 		// router serves at /index.md. Keeping the key home-relative means the same
 		// key is derived on root and subdirectory installs.
-		$path = $this->home_relative( (string) wp_parse_url( (string) get_permalink( $post ), PHP_URL_PATH ) );
+		$path = $this->home_relative( (string) wp_parse_url( $this->permalink_for( $post ), PHP_URL_PATH ) );
 		$key = trim( $path, '/' );
 
-		return $key === '' ? 'index' : $key;
+		return $key === '' ? 'index' : ( $this->is_front( $post ) ? $key . '/index' : $key );
 
+	}
+
+	/**
+	 * Resolves a front-page permalink before Bogo's home_url filter is active.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param \WP_Post $post The source post, whose locale determines the URL.
+	 * @return string The permalink with the site's configured language policy.
+	 */
+	private function permalink_for( \WP_Post $post ): string {
+
+		// Bogo leaves the selected front page's permalink unchanged until
+		// template_redirect. HTTP discovery runs earlier, on send_headers.
+		$permalink = (string) get_permalink( $post );
+		if ( function_exists( 'bogo_url' ) && function_exists( 'bogo_get_post_locale' ) && $this->is_front( $post ) ) {
+
+			// Bogo uses preg_replace with its filterable language regex, which
+			// can return null. Keep the original URL if resolution fails.
+			$translated = bogo_url( $permalink, bogo_get_post_locale( $post->ID ) );
+			return is_string( $translated ) ? $translated : $permalink;
+
+		}
+
+		return $permalink;
+
+	}
+
+	/**
+	 * Recognises translated static front pages in their own language context.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @param \WP_Post $post The candidate page.
+	 * @return bool Whether the page is its language's static home.
+	 */
+	private function is_front( \WP_Post $post ): bool {
+		if ( get_option( 'show_on_front' ) !== 'page' ) {
+			return false;
+		}
+		$locale = function_exists( 'bogo_get_post_locale' ) ? bogo_get_post_locale( $post->ID ) : null;
+		$switched = is_string( $locale ) && switch_to_locale( $locale );
+		try {
+			$front_id = get_option( 'page_on_front' );
+			return is_numeric( $front_id ) && $post->ID === (int) $front_id;
+		} finally {
+			if ( $switched ) {
+				restore_previous_locale();
+			}
+		}
 	}
 
 }

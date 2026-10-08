@@ -31,7 +31,7 @@ beforeEach(function (): void {
     Functions\when('untrailingslashit')->alias(fn(string $s): string => rtrim($s, '/'));
     Functions\when('get_page_by_path')->justReturn(null);
     Functions\when('get_posts')->justReturn([]);
-    Functions\when('get_option')->justReturn('');
+    Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com' : '');
 
     $this->page_markdown = Mockery::mock(Page_Markdown::class);
     $this->eligibility   = Mockery::mock(Eligibility::class);
@@ -126,12 +126,14 @@ describe('Page_Markdown_Provider::match', function (): void {
         $post->ID = 9;
         Functions\when('url_to_postid')->justReturn(9);
         Functions\when('get_post')->justReturn($post);
+        Functions\when('get_permalink')->justReturn('https://example.com/draft/');
         $this->eligibility->shouldReceive('is_eligible')->andReturnFalse();
 
         expect($this->provider->match(new Request('GET', '/draft.md')))->toBeNull();
     });
 
     it('derives a home-relative key on a subdirectory install', function (): void {
+        Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '');
         // WordPress at /blog/: keys must be relative to the home so the router
         // (which strips the same base) and the provider agree.
         $page     = new WP_Post();
@@ -156,6 +158,7 @@ describe('Page_Markdown_Provider::match', function (): void {
         Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
             'show_on_front' => 'page',
             'page_on_front' => 31,
+            'home' => 'https://example.com/blog',
             default         => '',
         });
         Functions\when('get_post')->justReturn($front);
@@ -174,6 +177,7 @@ describe('Page_Markdown_Provider::match', function (): void {
         Functions\when('get_option')->alias(fn(string $name): mixed => match ($name) {
             'show_on_front' => 'page',
             'page_on_front' => 2,
+            'home' => 'https://example.com',
             default         => '',
         });
         Functions\when('get_post')->justReturn($front);
@@ -202,6 +206,7 @@ describe('Page_Markdown_Provider::match', function (): void {
 });
 
 describe('Page_Markdown_Provider::generate', function (): void {
+
 
     it('builds an artifact from the page-markdown service and post metadata', function (): void {
         $post     = new WP_Post();
@@ -262,4 +267,31 @@ describe('Page_Markdown_Provider::identity_for_post', function (): void {
         expect($identity->source_id)->toBe(8);
     });
 
+});
+
+it('does not serve a post under an unrelated path with the same final slug', function (): void {
+    $post = new WP_Post();
+    $post->ID = 77;
+    Functions\when('url_to_postid')->justReturn(0);
+    Functions\when('get_posts')->justReturn([$post]);
+    Functions\when('get_permalink')->justReturn('https://example.com/news/item/');
+    $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
+
+    expect($this->provider->match(new Request('GET', '/nonexistent/item.md')))->toBeNull();
+});
+
+it('rejects a wrong-language URL lookup and selects the matching translated permalink', function (): void {
+    $en = new WP_Post();
+    $en->ID = 80;
+    $sv = new WP_Post();
+    $sv->ID = 81;
+    Functions\when('get_option')->justReturn('https://example.com');
+    Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com/sv' . $path);
+    Functions\when('url_to_postid')->justReturn(80);
+    Functions\when('get_post')->justReturn($en);
+    Functions\when('get_posts')->justReturn([$en, $sv]);
+    Functions\when('get_permalink')->alias(fn(WP_Post $post): string => $post->ID === 80 ? 'https://example.com/team/' : 'https://example.com/sv/team/');
+    $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
+
+    expect($this->provider->match(new Request('GET', '/sv/team.md'))?->source_id)->toBe(81);
 });

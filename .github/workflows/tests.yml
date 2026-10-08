@@ -115,3 +115,7 @@ jobs:
         run: bash tests/Integration/playground-e2e.sh
       - name: Exercise a subdirectory install over HTTP
         run: bash tests/Integration/playground-e2e-subdir.sh
+      - name: Exercise Bogo and cache lifecycle regressions
+        run: bash tests/Integration/playground-audit.sh
+      - name: Exercise Bogo with explicit prefixes for every language
+        run: KNTNT_AUDIT_EXPLICIT=1 bash tests/Integration/playground-audit.sh

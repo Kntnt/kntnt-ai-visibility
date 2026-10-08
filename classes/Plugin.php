@@ -32,6 +32,7 @@ use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
 use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
 use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 use Kntnt\Ai_Visibility\Core\Settings\Settings;
+use Kntnt\Ai_Visibility\Core\Site_Url;
 use LogicException;
 
 /**
@@ -265,18 +266,18 @@ final class Plugin {
 		$settings->register();
 		$artifacts = new Artifact_Registry();
 		$store = new File_Store( static fn(): string => self::cache_dir() );
-		$single_flight = new Single_Flight( $store );
-		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $single_flight, $logger, static fn(): string => home_url() );
 		$ttl = apply_filters( 'kntnt_ai_visibility_cache_ttl', WEEK_IN_SECONDS );
+		$single_flight = new Single_Flight( $store, ttl: is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS );
+		$page_markdown = new Page_Markdown_Service( new Front_Matter(), $single_flight, $logger );
 		$router = new Serve_Router(
 			$store,
 			$artifacts,
 			$logger,
 			is_numeric( $ttl ) ? (int) $ttl : WEEK_IN_SECONDS,
-			base_path: static fn(): string => rtrim( (string) wp_parse_url( (string) home_url( '/' ), PHP_URL_PATH ), '/' ),
+			base_path: static fn(): string => rtrim( (string) wp_parse_url( Site_Url::home( '/' ), PHP_URL_PATH ), '/' ),
 			cache_version: static fn(): int => ( new Cache_Version() )->current(),
 			canonical_origin: static function (): string {
-				$home   = (string) home_url( '/' );
+				$home = Site_Url::home( '/' );
 				$scheme = wp_parse_url( $home, PHP_URL_SCHEME );
 				$host   = wp_parse_url( $home, PHP_URL_HOST );
 				$port   = wp_parse_url( $home, PHP_URL_PORT );
@@ -291,7 +292,7 @@ final class Plugin {
 		// (docs/spec/llms-txt.md §2). The matrix reads its saved cells from the
 		// `content_types` slice of the single option.
 		$matrix = new Content_Matrix( static fn(): array => self::content_types_option() );
-		$exclusions = new Exclusions( static fn(): string => self::exclusion_patterns_option(), static fn(): string => home_url() );
+		$exclusions = new Exclusions( static fn(): string => self::exclusion_patterns_option(), static fn(): string => Site_Url::home() );
 		$eligibility = new Eligibility( $matrix, $exclusions );
 		$markdown_alternate = new Markdown_Alternate();
 		$this->core = new Core( $artifacts, $settings, $page_markdown, $logger, $store, $router, $matrix, $eligibility, $markdown_alternate, $single_flight );

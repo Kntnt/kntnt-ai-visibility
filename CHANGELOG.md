@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+Preliminary Bogo and cache corrections; further correctness and security work remains tracked in [#3](https://github.com/Kntnt/kntnt-ai-visibility/issues/3).
+
+### Added
+
+- Bogo regression fixtures covering implicit and explicit language prefixes, translated front pages, source rendering and public-cache lifecycle changes, wired into the local test runner and CI.
+- A record of the Bogo and cache investigation, its verification and remaining limits in `docs/bogo-cache-correctness.md`.
+
+### Changed
+
+- Renamed the domain glossary from `CONTEXT.md` to `GLOSSARY.md` and updated its references.
+
+### Fixed
+
+- Keep Bogo language prefixes in per-page cache identities and use the configured installation URL for site-wide artifact links, routing and exclusions.
+- Require slug-resolution candidates to match the complete canonical path, preventing unrelated or wrong-language paths from resolving to the same leaf slug.
+- Resolve translated static-front-page alternates using the source locale and prefer cached canonical metadata when serving warm Markdown files.
+- Supply the source post's globals and Bogo locale during Markdown rendering, restoring the caller's state afterwards.
+- Invalidate old permalink files before post updates or deletion, flush affected cache state on hierarchical, taxonomy, front-page, permalink and Bogo metadata changes and invalidate aggregates on permanent deletion.
+- Enforce the configured cache lifetime in the inner materialiser as well as the early router, allowing expired files to be regenerated.
+- Match exact supported Markdown media types and respect zero quality and an explicitly higher HTML quality during Accept negotiation.
+- Avoid duplicating the installation or language prefix when redirecting a trailing-slashed `.md` URL.
+- Truncate llms.txt excerpts by characters, preserving valid UTF-8.
+- Link category and tag metadata to their existing HTML archives.
+
+### Security
+
+- Refuse public Markdown requests for posts with a stored password even when the current visitor has satisfied the password gate.
+
 ## [0.5.1] – 2026-07-16
 
 ### Fixed

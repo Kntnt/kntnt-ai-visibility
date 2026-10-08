@@ -74,6 +74,7 @@ describe('Index_Provider::advertise', function (): void {
     });
 
     it('advertises the llms.txt singleton on the site-scoped (null-post) call', function (): void {
+        Functions\when('get_option')->justReturn('https://example.com');
         Functions\when('home_url')->alias(fn(string $path = ''): string => 'https://example.com' . $path);
 
         $relations = $this->provider->advertise(new Discovery_Context(null));

@@ -126,7 +126,7 @@ final class Request_Handler {
 		$request = Request_Factory::from_globals();
 		$target = $this->trailing_slash_target( $request->path );
 		if ( $target !== null ) {
-			wp_safe_redirect( home_url( $target ), 301 );
+			wp_safe_redirect( $target, 301 );
 			exit;
 		}
 
@@ -158,7 +158,7 @@ final class Request_Handler {
 		if ( ! $post instanceof \WP_Post ) {
 			return;
 		}
-		if ( post_password_required( $post ) ) {
+		if ( $post->post_password !== '' || post_password_required( $post ) ) {
 			$this->forbidden();
 		}
 
@@ -268,7 +268,24 @@ final class Request_Handler {
 	 * @return bool
 	 */
 	private function accepts_markdown( string $accept ): bool {
-		return stripos( $accept, 'text/markdown' ) !== false || stripos( $accept, 'text/x-markdown' ) !== false;
+		$markdown = 0.0;
+		$html = 0.0;
+		foreach ( explode( ',', strtolower( $accept ) ) as $range ) {
+			$parts = array_map( 'trim', explode( ';', $range ) );
+			$type = array_shift( $parts );
+			$quality = 1.0;
+			foreach ( $parts as $parameter ) {
+				if ( preg_match( '/^q\s*=\s*(.*)$/', $parameter, $match ) === 1 ) {
+					$quality = is_numeric( $match[1] ) ? max( 0.0, min( 1.0, (float) $match[1] ) ) : 0.0;
+				}
+			}
+			if ( in_array( $type, [ 'text/markdown', 'text/x-markdown' ], true ) ) {
+				$markdown = max( $markdown, $quality );
+			} elseif ( $type === 'text/html' ) {
+				$html = max( $html, $quality );
+			}
+		}
+		return $markdown > 0.0 && $markdown >= $html;
 	}
 
 	/**
