@@ -33,6 +33,8 @@ interface Page_Markdown {
 	 * Pure of HTTP and caching: it renders, converts, builds front-matter and
 	 * assembles. Used directly by the Markdown module and concatenated by the
 	 * llms.txt module.
+	 * The public HTML filter receives the source and the ordinary rendered HTML.
+	 * It may select theme-visible field content before the shared conversion.
 	 * All content and metadata filters run as an anonymous WordPress user with
 	 * visitor credentials and request data hidden. Content and metadata run in
 	 * the source's isolated singular main query, active Loop and Bogo locale.
@@ -45,6 +47,7 @@ interface Page_Markdown {
 	 * @return string The assembled Markdown document.
 	 * @throws \DomainException When a password, preview or content cache veto prevents public rendering.
 	 * @throws Markdown_Conversion_Failed When conversion fails; no bytes are valid.
+	 * @throws Public_Content_Rendering_Failed When the public HTML adapter fails or returns a non-string.
 	 */
 	public function for_post( \WP_Post $post ): string;
 
@@ -64,7 +67,8 @@ interface Page_Markdown {
 	 * @param \WP_Post $post     The post to render on a miss.
 	 * @return Materialisation The valid bytes and independent persistence outcome.
 	 * @throws \DomainException When a password, preview or content cache veto prevents public publication.
-	 * @throws Markdown_Conversion_Failed When a miss cannot generate valid bytes.
+	 * @throws Markdown_Conversion_Failed When conversion fails on a miss.
+	 * @throws Public_Content_Rendering_Failed When public rendering fails on a miss.
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): Materialisation;
 

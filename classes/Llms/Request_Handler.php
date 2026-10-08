@@ -31,6 +31,7 @@ use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
 use Kntnt\Ai_Visibility\Core\Logger;
 use Kntnt\Ai_Visibility\Core\Markdown_Conversion_Failed;
+use Kntnt\Ai_Visibility\Core\Public_Content_Rendering_Failed;
 
 /**
  * Routes and serves the llms singleton requests through WordPress.
@@ -158,9 +159,9 @@ final class Request_Handler {
 		// every later early-router serve.
 		try {
 			$result = $this->single_flight->once( $identity, static fn(): string => $provider->generate( $identity )->bytes );
-		} catch ( Markdown_Conversion_Failed ) {
+		} catch ( Markdown_Conversion_Failed | Public_Content_Rendering_Failed ) {
 
-			// One failed constituent invalidates the complete aggregate response.
+			// A failed render or conversion invalidates the complete aggregate.
 			status_header( 500 );
 			nocache_headers();
 			header( 'Content-Type: text/plain; charset=utf-8' );

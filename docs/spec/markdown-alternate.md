@@ -201,7 +201,7 @@ Mechanics, parity with the reference:
 
 ### 4.3 Generation pipeline (Core Page-Markdown)
 
-1. **Render** the content: `apply_filters( 'the_content', $post->post_content )` (renders shortcodes and blocks). Input to the converter is the **content only**, never a full themed page — so no nav/header/footer stripping is needed. Ensure UTF-8 (decode first if ever not).
+1. **Render** the content: `apply_filters( 'the_content', $post->post_content )` supplies the default block and shortcode HTML. Core then applies `kntnt_ai_visibility_public_content_html( string $html, \WP_Post $source ): string` before conversion, allowing an explicit integration to replace or extend that default with the source's actual public theme body. Without an adapter the ordinary pipeline is unchanged. Converter input is body content only; an adapter capturing theme output must exclude navigation, headers and footers. Ensure UTF-8 (decode first if ever not).
 
    Public artifact rendering uses WordPress's anonymous user (`wp_set_current_user(0)`), with cookies, query/form/request data and HTTP authentication credentials hidden. Existing WordPress query objects are cloned with their request query data removed, preserving main-query identity when both globals originally referred to the same query. Content and front-matter filters see this same audience. Caller identity, user globals, query objects, mutable request data and response headers are restored in `finally`, including when a content integration throws. Preview requests (query flags or WordPress preview state) cannot render or materialise public artifacts: autosave content and preview metadata must never enter shared files. The stored-password exclusion applies before rendering and before warm-cache reads. Each page pipeline additionally enters the source context below inside this anonymous audience scope.
 
@@ -222,6 +222,38 @@ Mechanics, parity with the reference:
    - `tags` — same shape; omitted when empty.
    - Filterable before serialisation (taxonomy→key map, content lines, raw lines), mirroring the reference's `…_frontmatter_*` filters.
 4. **Assemble:** front-matter, a blank line, then the body. The body **leads with the page's visible H1** — `# {get_the_title()}` — because the on-page heading is part of what a reader sees, and standard WordPress renders the title via the theme *outside* `the_content` (so it is absent from the converted output). This H1 is the **visible heading**, distinct from the `<title>` element, which is metadata and lives only in the front-matter `title` key (decision 5) — the `<title>` element is never injected into the body. A blank line follows, then the converted body. (If a setup already emits the title heading inside `the_content`, de-duplicating the leading H1 is a later refinement.)
+
+### 4.3.1 Public theme-body integration
+
+`kntnt_ai_visibility_public_content_html` receives two arguments: the already rendered default HTML and the explicit source `WP_Post`. It runs inside the anonymous audience and source query/Loop/locale scope described above, for every page generation used by `.md`, `?format=markdown`, negotiated inline Markdown and `llms-full.txt`. Warm per-page or aggregate files reuse the resulting bytes; there is no second aggregate renderer. The adapter selects the HTML that a public visitor sees from the theme's actual templates and schema. Stored metadata is never automatically exposed. Internal notes, unpublished sections, membership fields and visitor-captured output must not be returned merely because they exist.
+
+Return a string; `''` is a legitimate successful empty body. An exception from this filter or a non-string result becomes `Core\Public_Content_Rendering_Failed`, is logged silently and produces no materialisation result or new page artifact. A full aggregate aborts rather than publishing a partial document. Both HTTP handlers use the same fixed plain-text, no-store, nosniff `500` policy as conversion failure (§5.2), including bodyless HEAD and no conditional `304`. Rendering failure remains distinguishable from `Core\Markdown_Conversion_Failed`, public refusal (`DomainException`) and unavailable persistence (§5.1). A callback's `DomainException` retains the public-refusal policy. Later requests retry; integrations must propagate failures rather than catch them and return an empty string.
+
+For a theme with an actual `template-parts/public-body.php`, a local adapter can capture that part. The part selects the theme's explicitly published fields and uses the supplied source; replace the example theme and template path with the real integration. Ordinary content can be retained by appending the part, or deliberately replaced when the theme's public body already includes it. The adapter owns any extra state and output buffers it creates, and must restore them on every exit. Core does not infer a theme's field schema or invoke a complete canonical template lifecycle.
+
+```php
+add_filter( 'kntnt_ai_visibility_public_content_html', static function ( string $html, WP_Post $source ): string {
+    if ( get_template() !== 'example-theme' ) {
+        return $html;
+    }
+    $part = locate_template( 'template-parts/public-body.php' );
+    if ( $part === '' ) {
+        throw new RuntimeException( 'Public body template is unavailable.' );
+    }
+    $level = ob_get_level();
+    ob_start();
+    try {
+        // The real part reads only fields its public HTML template publishes.
+        include $part;
+        $body = (string) ob_get_contents();
+    } finally {
+        while ( ob_get_level() > $level ) {
+            ob_end_clean();
+        }
+    }
+    return $html . $body;
+}, 10, 2 );
+```
 
 ### 4.4 Response headers
 
