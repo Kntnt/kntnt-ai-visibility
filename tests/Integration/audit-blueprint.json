@@ -1,5 +1,9 @@
 {
     "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "preferredVersions": {
+        "php": "8.4",
+        "wp": "latest"
+    },
     "steps": [
         { "step": "setSiteLanguage", "language": "sv_SE" },
         { "step": "setSiteLanguage", "language": "en_GB" },

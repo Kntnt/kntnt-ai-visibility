@@ -85,6 +85,10 @@ if [[ "$ready" != true ]]; then
 	exit 1
 fi
 
+# Assert the serving worker's runtime under the installed site's subpath.
+source "$SCRIPT_DIR/playground-php-version.sh"
+assert_playground_php_version "$BASE" || exit 1
+
 # Warm the Markdown path under the subpath (the first cold WASM SQLite query can
 # miss), exactly as the root run does before asserting.
 warm=false

@@ -19,9 +19,9 @@ require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 $plugin = 'kntnt-ai-visibility/kntnt-ai-visibility.php';
 
-// The plugin requires PHP 8.4; confirm Playground actually booted on it.
-if (PHP_VERSION_ID < 80400) {
-    throw new RuntimeException('Expected PHP 8.4+, got ' . PHP_VERSION);
+// Exercise the minimum supported major/minor, rather than a newer runtime.
+if ( PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 4 ) {
+	throw new RuntimeException( 'Expected actual PHP 8.4, got ' . PHP_VERSION );
 }
 
 // Activation must have succeeded — a fatal during load would leave it inactive.
@@ -48,4 +48,4 @@ if ($version === '' || $version !== $expected) {
 // and makes the Playground run exit non-zero); this echo is for human readers
 // of a verbose run. STDERR is intentionally not used — it is a CLI-only
 // constant and is undefined in Playground's web SAPI.
-echo "KNTNT_AI_VISIBILITY_BOOT_OK\n";
+echo 'KNTNT_AI_VISIBILITY_BOOT_OK PHP ' . PHP_VERSION . "\n";
