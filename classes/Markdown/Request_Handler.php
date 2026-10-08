@@ -232,9 +232,10 @@ final class Request_Handler {
 			return;
 		}
 
-		// Normalise a trailing-slashed `.md` URL with a 301 to the canonical form.
+		// Redirect only a supported source address, preserving its existing base.
 		$target = $this->trailing_slash_target( $request->path );
-		if ( $target !== null ) {
+		if ( $target !== null
+			&& $this->provider->match( new Request( $request->method, $target, $request->query ) ) !== null ) {
 			wp_safe_redirect( $target, 301 );
 			exit;
 		}
@@ -333,7 +334,10 @@ final class Request_Handler {
 	}
 
 	/**
-	 * Returns the de-slashed `.md` path for a trailing-slash request, or null.
+	 * Returns a safe de-slashed path in pretty mode, or null.
+	 *
+	 * Preserves encoding and existing prefixes. The HTTP shell also requires
+	 * that the provider recognise the target and source-identifying query.
 	 *
 	 * @since 0.1.0
 	 *
@@ -342,8 +346,20 @@ final class Request_Handler {
 	 */
 	public function trailing_slash_target( string $path ): ?string {
 
-		// Match a `.md` URL followed by one or more trailing slashes.
-		if ( preg_match( '~^(/.+\.md)/+$~', $path, $matches ) === 1 ) {
+		// Plain query alternates have no dedicated suffix path to normalise.
+		if ( get_option( 'permalink_structure' ) === '' ) {
+			return null;
+		}
+
+		// Reject alternate authority syntax and encoded header-control bytes.
+		$decoded = rawurldecode( $path );
+		if ( str_starts_with( $decoded, '//' ) || str_contains( $decoded, '\\' )
+			|| preg_match( '~[\x00-\x1f\x7f]~', $decoded ) === 1 ) {
+			return null;
+		}
+
+		// Match a root-relative path, never a scheme-relative redirect target.
+		if ( preg_match( '~^(/(?!/).+\.md)/+$~', $path, $matches ) === 1 ) {
 			return $matches[1];
 		}
 

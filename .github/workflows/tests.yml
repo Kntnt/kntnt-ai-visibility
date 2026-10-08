@@ -159,3 +159,5 @@ jobs:
         run: python3 tests/Integration/playground-unicode-descriptions.py
       - name: Exact canonical headers and safe stored front matter
         run: python3 tests/Integration/playground-canonical-links.py
+      - name: Complete safe Markdown trailing-slash redirects
+        run: python3 tests/Integration/playground-trailing-slash.py
