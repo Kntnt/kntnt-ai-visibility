@@ -184,7 +184,7 @@ final class Invalidation {
 	}
 
 	/**
-	 * Deletes a saved post's cached alternate.
+	 * Invalidates a saved post or its shared rendering dependencies.
 	 *
 	 * @since 0.1.0
 	 *
@@ -197,7 +197,7 @@ final class Invalidation {
 	}
 
 	/**
-	 * Deletes a post's cached alternate on any status transition.
+	 * Invalidates a post or shared dependency on any status transition.
 	 *
 	 * @since 0.1.0
 	 *
@@ -223,7 +223,7 @@ final class Invalidation {
 	}
 
 	/**
-	 * Deletes one post's cached alternate, skipping revisions and autosaves.
+	 * Invalidates a source or shared block, skipping revisions and autosaves.
 	 *
 	 * @since 0.1.0
 	 *
@@ -234,6 +234,13 @@ final class Invalidation {
 
 		// Revisions and autosaves are not servable entries; ignore them.
 		if ( wp_is_post_revision( $post ) || wp_is_post_autosave( $post ) ) {
+			return;
+		}
+
+		// Synced patterns and reusable blocks can affect many unchanged sources.
+		// Turn over their dependent pages and aggregates without rendering here.
+		if ( $post->post_type === 'wp_block' ) {
+			$this->flush();
 			return;
 		}
 
