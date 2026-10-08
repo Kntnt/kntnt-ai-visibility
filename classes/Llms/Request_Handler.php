@@ -30,6 +30,7 @@ use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
 use Kntnt\Ai_Visibility\Core\Logger;
+use Kntnt\Ai_Visibility\Core\Markdown_Conversion_Failed;
 
 /**
  * Routes and serves the llms singleton requests through WordPress.
@@ -151,6 +152,19 @@ final class Request_Handler {
 		// every later early-router serve.
 		try {
 			$result = $this->single_flight->once( $identity, static fn(): string => $provider->generate( $identity )->bytes );
+		} catch ( Markdown_Conversion_Failed ) {
+
+			// One failed constituent invalidates the complete aggregate response.
+			status_header( 500 );
+			nocache_headers();
+			header( 'Content-Type: text/plain; charset=utf-8' );
+			header( 'X-Content-Type-Options: nosniff' );
+			if ( $request->method !== 'HEAD' ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- This fixed translated response is plain text, never HTML.
+				echo __( 'This content could not be converted to Markdown.', 'kntnt-ai-visibility' );
+			}
+			exit;
+
 		} catch ( \DomainException $exception ) {
 			status_header( 403 );
 			nocache_headers();

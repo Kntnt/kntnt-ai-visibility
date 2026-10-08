@@ -135,5 +135,7 @@ jobs:
         run: python3 tests/Integration/playground-public-rendering.py
       - name: Generated artifact responses when persistence fails
         run: python3 tests/Integration/playground-cache-failure.py
+      - name: Conversion failure and recovery
+        run: python3 tests/Integration/playground-conversion-failure.py
       - name: Exposure settings option lifecycle
         run: python3 tests/Integration/playground-exposure-options.py
