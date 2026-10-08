@@ -17,6 +17,7 @@ final class Version_Database extends \wpdb
 {
     public string $options = 'options';
     public string $last_error = '';
+    public bool $suppress_errors = false;
     private \PDO $connection;
 
     public function __construct(string $path = ':memory:')
@@ -31,6 +32,13 @@ final class Version_Database extends \wpdb
     {
         $quoted = array_map(fn(mixed $value): string => $this->connection->quote((string) $value), $arguments);
         return vsprintf(str_replace('%i', '%s', $sql), $quoted);
+    }
+
+    public function suppress_errors(bool $suppress = true): bool
+    {
+        $previous = $this->suppress_errors;
+        $this->suppress_errors = $suppress;
+        return $previous;
     }
 
     public function query(string $sql): int|false

@@ -1,15 +1,18 @@
 """Verify render/revocation publication through native WordPress HTTP.
 
 KNTNT_PUBLICATION_PORT selects the port; KNTNT_PUBLICATION_PLUGIN_ROOT can mount an
-isolated historical checkout for RED evidence. KNTNT_PUBLICATION_CASES selects a
-the plain-front tracer; KNTNT_PUBLICATION_ROOT_ONLY selects only the root base.
+isolated historical checkout for RED evidence. KNTNT_PUBLICATION_CASES selects
+the plain-front or sql tracer; KNTNT_PUBLICATION_ROOT_ONLY selects the root base.
 Worker groups are always stopped.
 """
 
 import json
+from http.client import parse_headers
+from io import BytesIO
 import os
 from pathlib import Path
 import signal
+import socket
 import subprocess
 import tempfile
 import time
@@ -28,6 +31,20 @@ class NoRedirect(HTTPRedirectHandler):
 
 def request(base, path, headers=None, method="GET"):
     """Read actual status, headers and source bytes from the public endpoint."""
+    if method == "HEAD":
+        address = urlsplit(base + path)
+        fields = {"Host": address.netloc, "Connection": "close", **(headers or {})}
+        outgoing = "HEAD " + address.path + ("?" + address.query if address.query else "") + " HTTP/1.1\r\n"
+        outgoing += "".join(f"{key}: {value}\r\n" for key, value in fields.items()) + "\r\n"
+        with socket.create_connection((address.hostname, address.port), timeout=20) as connection:
+            connection.sendall(outgoing.encode("ascii"))
+            chunks = []
+            while chunk := connection.recv(65536):
+                chunks.append(chunk)
+        block, separator, body = b"".join(chunks).partition(b"\r\n\r\n")
+        assert separator, block
+        line, fields = block.split(b"\r\n", 1)
+        return int(line.split()[1]), parse_headers(BytesIO(fields)), body
     try:
         response = build_opener(NoRedirect).open(Request(base + path, headers=headers or {}, method=method), timeout=20)
     except HTTPError as error:
@@ -47,6 +64,9 @@ def verify(base, ids):
     """Revoked producer bytes must never become a public response or artifact."""
     assert ids["php"].startswith("8.4."), ids
     print("Actual Playground PHP: " + ids["php"], flush=True)
+    if os.environ.get("KNTNT_PUBLICATION_CASES") == "sql":
+        verify_sql(base)
+        return
     if os.environ.get("KNTNT_PUBLICATION_CASES") == "plain-front":
         queued = control(base, "queued-plain-front-cold")
         assert queued["refused"] and queued["restored"], queued
@@ -117,7 +137,51 @@ def verify(base, ids):
                 assert status == 200 and headers.get_content_type() == "text/markdown", (queued, status, body[:1000])
                 assert body.count(marker) == 1, (queued, body)
                 print(f"Queued {mode}/{case}/{temperature}: stale source refused, current source intact", flush=True)
+    verify_sql(base)
     print("Publication HTTP: 0 failures", flush=True)
+
+
+def verify_sql(base):
+    """Fail only the real version SELECT before either HTTP refusal shell."""
+    failures = []
+    for policy in ["quiet", "visible"]:
+        for result in ["success", "failure"]:
+            state = control(base, f"sql-policy-{policy}-{result}")
+            assert state["before"] == state["after"] and state["debug"] and state["display"], state
+            assert state["refused"] == (result == "failure"), state
+            print(f"SQL policy {policy}/{result}: exact restoration, debug/display enabled", flush=True)
+    for phase in ["early", "late"]:
+        for temperature in ["cold", "warm"]:
+            # Warm exact paths exit in the early router before the late fault.
+            if phase == "late" and temperature == "warm":
+                continue
+            for path in ["/llms.txt", "/llms-full.txt"]:
+                control(base, "sql-prepare")
+                if temperature == "warm":
+                    status, _, body = request(base, path)
+                    assert status == 200 and b"CURRENT-SQL-SOURCE" in body, (status, body[:1200])
+                for method in ["GET", "HEAD", "conditional"]:
+                    fields = {"X-Publication-Sql-Failure": phase}
+                    if method == "conditional":
+                        fields["If-None-Match"] = "*"
+                    status, headers, body = request(base, path, fields, "HEAD" if method == "HEAD" else "GET")
+                    okay = (status == 403 and headers.get_content_type() == "text/plain"
+                            and "no-store" in headers.get("Cache-Control", "")
+                            and headers.get("X-Content-Type-Options") == "nosniff"
+                            and headers.get("ETag") is None
+                            and b"CURRENT-SQL-SOURCE" not in body
+                            and b"SELECT" not in body and b"database error" not in body
+                            and (method != "HEAD" or body == b""))
+                    label = f"SQL {phase}/{temperature}/{path}/{method}"
+                    print(f"{label}: HTTP {status}, controlled={okay}, body={body[:180]!r}", flush=True)
+                    if not okay:
+                        failures.append(label)
+                        if os.environ.get("KNTNT_PUBLICATION_SQL_FIRST") == "1":
+                            raise AssertionError((label, status, body[:1200]))
+                status, _, body = request(base, path)
+                assert status == 200 and b"CURRENT-SQL-SOURCE" in body, (status, body[:1200])
+    assert not failures, failures
+    print("SQL failure HTTP: 0 failures", flush=True)
 
 
 def run(subpath):

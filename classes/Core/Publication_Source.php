@@ -70,7 +70,9 @@ final class Publication_Source {
 				throw new Obsolete_Artifact( 'The public source is no longer eligible.' );
 			}
 			$current = $this->locator->identity_for( $fresh );
-			if ( $current->kind !== $identity->kind || $current->key !== $identity->key || $current->source_id !== $identity->source_id ) {
+			if ( $current->kind !== $identity->kind
+				|| $current->key !== $identity->key
+				|| $current->source_id !== $identity->source_id ) {
 				throw new Obsolete_Artifact( 'The public source address has changed.' );
 			}
 			if ( $queued_canonical !== $this->locator->canonical_url_for( $fresh ) ) {

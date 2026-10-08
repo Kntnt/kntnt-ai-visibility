@@ -185,23 +185,22 @@ final class Request_Handler {
 			return;
 		}
 
-		// Match the request; a non-match is left to WordPress.
-		$match = $this->match_provider( $request );
-		if ( $match === null ) {
-			return;
-		}
-		[ $provider, $identity ] = $match;
-
-		// This dedicated-path shell leaves query-only providers to their handler.
-		$pattern = $provider->serve_pattern();
-		if ( $pattern === null ) {
-			return;
-		}
-
 		// Materialise the aggregate once (single-flight), then serve the resulting
 		// cache file with the router's file-based headers so the validators match
 		// every later early-router serve.
 		try {
+			// Identity selection can itself refuse unavailable generation state.
+			$match = $this->match_provider( $request );
+			if ( $match === null ) {
+				return;
+			}
+			[ $provider, $identity ] = $match;
+
+			// This shell leaves query-only providers to their own handler.
+			$pattern = $provider->serve_pattern();
+			if ( $pattern === null ) {
+				return;
+			}
 			$result = $this->single_flight->once(
 				$identity,
 				static fn(): string => $provider->generate( $identity )->bytes,
@@ -226,6 +225,7 @@ final class Request_Handler {
 			exit;
 
 		} catch ( \DomainException $exception ) {
+			$this->logger->warning( 'Refused unavailable or obsolete public artifact' );
 			status_header( 403 );
 			nocache_headers();
 			header( 'Content-Type: text/plain; charset=utf-8' );

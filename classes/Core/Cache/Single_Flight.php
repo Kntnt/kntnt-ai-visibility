@@ -95,7 +95,10 @@ final class Single_Flight {
 		// Serve an existing cache file without producing.
 		$cached = $this->read_fresh( $identity );
 		if ( $cached !== null ) {
-			return $barrier->publish( $generation, static fn(): Materialisation => new Materialisation( $cached, true ) );
+			return $barrier->publish(
+				$generation,
+				static fn(): Materialisation => new Materialisation( $cached, true ),
+			);
 		}
 
 		// Single-flight: hold the lock, re-check, then produce and store.
@@ -106,14 +109,20 @@ final class Single_Flight {
 			}
 			$cached = $this->read_fresh( $identity );
 			if ( $cached !== null ) {
-				return $barrier->publish( $generation, static fn(): Materialisation => new Materialisation( $cached, true ) );
+				return $barrier->publish(
+					$generation,
+					static fn(): Materialisation => new Materialisation( $cached, true ),
+				);
 			}
 			$barrier->publish( $generation, static fn(): null => null );
 			$bytes = $produce();
 			if ( $validate !== null ) {
 				$validate();
 			}
-			return $barrier->publish( $generation, fn(): Materialisation => new Materialisation( $bytes, $this->store->write( $identity, $bytes ) ) );
+			return $barrier->publish(
+				$generation,
+				fn(): Materialisation => new Materialisation( $bytes, $this->store->write( $identity, $bytes ) ),
+			);
 		} finally {
 			$this->release_lock( $lock );
 		}

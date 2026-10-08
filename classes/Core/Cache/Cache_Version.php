@@ -54,10 +54,15 @@ final class Cache_Version {
 		if ( ! is_string( $sql ) ) {
 			throw new Obsolete_Artifact( 'The public artifact database query is unavailable.' );
 		}
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
-		$value = $wpdb->get_var( $sql );
-		if ( $wpdb->last_error !== '' ) {
-			throw new Obsolete_Artifact( 'The public artifact database query failed.' );
+		$suppressed = $wpdb->suppress_errors( true );
+		try {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
+			$value = $wpdb->get_var( $sql );
+			if ( $wpdb->last_error !== '' ) {
+				throw new Obsolete_Artifact( 'The public artifact database query failed.' );
+			}
+		} finally {
+			$wpdb->suppress_errors( $suppressed );
 		}
 
 		return max( 1, is_numeric( $value ) ? (int) $value : 1 );
@@ -92,12 +97,17 @@ final class Cache_Version {
 			if ( ! is_string( $insert_sql ) || ! is_string( $update_sql ) ) {
 				throw new Obsolete_Artifact( 'The public artifact database query is unavailable.' );
 			}
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
-			$insert = $wpdb->query( $insert_sql );
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
-			$update = $wpdb->query( $update_sql );
-			if ( $insert === false || $update === false ) {
-				throw new Obsolete_Artifact( 'The public artifact generation is unavailable.' );
+			$suppressed = $wpdb->suppress_errors( true );
+			try {
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
+				$insert = $wpdb->query( $insert_sql );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
+				$update = $wpdb->query( $update_sql );
+				if ( $insert === false || $update === false ) {
+					throw new Obsolete_Artifact( 'The public artifact generation is unavailable.' );
+				}
+			} finally {
+				$wpdb->suppress_errors( $suppressed );
 			}
 			wp_cache_delete( self::OPTION, 'options' );
 			wp_cache_delete( 'notoptions', 'options' );
@@ -108,16 +118,16 @@ final class Cache_Version {
 		} else {
 			$this->store->publication()->revoke(
 				function () use ( $advance ): void {
-				try {
-					$advance();
-				} catch ( \Throwable $failure ) {
+					try {
+						$advance();
+					} catch ( \Throwable $failure ) {
 
-					// A failed stamp must never leave the old public generation
-					// readable after database recovery. Re-entrant flush shares
-					// this already-held barrier across same-base store objects.
-					$this->store->flush_all();
-					throw $failure;
-				}
+						// A failed stamp must never leave the old public generation
+						// readable after database recovery. Re-entrant flush shares
+						// this already-held barrier across same-base store objects.
+						$this->store->flush_all();
+						throw $failure;
+					}
 				},
 			);
 		}

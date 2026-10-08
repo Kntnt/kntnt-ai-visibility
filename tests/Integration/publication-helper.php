@@ -21,6 +21,24 @@ use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 use Kntnt\Ai_Visibility\Core\Publication_Source;
 use Kntnt\Ai_Visibility\Plugin;
 
+/** Makes only the authoritative cache-version SELECT fail in the real adapter. */
+function publication_sql_failure(): void {
+	global $wpdb;
+	$wpdb->show_errors();
+	add_filter( 'query', static function ( string $query ): string {
+		return str_starts_with( $query, 'SELECT option_value FROM ' )
+			&& str_contains( $query, "'kntnt_ai_visibility_cache_version'" )
+			? 'SELECT option_value FROM publication_missing_options'
+			: $query;
+	} );
+}
+
+if ( ( $_SERVER['HTTP_X_PUBLICATION_SQL_FAILURE'] ?? '' ) === 'early' ) {
+	publication_sql_failure();
+} elseif ( ( $_SERVER['HTTP_X_PUBLICATION_SQL_FAILURE'] ?? '' ) === 'late' ) {
+	add_action( 'template_redirect', 'publication_sql_failure', -50 );
+}
+
 /** Builds the real public service graph for deliberately queued source work. */
 function publication_service(): Page_Markdown_Service {
 	$matrix = new Content_Matrix( static fn(): array => get_option( 'kntnt_ai_visibility', [] )['content_types'] ?? [] );
@@ -145,6 +163,35 @@ add_action( 'template_redirect', static function (): void {
 		update_option( 'publication_queue', true );
 	}
 	$action = (string) ( $_GET['publication_action'] ?? '' );
+	if ( str_starts_with( $action, 'sql-policy-' ) ) {
+		global $wpdb;
+		$before = str_contains( $action, '-quiet' );
+		$wpdb->suppress_errors( $before );
+		$failed = str_ends_with( $action, '-failure' );
+		if ( $failed ) {
+			publication_sql_failure();
+		}
+		$refused = false;
+		try {
+			( new \Kntnt\Ai_Visibility\Core\Cache\Cache_Version() )->current();
+		} catch ( \Kntnt\Ai_Visibility\Core\Cache\Obsolete_Artifact ) {
+			$refused = true;
+		}
+		header( 'Content-Type: application/json' );
+		echo wp_json_encode( [
+			'before' => $before, 'after' => $wpdb->suppress_errors, 'refused' => $refused,
+			'debug' => WP_DEBUG, 'display' => WP_DEBUG_DISPLAY,
+		] );
+		exit;
+	}
+	if ( $action === 'sql-prepare' ) {
+		$post = get_page_by_path( 'publication-sql-source' );
+		wp_insert_post( [
+			'ID' => $post?->ID ?? 0, 'post_type' => 'page', 'post_name' => 'publication-sql-source',
+			'post_status' => 'publish', 'post_title' => 'CURRENT-SQL-SOURCE', 'post_content' => 'CURRENT-SQL-SOURCE',
+		] );
+		( new File_Store( Plugin::cache_dir( ... ) ) )->flush_all();
+	}
 	if ( str_starts_with( $action, 'queued-' ) ) {
 		header( 'Content-Type: application/json' );
 		echo wp_json_encode( publication_queued( $action ) );
