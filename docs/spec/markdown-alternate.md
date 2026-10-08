@@ -228,11 +228,11 @@ Mechanics, parity with the reference:
 On both the cache-serve path (router) and the PHP path:
 
 - `Content-Type: text/markdown; charset=utf-8` — essential; without it the bytes are mislabelled as HTML.
-- `Content-Length`, `Last-Modified`, `ETag` — and `304` on conditional requests.
+- `Content-Length` and a content-derived `ETag`; a matching `If-None-Match` gives a bodyless `304` and takes precedence over date conditions. Stored representations also expose their known `Last-Modified` and honour `If-Modified-Since`. Dynamically rendered inline (`Accept`) Markdown has no complete modification timestamp: metadata, shortcodes and shared blocks can change its bytes without changing the source post date. Inline 200 and 304 responses therefore remove any inherited `Last-Modified`, omit it and ignore date-only conditions; an `If-Modified-Since` request returns 200 with the current representation. `HEAD` uses the same status and representation headers as `GET`, with no body.
 - `Link: <canonical-HTML-URL>; rel="canonical"` — the `.md` points back at its HTML canonical (avoids duplicate-content confusion). The HTML stays `rel="canonical"`; the `.md` is `rel="alternate"`.
 - `X-Content-Type-Options: nosniff`.
 - `Vary: Accept` on the negotiated (`Accept`) path and canonical HTML; combine existing values case-insensitively and retain an existing `*`.
-- `Cache-Control: private, no-store, no-cache, max-age=0, must-revalidate` on negotiated 200 and 304 responses. Establish WordPress/cache-plugin bypass signals before page-cache integration initialisation. Dedicated `.md` addresses retain their cache-grade policy. Caches serving before WordPress require explicit configuration and already polluted caches must be purged; follow the [target-site verification procedure](../operations/negotiated-cache.md).
+- `Cache-Control: private, no-store, no-cache, max-age=0, must-revalidate` on negotiated 200 and 304 responses. Establish WordPress/cache-plugin bypass signals before page-cache integration initialisation. Dedicated artifact addresses are recognised through Core’s registered serve patterns before canonical inline negotiation, even when their cache is cold. They retain their own provider’s serving policy and do not inherit the canonical Accept bypass; a genuine third-party publication veto still applies. Dedicated `.md` addresses retain their cache-grade policy. Caches serving before WordPress require explicit configuration and already polluted caches must be purged; follow the [target-site verification procedure](../operations/negotiated-cache.md).
 
 ### 4.5 Discovery in Release 1
 
