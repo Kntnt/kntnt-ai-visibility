@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Offline Composer boundary: the release-notes regression needs no packages.
+# Accepts the builder's install arguments and returns success.
+set -euo pipefail

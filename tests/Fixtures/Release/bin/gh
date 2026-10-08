@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Offline GitHub boundary for release-build tests. Captures notes and ZIP bytes
+# under KNTNT_RELEASE_CAPTURE; never contacts GitHub. Unexpected commands fail.
+set -euo pipefail
+
+case "$1 $2" in
+	'release view')
+		[[ -f "$KNTNT_RELEASE_CAPTURE/created" ]]
+		;;
+	'release create')
+		printf '%s\n' "$@" > "$KNTNT_RELEASE_CAPTURE/arguments"
+		touch "$KNTNT_RELEASE_CAPTURE/created"
+		while [[ $# -gt 0 ]]; do
+			if [[ "$1" == '--notes-file' ]]; then
+				cp "$2" "$KNTNT_RELEASE_CAPTURE/notes.md"
+				printf '%s\n' "$2" > "$KNTNT_RELEASE_CAPTURE/notes-path"
+				break
+			fi
+			shift
+		done
+		;;
+	'release upload')
+		cp "$4" "$KNTNT_RELEASE_CAPTURE/release.zip"
+		;;
+	*)
+		printf 'Unexpected gh command: %s\n' "$*" >&2
+		exit 2
+		;;
+esac
