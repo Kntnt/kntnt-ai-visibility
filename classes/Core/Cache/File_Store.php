@@ -40,6 +40,15 @@ final class File_Store implements Store {
 	private ?string $base = null;
 
 	/**
+	 * The lazily resolved publication coordinator.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @var Publication_Barrier|null
+	 */
+	private ?Publication_Barrier $publication = null;
+
+	/**
 	 * Binds the store to a lazy base-directory provider.
 	 *
 	 * @since 0.1.0
@@ -48,8 +57,24 @@ final class File_Store implements Store {
 	 *                                              base directory. Invoked once,
 	 *                                              on first use.
 	 * @param Logger             $logger            Receives controlled write failures.
+	 * @param string|null        $barrier_directory Isolates coordination resources; defaults to system temp.
 	 */
-	public function __construct( private $base_dir_provider, private readonly Logger $logger = new Plugin_Logger() ) {}
+	public function __construct(
+		private $base_dir_provider,
+		private readonly Logger $logger = new Plugin_Logger(),
+		private readonly ?string $barrier_directory = null,
+	) {}
+
+	/**
+	 * Resolves one coordinator shared by every generator and invalidation writer.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return Publication_Barrier The stable store coordinator.
+	 */
+	public function publication(): Publication_Barrier {
+		return $this->publication ??= new Publication_Barrier( $this->base(), $this->barrier_directory );
+	}
 
 	/**
 	 * Returns the resolved cache base directory.
@@ -163,12 +188,16 @@ final class File_Store implements Store {
 	 * @return void
 	 */
 	public function delete( Identity $identity ): void {
+		$this->publication()->revoke(
+			function () use ( $identity ): void {
 
-		// Remove the file when present; an absent file is a no-op.
-		$path = $this->path_for( $identity );
-		if ( is_file( $path ) ) {
-			unlink( $path );
-		}
+				// Remove the file when present; an absent file is a no-op.
+				$path = $this->path_for( $identity );
+				if ( is_file( $path ) ) {
+					unlink( $path );
+				}
+			}
+		);
 
 	}
 
@@ -180,24 +209,28 @@ final class File_Store implements Store {
 	 * @return void
 	 */
 	public function flush_all(): void {
+		$this->publication()->revoke(
+			function (): void {
 
-		// Nothing to do when the cache directory was never created.
-		$base = $this->base();
-		if ( ! is_dir( $base ) ) {
-			return;
-		}
+				// Nothing to do when the cache directory was never created.
+				$base = $this->base();
+				if ( ! is_dir( $base ) ) {
+					return;
+				}
 
-		// Walk the tree depth-first, removing files before their directories.
-		$entries = new \RecursiveIteratorIterator(
-			new \RecursiveDirectoryIterator( $base, \FilesystemIterator::SKIP_DOTS ),
-			\RecursiveIteratorIterator::CHILD_FIRST,
+				// Walk the tree depth-first, removing files before their directories.
+				$entries = new \RecursiveIteratorIterator(
+					new \RecursiveDirectoryIterator( $base, \FilesystemIterator::SKIP_DOTS ),
+					\RecursiveIteratorIterator::CHILD_FIRST,
+				);
+				// phpcs:ignore Generic.Commenting.DocComment.MissingShort -- inline @var to type the iterator value.
+				/** @var \SplFileInfo $entry */
+				foreach ( $entries as $entry ) {
+					$entry->isDir() ? rmdir( $entry->getPathname() ) : unlink( $entry->getPathname() );
+				}
+				rmdir( $base );
+			}
 		);
-		// phpcs:ignore Generic.Commenting.DocComment.MissingShort -- inline @var to type the iterator value.
-		/** @var \SplFileInfo $entry */
-		foreach ( $entries as $entry ) {
-			$entry->isDir() ? rmdir( $entry->getPathname() ) : unlink( $entry->getPathname() );
-		}
-		rmdir( $base );
 
 	}
 
@@ -292,7 +325,7 @@ final class File_Store implements Store {
 			'Cache write failed',
 			[
 				'operation' => $operation,
-				'path' => $path,
+				'path'      => $path,
 			],
 		);
 		return false;

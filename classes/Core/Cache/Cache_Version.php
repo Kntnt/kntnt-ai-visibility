@@ -34,14 +34,31 @@ final class Cache_Version {
 	public const OPTION = 'kntnt_ai_visibility_cache_version';
 
 	/**
+	 * Binds version-only invalidations to the shared publication barrier.
+	 *
+	 * @param Store|null $store The production cache store.
+	 */
+	public function __construct( private readonly ?Store $store = null ) {}
+
+	/**
 	 * Returns the current cache version, never below 1.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @return int
+	 * @throws Obsolete_Artifact When authoritative generation state is unavailable.
 	 */
 	public function current(): int {
-		$value = get_option( self::OPTION, 1 );
+		$wpdb = $this->database();
+		$sql = $wpdb->prepare( 'SELECT option_value FROM %i WHERE option_name = %s', $wpdb->options, self::OPTION );
+		if ( ! is_string( $sql ) ) {
+			throw new Obsolete_Artifact( 'The public artifact database query is unavailable.' );
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
+		$value = $wpdb->get_var( $sql );
+		if ( $wpdb->last_error !== '' ) {
+			throw new Obsolete_Artifact( 'The public artifact database query failed.' );
+		}
 
 		return max( 1, is_numeric( $value ) ? (int) $value : 1 );
 
@@ -53,9 +70,72 @@ final class Cache_Version {
 	 * @since 0.1.0
 	 *
 	 * @return void
+	 * @throws Obsolete_Artifact When generation advancement cannot complete safely.
 	 */
 	public function bump(): void {
-		update_option( self::OPTION, $this->current() + 1, false );
+
+		// Atomic SQL advancement cannot lose another writer's invalidation or
+		// reuse a request-local or persistent WordPress option-cache value.
+		$advance = function (): void {
+			$wpdb = $this->database();
+			$insert_sql = $wpdb->prepare(
+				"INSERT IGNORE INTO %i (option_name, option_value, autoload) VALUES (%s, '1', 'off')",
+				$wpdb->options,
+				self::OPTION,
+			);
+			$update_sql = $wpdb->prepare(
+				'UPDATE %i SET option_value = CASE WHEN CAST(option_value AS UNSIGNED) < 1 '
+				. 'THEN 2 ELSE CAST(option_value AS UNSIGNED) + 1 END WHERE option_name = %s',
+				$wpdb->options,
+				self::OPTION,
+			);
+			if ( ! is_string( $insert_sql ) || ! is_string( $update_sql ) ) {
+				throw new Obsolete_Artifact( 'The public artifact database query is unavailable.' );
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
+			$insert = $wpdb->query( $insert_sql );
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed template and all arguments prepared above; null refused.
+			$update = $wpdb->query( $update_sql );
+			if ( $insert === false || $update === false ) {
+				throw new Obsolete_Artifact( 'The public artifact generation is unavailable.' );
+			}
+			wp_cache_delete( self::OPTION, 'options' );
+			wp_cache_delete( 'notoptions', 'options' );
+			wp_cache_delete( 'alloptions', 'options' );
+		};
+		if ( $this->store === null ) {
+			$advance();
+		} else {
+			$this->store->publication()->revoke(
+				function () use ( $advance ): void {
+				try {
+					$advance();
+				} catch ( \Throwable $failure ) {
+
+					// A failed stamp must never leave the old public generation
+					// readable after database recovery. Re-entrant flush shares
+					// this already-held barrier across same-base store objects.
+					$this->store->flush_all();
+					throw $failure;
+				}
+				},
+			);
+		}
+
+	}
+
+	/**
+	 * Requires the actual WordPress database boundary before reading state.
+	 *
+	 * @return \wpdb The initialised WordPress database.
+	 * @throws Obsolete_Artifact When authoritative state is unavailable.
+	 */
+	private function database(): \wpdb {
+		$database = $GLOBALS['wpdb'] ?? null;
+		if ( ! $database instanceof \wpdb ) {
+			throw new Obsolete_Artifact( 'The public artifact database is unavailable.' );
+		}
+		return $database;
 	}
 
 }

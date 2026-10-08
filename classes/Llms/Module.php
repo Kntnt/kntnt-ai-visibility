@@ -59,7 +59,7 @@ final class Module implements Module_Contract {
 
 		// Build and register the two singleton providers, sharing the cache-version
 		// stamp with the invalidation so both agree on the version-stamped key.
-		$version = new Cache_Version();
+		$version = new Cache_Version( $core->cache() );
 		$index_provider = new Index_Provider( $index_builder, $version, $core->markdown_alternate() );
 		$full_provider = new Full_Provider( $full_builder, $version, $core->markdown_alternate() );
 		$core->artifacts()->register( $index_provider );

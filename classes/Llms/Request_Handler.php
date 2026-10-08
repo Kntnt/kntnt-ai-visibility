@@ -26,6 +26,7 @@ use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Artifact\Provider;
 use Kntnt\Ai_Visibility\Core\Artifact\Request;
 use Kntnt\Ai_Visibility\Core\Cache\Serve_Router;
+use Kntnt\Ai_Visibility\Core\Cache\Obsolete_Artifact;
 use Kntnt\Ai_Visibility\Core\Cache\Single_Flight;
 use Kntnt\Ai_Visibility\Core\Cache\Store;
 use Kntnt\Ai_Visibility\Core\Http\Request_Factory;
@@ -158,7 +159,16 @@ final class Request_Handler {
 		// cache file with the router's file-based headers so the validators match
 		// every later early-router serve.
 		try {
-			$result = $this->single_flight->once( $identity, static fn(): string => $provider->generate( $identity )->bytes );
+			$result = $this->single_flight->once(
+				$identity,
+				static fn(): string => $provider->generate( $identity )->bytes,
+				static function () use ( $provider, $request, $identity ): void {
+					$current = $provider->match( $request );
+					if ( $current === null || $current->kind !== $identity->kind || $current->key !== $identity->key ) {
+						throw new Obsolete_Artifact( 'The aggregate generation was revoked.' );
+					}
+				},
+			);
 		} catch ( Markdown_Conversion_Failed | Public_Content_Rendering_Failed ) {
 
 			// A failed render or conversion invalidates the complete aggregate.
@@ -176,7 +186,10 @@ final class Request_Handler {
 			status_header( 403 );
 			nocache_headers();
 			header( 'Content-Type: text/plain; charset=utf-8' );
-			echo 'This content cannot produce a public artifact.';
+			header( 'X-Content-Type-Options: nosniff' );
+			if ( $request->method !== 'HEAD' ) {
+				echo 'This content cannot produce a public artifact.';
+			}
 			exit;
 		}
 		$path = $this->cache->path_for( $identity );

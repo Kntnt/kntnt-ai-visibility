@@ -39,7 +39,7 @@ function kntnt_reference_document(string $canonical, string $html): string
     $post = new WP_Post();
     $post->ID = 18;
     $post->post_content = $html;
-    $store = new File_Store(static fn(): string => throw new RuntimeException('for_post is cache-free'));
+    $store = kntnt_test_file_store(static fn(): string => throw new RuntimeException('for_post is cache-free'));
     $service = new Page_Markdown_Service(new Front_Matter(), new Single_Flight($store), new Plugin_Logger(static function (): void {}));
     return $service->for_post($post);
 }

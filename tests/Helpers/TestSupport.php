@@ -12,6 +12,32 @@
 declare(strict_types=1);
 
 use Kntnt\Ai_Visibility\Plugin;
+use Kntnt\Ai_Visibility\Core\Cache\File_Store;
+use Kntnt\Ai_Visibility\Core\Logger;
+use Kntnt\Ai_Visibility\Core\Plugin_Logger;
+
+/** Returns a process-owned coordination root, cleaned after workers have stopped. */
+function kntnt_test_publication_directory(): string
+{
+    static $directory;
+    if ($directory === null) {
+        $directory = sys_get_temp_dir() . '/kntnt-unit-publication-' . getmypid() . '-' . uniqid();
+        mkdir($directory, 0700, true);
+        register_shutdown_function(static function () use ($directory): void {
+            foreach (new DirectoryIterator($directory) as $entry) {
+                if (!$entry->isDot()) { unlink($entry->getPathname()); }
+            }
+            rmdir($directory);
+        });
+    }
+    return $directory;
+}
+
+/** Builds the actual store with isolated test-owned coordination resources. */
+function kntnt_test_file_store(callable $base, Logger $logger = new Plugin_Logger()): File_Store
+{
+    return new File_Store($base, $logger, kntnt_test_publication_directory());
+}
 
 if (!function_exists('kntnt_test_reset_plugin')) {
     /**

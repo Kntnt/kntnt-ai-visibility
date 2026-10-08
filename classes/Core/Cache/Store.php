@@ -26,6 +26,15 @@ use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 interface Store {
 
 	/**
+	 * Returns this store's shared publication and revocation coordinator.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return Publication_Barrier The stable, store-scoped coordinator.
+	 */
+	public function publication(): Publication_Barrier;
+
+	/**
 	 * Returns the absolute cache base directory, without a trailing slash.
 	 *
 	 * The serve router uses this as the realpath containment root: a resolved

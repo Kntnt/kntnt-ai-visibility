@@ -16,19 +16,18 @@ use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 use Kntnt\Ai_Visibility\Core\Cache\Cache_Version;
 use Kntnt\Ai_Visibility\Core\Cache\File_Store;
 use Kntnt\Ai_Visibility\Core\Content\Exposure_Invalidation;
+use Tests\Helpers\Version_Database;
 
 beforeEach(function (): void {
-    // Keep the WordPress option boundary in memory; use real Core services.
-    $GLOBALS['kntnt_exposure_option_values'] = [Cache_Version::OPTION => 5];
-    Functions\when('get_option')->alias(static fn(string $key, mixed $default = false): mixed => $GLOBALS['kntnt_exposure_option_values'][$key] ?? $default);
-    Functions\expect('update_option')->andReturnUsing(static function (string $key, mixed $value): bool {
-        $GLOBALS['kntnt_exposure_option_values'][$key] = $value;
-        return true;
-    });
+    // Use real Core services and actual SQL at the WordPress DB boundary.
+    $this->previous_database = $GLOBALS['wpdb'] ?? null;
+    $GLOBALS['wpdb'] = new Version_Database();
+    $GLOBALS['wpdb']->query("INSERT INTO options VALUES ('kntnt_ai_visibility_cache_version', '5', 'off')");
+    Functions\when('wp_cache_delete')->justReturn(true);
     Functions\when('wp_mkdir_p')->alias(static fn(string $path): bool => is_dir($path) || mkdir($path, 0777, true));
     $this->base = sys_get_temp_dir() . '/kntnt-exposure-' . uniqid('', true);
-    $this->store = new File_Store(fn(): string => $this->base);
-    $this->version = new Cache_Version();
+    $this->store = kntnt_test_file_store(fn(): string => $this->base);
+    $this->version = new Cache_Version($this->store);
     $this->observer = new Exposure_Invalidation($this->store, $this->version);
     $this->page = new Identity('markdown-alternate', 'public-page', 1);
     $this->aggregate = new Identity('llms-txt', 'llms-v5');
@@ -38,7 +37,7 @@ beforeEach(function (): void {
 
 afterEach(function (): void {
     $this->store->flush_all();
-    unset($GLOBALS['kntnt_exposure_option_values']);
+    $GLOBALS['wpdb'] = $this->previous_database;
 });
 
 it('revokes per-page bytes and aggregate generations on a first matrix-only save', function (): void {

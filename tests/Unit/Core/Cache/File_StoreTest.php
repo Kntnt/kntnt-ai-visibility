@@ -25,7 +25,7 @@ beforeEach(function (): void {
     Functions\when('wp_mkdir_p')->alias(static fn(string $dir): bool => is_dir($dir) || mkdir($dir, 0777, true));
 
     $this->base = sys_get_temp_dir() . '/kntnt-store-' . uniqid('', true);
-    $this->store = new File_Store(fn(): string => $this->base);
+    $this->store = kntnt_test_file_store(fn(): string => $this->base);
 });
 
 afterEach(function (): void {
@@ -71,7 +71,7 @@ describe('File_Store', function (): void {
         $logger = new Plugin_Logger(static function (string $line) use (&$lines): void {
             $lines[] = $line;
         });
-        $store = new File_Store(fn(): string => $this->base, $logger);
+        $store = kntnt_test_file_store(fn(): string => $this->base, $logger);
 
         $warnings = [];
         set_error_handler(static function (int $severity, string $message) use (&$warnings): bool {
@@ -99,7 +99,7 @@ describe('File_Store', function (): void {
         $logger = new Plugin_Logger(static function (string $line) use (&$lines): void {
             $lines[] = $line;
         });
-        $store = new File_Store(fn(): string => $this->base, $logger);
+        $store = kntnt_test_file_store(fn(): string => $this->base, $logger);
         $identity = new Identity('markdown-alternate', 'occupied', 1);
         mkdir($store->path_for($identity), 0777, true);
         $warnings = [];
