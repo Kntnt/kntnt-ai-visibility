@@ -1,0 +1,9 @@
+{
+    "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "preferredVersions": { "php": "8.4", "wp": "latest" },
+    "steps": [
+        { "step": "defineWpConfigConsts", "consts": { "WP_DEBUG": true, "WP_DEBUG_DISPLAY": true } },
+        { "step": "activatePlugin", "pluginPath": "kntnt-ai-visibility/kntnt-ai-visibility.php" },
+        { "step": "runPHP", "code": "<?php require '/wordpress/wp-content/plugins/kntnt-ai-visibility/tests/Integration/shared-blocks-seed.php';" }
+    ]
+}
