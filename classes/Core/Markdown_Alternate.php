@@ -2,14 +2,14 @@
 /**
  * The markdown-alternate identity/URL locator.
  *
- * The cache key and the advertised `.md` URL for a post are the identity of the
+ * The cache key and the advertised alternate URL for a post are the identity of the
  * markdown-alternate kind. Core owns the kind's storage and serving, so it owns
  * the scheme (docs/spec/llms-txt.md §3.2). The Markdown provider delegates its
- * key derivation and `.md` URL to this locator; the llms index builder calls
+ * key derivation and URL to this locator; the llms index builder calls
  * url_for() for each link, and the llms full builder calls identity_for() to
  * materialise each page's Markdown. The key is home-relative, so root and
- * subdirectory installs derive the same key (and the router strips the same
- * base before serving).
+ * subdirectory installs derive the same key. Pretty keys retain source-language
+ * paths; plain canonicals use stored post IDs and composed query alternates.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.2.0
@@ -22,7 +22,7 @@ namespace Kntnt\Ai_Visibility\Core;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 
 /**
- * Derives the cache identity and `.md` URL for a post.
+ * Derives the cache identity and supported alternate URL for a post.
  *
  * @since 0.2.0
  */
@@ -46,14 +46,14 @@ final class Markdown_Alternate {
 	 * @since 0.2.0
 	 *
 	 * @param \WP_Post $post The post.
-	 * @return Identity The KIND, the home-relative artifact key and the post ID.
+	 * @return Identity The KIND, the path-safe artifact key and the post ID.
 	 */
 	public function identity_for( \WP_Post $post ): Identity {
 		return new Identity( self::KIND, $this->key_for( $post ), $post->ID );
 	}
 
 	/**
-	 * Builds the absolute `.md` URL advertised and linked for a post.
+	 * Builds the absolute alternate URL advertised and linked for a post.
 	 *
 	 * @since 0.2.0
 	 *

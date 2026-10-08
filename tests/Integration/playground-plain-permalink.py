@@ -107,20 +107,24 @@ def verify(base, ids):
             control(base, "static" if static else "blog")
             # Each option transition follows a fully warm previous mode. No
             # fixture purge masks the native permalink lifecycle at this point.
-            for pretty in [False, True, False]:
+            for transition, pretty in enumerate([False, True, False]):
                 control(base, "pretty" if pretty else "plain")
                 expected = {locale: addresses(ids, pretty, static, explicit, locale) for locale in ["en_GB", "sv_SE"]}
                 for locale, (canonicals, alternates) in expected.items():
-                    for order in [("front", "index", "nested", "post"), ("index", "post", "nested", "front")]:
-                        control(base, "flush")
-                        for temperature in ["cold", "warm"]:
+                    orders = [("front", "index", "nested", "post"), ("index", "post", "nested", "front")] if transition == 0 else [("front", "index", "nested", "post")]
+                    print(f"VERIFY: transition {transition}, {'pretty' if pretty else 'plain'}, {'static' if static else 'blog'}, {locale}, {'explicit' if explicit else 'implicit'}.", flush=True)
+                    for order in orders:
+                        if transition == 0:
+                            control(base, "flush")
+                        for temperature in (["cold", "warm"] if transition == 0 else ["after switch"]):
                             for role in order:
                                 _, body = markdown(base, alternates[role], role, locale)
                                 metadata(body, base, canonicals[role], role, locale)
                             for role in order:
-                                query = canonicals[role] + ("&" if "?" in canonicals[role] else "?") + "format=markdown"
-                                _, body = markdown(base, query, role, locale)
-                                metadata(body, base, canonicals[role], role, locale)
+                                if pretty:
+                                    query = canonicals[role] + "?format=markdown"
+                                    _, body = markdown(base, query, role, locale)
+                                    metadata(body, base, canonicals[role], role, locale)
                                 markdown(base, canonicals[role], role, locale, {"Accept": "text/markdown"})
                     for role in ["front", "index", "nested", "post"]:
                         status, fields, body = request(base, canonicals[role])
@@ -135,18 +139,18 @@ def verify(base, ids):
                         home = ("/sv/" if locale == "sv_SE" else "/en/" if explicit else "/") if pretty else ("/?lang=sv" if locale == "sv_SE" else "/?lang=en" if explicit else "/")
                         unsupported(base, home + ("&" if "?" in home else "?") + "format=markdown")
                         unsupported(base, home)
-                    print(f"PASS: {'pretty' if pretty else 'plain'} {'static' if static else 'blog'} {locale} {'explicit' if explicit else 'implicit'}: both warm orders, supported forms, metadata and discovery.", flush=True)
+                    print(f"PASS: {'pretty' if pretty else 'plain'} {'static' if static else 'blog'} {locale} {'explicit' if explicit else 'implicit'}: {'both cold/warm orders' if transition == 0 else 'native setting transition'}, supported forms, metadata and discovery.", flush=True)
 
                 # Build aggregate-first after purging only for the order test.
-                control(base, "flush")
-                for temperature in ["cold", "warm"]:
+                if transition == 0:
+                    control(base, "flush")
+                for temperature in (["cold", "warm"] if transition == 0 else ["after switch"]):
                     status, fields, full = request(base, "/llms-full.txt")
                     assert status == 200 and fields.get_content_type() == "text/plain", (status, full[:1200])
                     for locale, (canonicals, alternates) in expected.items():
                         for role in ["front", "index", "nested", "post"]:
                             marker = f"BODY-{role}-{locale}".encode()
                             assert full.count(marker) == 1, (marker, full)
-                            blocks = [block for block in full.split(b"\n---\n") if marker in block]
                             # Full_Builder separates whole front-matter documents
                             # with an HTML marker; locate each source independently.
                             start = full.rfind(b'---\ntitle:', 0, full.index(marker))

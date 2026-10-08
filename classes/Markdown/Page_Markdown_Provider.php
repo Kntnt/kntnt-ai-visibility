@@ -5,14 +5,15 @@
  * A rule, not an enumeration: this one provider covers every eligible page
  * (docs/adr/0008). It resolves a request to an eligible post and its Identity
  * (match), produces the artifact bytes through the shared Page-Markdown service
- * (generate), advertises the page's `.md` alternate (advertise) and declares the
- * `.md` serve shape for the router allowlist (serve_pattern).
+ * (generate), advertises the page's supported alternate (advertise) and declares
+ * a pretty `.md` serve shape, or no plain path, for the router allowlist.
  *
  * Resolution is permalink-driven: it hands the reconstructed URL to
  * url_to_postid(), which handles nested and dated permalinks for free, and maps
  * the canonical home and its reserved index.md to the static front. Ordinary
  * index leaves carry one extra index segment in their dedicated paths. Both
- * forms remain source-language-aware and installation-relative.
+ * forms remain source-language-aware and installation-relative. Plain canonicals
+ * resolve their exact native query selectors and use stored-ID cache keys.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -154,7 +155,7 @@ final class Page_Markdown_Provider implements Provider {
 	}
 
 	/**
-	 * Advertises the page's Markdown alternate as a discovery relation.
+	 * Advertises the page's supported Markdown alternate as a discovery relation.
 	 *
 	 * @since 0.1.0
 	 *
@@ -247,7 +248,7 @@ final class Page_Markdown_Provider implements Provider {
 	 * lang and a custom post type, must match the source permalink exactly.
 	 *
 	 * @since 0.5.2
-	 * @param Request $request The decoded query and installation-relative path.
+	 * @param Request $request The decoded query and complete request path.
 	 * @return \WP_Post|null
 	 */
 	private function resolve_plain( Request $request ): ?\WP_Post {
@@ -259,10 +260,13 @@ final class Page_Markdown_Provider implements Provider {
 		}
 
 		// Native plain permalinks identify a single source by a positive ID.
-		$ids = array_intersect_key( $request->query, [
-			'p' => true,
-			'page_id' => true,
-		] );
+		$ids = array_intersect_key(
+			$request->query,
+			[
+				'p' => true,
+				'page_id' => true,
+			],
+		);
 		if ( count( $ids ) > 1 ) {
 			return null;
 		}
