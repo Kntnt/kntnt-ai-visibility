@@ -25,6 +25,12 @@ use Kntnt\Ai_Visibility\Core\Page_Markdown_Service;
 use Kntnt\Ai_Visibility\Core\Plugin_Logger;
 
 beforeEach(function (): void {
+    Functions\when('add_action')->justReturn(true);
+    Functions\when('remove_action')->justReturn(true);
+    Functions\when('add_filter')->justReturn(true);
+    Functions\when('remove_filter')->justReturn(true);
+    Functions\when('wp_get_current_user')->justReturn((object) ['ID' => 0]);
+    Functions\when('wp_set_current_user')->justReturn((object) ['ID' => 0]);
     Functions\when('setup_postdata')->justReturn(true);
     Functions\when('wp_mkdir_p')->alias(static fn(string $dir): bool => is_dir($dir) || mkdir($dir, 0777, true));
     $this->logger = new Plugin_Logger(static function (string $line): void {});
@@ -103,9 +109,116 @@ describe('Page_Markdown_Service::for_post', function (): void {
         expect(fn(): string => $service->for_post($post))->toThrow(DomainException::class);
     });
 
+    it('hides request credentials and restores caller state when content throws', function (): void {
+        $names = ['current_user', '_GET', '_POST', '_REQUEST', '_SERVER', '_COOKIE'];
+        $saved = [];
+        foreach ($names as $name) {
+            $saved[$name] = $GLOBALS[$name] ?? null;
+        }
+        $caller = (object) ['ID' => 71];
+        $GLOBALS['current_user'] = $caller;
+        $_GET = ['member_token' => 'private'];
+        $_POST = ['personalised' => 'private'];
+        $_REQUEST = $_GET + $_POST;
+        $_COOKIE = ['fixture_member' => 'private'];
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer private';
+        $_SERVER['HTTP_COOKIE'] = 'fixture_member=private';
+        Functions\when('wp_get_current_user')->alias(static fn(): object => $GLOBALS['current_user']);
+        Functions\when('wp_set_current_user')->alias(static function (int $id): object {
+            return $GLOBALS['current_user'] = (object) ['ID' => $id];
+        });
+        Functions\when('apply_filters')->alias(static function (string $hook, mixed $value): mixed {
+            if ($hook === 'the_content') {
+                expect($GLOBALS['current_user']->ID)->toBe(0);
+                expect($_GET)->toBe([]);
+                expect($_POST)->toBe([]);
+                expect($_REQUEST)->toBe([]);
+                expect($_COOKIE)->toBe([]);
+                expect($_SERVER)->not->toHaveKeys(['HTTP_AUTHORIZATION', 'HTTP_COOKIE']);
+                throw new RuntimeException('content integration failed');
+            }
+            return $value;
+        });
+        $post = new WP_Post();
+        $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger);
+
+        try {
+            expect(fn(): string => $service->for_post($post))->toThrow(RuntimeException::class, 'content integration failed');
+            expect($GLOBALS['current_user'])->toBe($caller);
+            expect($_GET)->toBe(['member_token' => 'private']);
+            expect($_COOKIE)->toBe(['fixture_member' => 'private']);
+            expect($_SERVER['HTTP_AUTHORIZATION'])->toBe('Bearer private');
+        } finally {
+            foreach ($names as $name) {
+                if ($saved[$name] === null) {
+                    unset($GLOBALS[$name]);
+                } else {
+                    $GLOBALS[$name] = $saved[$name];
+                }
+            }
+        }
+    });
+
 });
 
 describe('Page_Markdown_Service::materialise', function (): void {
+
+    it('refuses preview materialisation without populating the shared cache', function (): void {
+        Functions\when('apply_filters')->alias(static fn(string $hook, mixed $value): mixed => $value);
+        Functions\when('get_the_title')->justReturn('Preview');
+        Functions\when('get_permalink')->justReturn('https://example.com/preview/');
+        Functions\when('get_the_date')->justReturn('2026-10-08');
+        Functions\when('get_the_author_meta')->justReturn('Author');
+        Functions\when('get_the_post_thumbnail_url')->justReturn(false);
+        Functions\when('get_the_terms')->justReturn(false);
+        $query = $_GET;
+        $_GET = ['preview' => 'true', 'preview_nonce' => 'private'];
+        $identity = new Identity('markdown-alternate', 'preview', 7);
+        $post = new WP_Post();
+        $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger, fn(): string => 'https://example.com');
+
+        try {
+            expect(fn(): string => $service->materialise($identity, $post))->toThrow(DomainException::class);
+            expect($this->store->has($identity))->toBeFalse();
+            expect($_GET)->toBe(['preview' => 'true', 'preview_nonce' => 'private']);
+        } finally {
+            $_GET = $query;
+        }
+    });
+
+    it('publishes anonymous bytes from an authenticated caller and restores its identity', function (): void {
+        $caller = (object) ['ID' => 71];
+        $GLOBALS['current_user'] = $caller;
+        Functions\when('wp_get_current_user')->alias(static fn(): object => $GLOBALS['current_user']);
+        Functions\when('wp_set_current_user')->alias(static function (int $id): object {
+            return $GLOBALS['current_user'] = (object) ['ID' => $id];
+        });
+        Functions\when('apply_filters')->alias(static fn(string $hook, mixed $value): mixed =>
+            $hook === 'the_content'
+                ? '<p>' . ($GLOBALS['current_user']->ID === 0 ? 'PUBLIC-DETAIL' : 'MEMBER-PRIVATE-DETAIL') . '</p>'
+                : $value);
+        Functions\when('get_the_title')->justReturn('Public page');
+        Functions\when('get_permalink')->justReturn('https://example.com/public/');
+        Functions\when('get_the_date')->justReturn('2026-10-08');
+        Functions\when('get_the_modified_date')->justReturn('2026-10-08');
+        Functions\when('get_post_field')->justReturn('');
+        Functions\when('get_the_author_meta')->justReturn('Author');
+        Functions\when('get_the_post_thumbnail_url')->justReturn(false);
+        Functions\when('get_the_terms')->justReturn(false);
+        Functions\when('get_bloginfo')->justReturn('en-GB');
+        $post = new WP_Post();
+        $identity = new Identity('markdown-alternate', 'anonymous', 71);
+        $service = new Page_Markdown_Service(new Front_Matter(), $this->single_flight, $this->logger, fn(): string => 'https://example.com');
+
+        try {
+            $bytes = $service->materialise($identity, $post);
+            expect($bytes)->toContain('PUBLIC-DETAIL')->not->toContain('MEMBER-PRIVATE-DETAIL');
+            expect($this->store->read($identity))->toBe($bytes);
+            expect($GLOBALS['current_user'])->toBe($caller);
+        } finally {
+            unset($GLOBALS['current_user']);
+        }
+    });
 
     it('does not publish a protected source through direct materialisation', function (): void {
         $identity = new Identity('markdown-alternate', 'protected', 42);

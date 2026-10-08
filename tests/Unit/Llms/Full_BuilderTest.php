@@ -43,6 +43,12 @@ function kntnt_full_post(int $id, string $title, string $password = ''): WP_Post
  */
 function kntnt_full_stubs(string $tagline = 'We help content sites'): void
 {
+    Functions\when('add_action')->justReturn(true);
+    Functions\when('remove_action')->justReturn(true);
+    Functions\when('add_filter')->justReturn(true);
+    Functions\when('remove_filter')->justReturn(true);
+    Functions\when('wp_get_current_user')->justReturn((object) ['ID' => 0]);
+    Functions\when('wp_set_current_user')->justReturn((object) ['ID' => 0]);
     Functions\when('apply_filters')->alias(fn(string $hook, mixed $value): mixed => $value);
     Functions\when('get_bloginfo')->alias(fn(string $key): string => match ($key) {
         'name'        => 'My Site',

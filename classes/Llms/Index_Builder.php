@@ -22,6 +22,7 @@ namespace Kntnt\Ai_Visibility\Llms;
 
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
+use Kntnt\Ai_Visibility\Core\Public_Rendering;
 
 /**
  * Builds the llms.txt index Markdown.
@@ -62,6 +63,17 @@ final class Index_Builder {
 	 * @return string
 	 */
 	public function build(): string {
+		return Public_Rendering::run( $this->build_public( ... ), persistent: true );
+	}
+
+	/**
+	 * Assembles metadata and integration filters in the anonymous context.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return string
+	 */
+	private function build_public(): string {
 
 		// Resolve the selected types (ordered page, post, then the rest) and group
 		// their eligible posts into one section per type.

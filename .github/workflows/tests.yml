@@ -127,3 +127,5 @@ jobs:
         run: python3 tests/Integration/playground-eligibility.py
       - name: Stored-password public-artifact exclusion
         run: python3 tests/Integration/playground-password.py
+      - name: Anonymous public artifact rendering
+        run: python3 tests/Integration/playground-public-rendering.py

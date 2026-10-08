@@ -149,7 +149,15 @@ final class Request_Handler {
 		// Materialise the aggregate once (single-flight), then serve the resulting
 		// cache file with the router's file-based headers so the validators match
 		// every later early-router serve.
-		$this->single_flight->once( $identity, static fn(): string => $provider->generate( $identity )->bytes );
+		try {
+			$this->single_flight->once( $identity, static fn(): string => $provider->generate( $identity )->bytes );
+		} catch ( \DomainException $exception ) {
+			status_header( 403 );
+			nocache_headers();
+			header( 'Content-Type: text/plain; charset=utf-8' );
+			echo 'This content cannot produce a public artifact.';
+			exit;
+		}
 		$path = $this->cache->path_for( $identity );
 		if ( ! is_file( $path ) ) {
 			$this->logger->warning( 'Cache file missing after materialise', [ 'key' => $identity->key ] );
