@@ -62,7 +62,7 @@ final class Invalidation {
 		foreach ( [ 'set_object_terms', 'edited_term', 'delete_term' ] as $hook ) {
 			add_action( $hook, [ $this, 'flush' ] );
 		}
-		foreach ( [ 'page_on_front', 'show_on_front', 'permalink_structure', 'home' ] as $option ) {
+		foreach ( [ 'page_on_front', 'show_on_front', 'permalink_structure', 'home', 'WPLANG' ] as $option ) {
 			add_action( 'update_option_' . $option, [ $this, 'flush' ] );
 		}
 		foreach ( [ 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ] as $hook ) {

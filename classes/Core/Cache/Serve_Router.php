@@ -386,6 +386,12 @@ final class Serve_Router {
 	 */
 	private function identify( string $path ): ?array {
 
+		// An out-of-installation path must never alias a contained cache key.
+		$base = rtrim( ( $this->base_path )(), '/' );
+		if ( $base !== '' && ! str_starts_with( $path, $base . '/' ) ) {
+			return null;
+		}
+
 		// Take the path relative to the WordPress home so a subdirectory install
 		// (e.g. /blog/about.md or /blog/llms.txt) derives the same key as root.
 		$path = $this->strip_base( $path );

@@ -33,6 +33,16 @@ beforeEach(function (): void {
 
 describe('Index_Provider::match', function (): void {
 
+    it('refuses the singleton outside the configured installation', function (): void {
+        Functions\when('get_option')->justReturn('https://example.com/blog');
+        Functions\when('wp_parse_url')->alias(fn(string $url, int $component = -1): mixed => parse_url($url, $component));
+        $this->version->shouldReceive('current')->andReturn(8);
+        $provider = new Index_Provider($this->builder, $this->version, new Markdown_Alternate());
+
+        expect($provider->match(new Request('GET', '/llms.txt')))->toBeNull();
+        expect($provider->match(new Request('GET', '/blog/llms.txt'))?->key)->toBe('llms-v8');
+    });
+
     it('matches /llms.txt to a version-stamped, source-less identity', function (): void {
         $this->locator->shouldReceive('home_relative')->with('/llms.txt')->andReturn('/llms.txt');
         $this->version->shouldReceive('current')->andReturn(8);
