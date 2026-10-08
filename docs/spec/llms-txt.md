@@ -329,6 +329,9 @@ An unavailable authoritative version SELECT is a refusal, not a missing option o
 
 For downstream cache work (#19, #21 and #32), preserve the distinction between lifetime, stampede locking and publication validity. Expiry never authorises old bytes as a failure fallback. Optional sibling pruning must obtain and validate a current generation under this same barrier before deleting siblings; successful earlier publication alone does not authorise later pruning. Lock namespace changes must retain one stable store-scoped coordination inode and share it across all store objects and workers; injected test coordination directories must remain isolated and be cleaned only after their workers stop. Later invalidation writers (#14–#16) must use the store's coordinated delete/flush or a store-bound version bump rather than raw unlink, cache-tree deletion or cached read-modify-write counters.
 
+Declared [public rendered metadata dependencies](markdown-alternate.md#43-generation-pipeline-core-page-markdown) use the same coordinated whole-cache turnover after native metadata writes. This removes non-versioned page artifacts and changes both aggregate identities, covering standalone API updates, final REST/field-writer values and featured-image changes without eager generation. Key-prefix declarations continue to match deleted repeater children. This generic writer contract does not certify an installed ACF package or a target theme; those integrations declare their actual field schema and retain separate site-specific verification.
+
+
 ## 6. Settings (Release 2 — the content-type matrix)
 
 The scattered per-module post-type fields are replaced by **one Core-owned matrix** (ADR-0010: modules contribute, Core composes — here at column granularity). Under the single option `kntnt_ai_visibility`, namespaced `content_types`:

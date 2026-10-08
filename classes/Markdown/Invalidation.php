@@ -91,7 +91,7 @@ final class Invalidation {
 	}
 
 	/**
-	 * Flushes when Bogo changes a language or translation group after save_post.
+	 * Flushes for language, featured-image or declared public-field changes.
 	 *
 	 * @since 0.5.2
 	 *
@@ -101,9 +101,55 @@ final class Invalidation {
 	 * @return void
 	 */
 	public function on_meta( int|array $meta_id, int $post_id, string $meta_key ): void {
+
+		// Preserve Bogo's language/group turnover independently of field declarations.
 		if ( in_array( $meta_key, [ '_locale', '_original_post' ], true ) ) {
 			$this->flush();
+			return;
 		}
+
+		// Editor bookkeeping never contributes to the public representation.
+		if ( in_array( $meta_key, [ '_edit_lock', '_edit_last' ], true ) ) {
+			return;
+		}
+		$post = get_post( $post_id );
+		if ( ! $post instanceof \WP_Post || wp_is_post_revision( $post ) || wp_is_post_autosave( $post ) ) {
+			return;
+		}
+
+		/**
+		 * Declares stored fields consumed by this source's public body integration.
+		 *
+		 * Declare keys independently of their current values, including absent
+		 * fields. A trailing * declares a non-empty key prefix for repeater or
+		 * flexible-content children, including deleted keys. This controls
+		 * invalidation only; it never exposes metadata.
+		 * Featured images and Bogo language keys are covered without declaration.
+		 *
+		 * @since 0.5.2
+		 *
+		 * @param list<string> $keys The additional rendered metadata dependencies.
+		 * @param \WP_Post     $post The source whose public representation uses them.
+		 */
+		$keys = apply_filters( 'kntnt_ai_visibility_public_content_meta_keys', [], $post );
+		if ( $meta_key === '_thumbnail_id' ) {
+			$this->flush();
+			return;
+		}
+		if ( ! is_array( $keys ) ) {
+			return;
+		}
+		foreach ( $keys as $key ) {
+			if ( ! is_string( $key ) ) {
+				continue;
+			}
+			$prefix = str_ends_with( $key, '*' ) ? substr( $key, 0, -1 ) : '';
+			if ( $meta_key === $key || ( $prefix !== '' && str_starts_with( $meta_key, $prefix ) ) ) {
+				$this->flush();
+				return;
+			}
+		}
+
 	}
 
 	/**
