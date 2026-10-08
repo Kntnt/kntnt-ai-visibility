@@ -54,7 +54,7 @@ final class Artifact_Registry implements Registry {
 	}
 
 	/**
-	 * Returns one serve pattern per provider as the security allowlist.
+	 * Returns the declared dedicated-path security allowlist.
 	 *
 	 * @since 0.1.0
 	 *
@@ -62,8 +62,15 @@ final class Artifact_Registry implements Registry {
 	 */
 	public function serve_patterns(): array {
 
-		// One allowlist entry per provider, derived from its declared shape.
-		return array_map( static fn( Provider $provider ): Serve_Pattern => $provider->serve_pattern(), $this->providers );
+		// Query-only providers have no path the early router may serve.
+		$patterns = [];
+		foreach ( $this->providers as $provider ) {
+			$pattern = $provider->serve_pattern();
+			if ( $pattern !== null ) {
+				$patterns[] = $pattern;
+			}
+		}
+		return $patterns;
 
 	}
 

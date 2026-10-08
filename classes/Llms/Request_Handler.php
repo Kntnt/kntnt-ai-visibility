@@ -148,6 +148,12 @@ final class Request_Handler {
 		}
 		[ $provider, $identity ] = $match;
 
+		// This dedicated-path shell leaves query-only providers to their handler.
+		$pattern = $provider->serve_pattern();
+		if ( $pattern === null ) {
+			return;
+		}
+
 		// Materialise the aggregate once (single-flight), then serve the resulting
 		// cache file with the router's file-based headers so the validators match
 		// every later early-router serve.
@@ -189,8 +195,8 @@ final class Request_Handler {
 		// Serve with the matched pattern's Content-Type; the singletons have no
 		// canonical back-link.
 		$response = $is_persisted
-			? $this->router->headers_for( $path, $request, $provider->serve_pattern()->content_type )
-			: $this->router->headers_for_bytes( $result->bytes, time(), $request, $provider->serve_pattern()->content_type );
+			? $this->router->headers_for( $path, $request, $pattern->content_type )
+			: $this->router->headers_for_bytes( $result->bytes, time(), $request, $pattern->content_type );
 		status_header( $response['status'] );
 		foreach ( $response['headers'] as $name => $value ) {
 			header( $name . ': ' . $value );

@@ -40,8 +40,19 @@ final class Request_Factory {
 
 		// Negotiation inputs and conditional-request headers. This is a read-only
 		// public endpoint, so no nonce applies.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only content negotiation on a public URL.
-		$format = isset( $_GET['format'] ) && is_string( $_GET['format'] ) ? sanitize_key( wp_unslash( $_GET['format'] ) ) : '';
+		// Retain canonical query selectors, including Bogo's language. Invalid
+		// structured values stay visible so they cannot select the front page.
+		$query = [];
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only source resolution on a public URL.
+		foreach ( $_GET as $name => $value ) {
+			if ( ! is_string( $name ) ) {
+				continue;
+			}
+			$query[ $name ] = is_string( $value ) ? sanitize_text_field( wp_unslash( $value ) ) : '';
+		}
+		if ( isset( $query['format'] ) ) {
+			$query['format'] = sanitize_key( $query['format'] );
+		}
 		$accept = isset( $_SERVER['HTTP_ACCEPT'] ) && is_string( $_SERVER['HTTP_ACCEPT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) ) : '';
 		$if_none_match = isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) && is_string( $_SERVER['HTTP_IF_NONE_MATCH'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_IF_NONE_MATCH'] ) ) : '';
 		$if_modified_since = isset( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) && is_string( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ) : '';
@@ -49,7 +60,7 @@ final class Request_Factory {
 		return new Request(
 			$method,
 			$path,
-			$format !== '' ? [ 'format' => $format ] : [],
+			$query,
 			$accept,
 			$if_none_match,
 			$if_modified_since,

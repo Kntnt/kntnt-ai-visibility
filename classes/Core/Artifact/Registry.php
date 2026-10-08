@@ -44,7 +44,7 @@ interface Registry {
 	public function providers(): array;
 
 	/**
-	 * Returns the serve-pattern allowlist — one pattern per provider.
+	 * Returns concrete dedicated patterns, omitting query-only providers.
 	 *
 	 * @since 0.1.0
 	 *

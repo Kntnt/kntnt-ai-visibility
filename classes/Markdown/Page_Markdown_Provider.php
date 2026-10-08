@@ -5,14 +5,15 @@
  * A rule, not an enumeration: this one provider covers every eligible page
  * (docs/adr/0008). It resolves a request to an eligible post and its Identity
  * (match), produces the artifact bytes through the shared Page-Markdown service
- * (generate), advertises the page's `.md` alternate (advertise) and declares the
- * `.md` serve shape for the router allowlist (serve_pattern).
+ * (generate), advertises the page's supported alternate (advertise) and declares
+ * a pretty `.md` serve shape, or no plain path, for the router allowlist.
  *
  * Resolution is permalink-driven: it hands the reconstructed URL to
  * url_to_postid(), which handles nested and dated permalinks for free, and maps
  * the canonical home and its reserved index.md to the static front. Ordinary
  * index leaves carry one extra index segment in their dedicated paths. Both
- * forms remain source-language-aware and installation-relative.
+ * forms remain source-language-aware and installation-relative. Plain canonicals
+ * resolve their exact native query selectors and use stored-ID cache keys.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -66,14 +67,16 @@ final class Page_Markdown_Provider implements Provider {
 	) {}
 
 	/**
-	 * Declares the markdown-alternate `.md` serve shape.
+	 * Declares pretty `.md` paths; plain query alternates have no early path.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @return Serve_Pattern
+	 * @return Serve_Pattern|null
 	 */
-	public function serve_pattern(): Serve_Pattern {
-		return Serve_Pattern::suffix( Markdown_Alternate::KIND, '.md' );
+	public function serve_pattern(): ?Serve_Pattern {
+		return get_option( 'permalink_structure' ) === ''
+			? null
+			: Serve_Pattern::suffix( Markdown_Alternate::KIND, '.md' );
 	}
 
 	/**
@@ -86,8 +89,17 @@ final class Page_Markdown_Provider implements Provider {
 	 */
 	public function match( Request $request ): ?Identity {
 
+		// Plain selectors are not pretty canonical paths. Never turn a stale
+		// source query into a different source merely because its path is home.
+		$plain = get_option( 'permalink_structure' ) === '';
+		if ( ! $plain && ( isset( $request->query['p'] ) || isset( $request->query['page_id'] ) ) ) {
+			return null;
+		}
+
 		// Resolve the target post, then gate it on eligibility.
-		$post = $this->resolve_post( $request->path );
+		$post = $plain
+			? $this->resolve_plain( $request )
+			: $this->resolve_post( $request->path );
 		if ( $post === null || ! $this->eligibility->is_eligible( $post ) ) {
 			return null;
 		}
@@ -143,7 +155,7 @@ final class Page_Markdown_Provider implements Provider {
 	}
 
 	/**
-	 * Advertises the page's Markdown alternate as a discovery relation.
+	 * Advertises the page's supported Markdown alternate as a discovery relation.
 	 *
 	 * @since 0.1.0
 	 *
@@ -226,6 +238,64 @@ final class Page_Markdown_Provider implements Provider {
 		// segment — the case the page tree cannot cover when url_to_postid() has
 		// likewise missed in the steered .md context.
 		return $this->resolve_by_slug( $slug );
+
+	}
+
+	/**
+	 * Resolves a plain canonical's supported source ID and exact query identity.
+	 *
+	 * Only p/page_id select a source. Other canonical fields, including Bogo's
+	 * lang and a custom post type, must match the source permalink exactly.
+	 *
+	 * @since 0.5.2
+	 * @param Request $request The decoded query and complete request path.
+	 * @return \WP_Post|null
+	 */
+	private function resolve_plain( Request $request ): ?\WP_Post {
+
+		// Reject out-of-installation paths before any source or home fallback.
+		$relative = $this->markdown_alternate->home_relative( $request->path );
+		if ( $relative === '' ) {
+			return null;
+		}
+
+		// Native plain permalinks identify a single source by a positive ID.
+		$ids = array_intersect_key(
+			$request->query,
+			[
+				'p' => true,
+				'page_id' => true,
+			],
+		);
+		if ( count( $ids ) > 1 ) {
+			return null;
+		}
+		if ( $ids !== [] ) {
+			$id = reset( $ids );
+			if ( preg_match( '/^[1-9][0-9]*$/D', $id ) !== 1 || (string) (int) $id !== $id ) {
+				return null;
+			}
+			$post = get_post( (int) $id );
+		} else {
+			$home_path = trim( $this->markdown_alternate->home_relative( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) ), '/' );
+			$post = $this->resolve_home( $home_path );
+		}
+		if ( ! $post instanceof \WP_Post ) {
+			return null;
+		}
+
+		// Query ordering is irrelevant; every canonical selector must agree.
+		$canonical = $this->markdown_alternate->canonical_url_for( $post );
+		$canonical_path = $this->markdown_alternate->home_relative( (string) wp_parse_url( $canonical, PHP_URL_PATH ) );
+		$expected = [];
+		parse_str( (string) wp_parse_url( $canonical, PHP_URL_QUERY ), $expected );
+		$actual = $request->query;
+		unset( $actual['format'] );
+		ksort( $expected );
+		ksort( $actual );
+		return $actual === $expected && trim( rawurldecode( $relative ), '/' ) === trim( rawurldecode( $canonical_path ), '/' )
+			? $post
+			: null;
 
 	}
 

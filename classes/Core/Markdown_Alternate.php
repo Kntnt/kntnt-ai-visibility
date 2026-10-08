@@ -2,14 +2,14 @@
 /**
  * The markdown-alternate identity/URL locator.
  *
- * The cache key and the advertised `.md` URL for a post are the identity of the
+ * The cache key and the advertised alternate URL for a post are the identity of the
  * markdown-alternate kind. Core owns the kind's storage and serving, so it owns
  * the scheme (docs/spec/llms-txt.md §3.2). The Markdown provider delegates its
- * key derivation and `.md` URL to this locator; the llms index builder calls
+ * key derivation and URL to this locator; the llms index builder calls
  * url_for() for each link, and the llms full builder calls identity_for() to
  * materialise each page's Markdown. The key is home-relative, so root and
- * subdirectory installs derive the same key (and the router strips the same
- * base before serving).
+ * subdirectory installs derive the same key. Pretty keys retain source-language
+ * paths; plain canonicals use stored post IDs and composed query alternates.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.2.0
@@ -22,7 +22,7 @@ namespace Kntnt\Ai_Visibility\Core;
 use Kntnt\Ai_Visibility\Core\Artifact\Identity;
 
 /**
- * Derives the cache identity and `.md` URL for a post.
+ * Derives the cache identity and supported alternate URL for a post.
  *
  * @since 0.2.0
  */
@@ -46,14 +46,14 @@ final class Markdown_Alternate {
 	 * @since 0.2.0
 	 *
 	 * @param \WP_Post $post The post.
-	 * @return Identity The KIND, the home-relative artifact key and the post ID.
+	 * @return Identity The KIND, the path-safe artifact key and the post ID.
 	 */
 	public function identity_for( \WP_Post $post ): Identity {
 		return new Identity( self::KIND, $this->key_for( $post ), $post->ID );
 	}
 
 	/**
-	 * Builds the absolute `.md` URL advertised and linked for a post.
+	 * Builds the absolute alternate URL advertised and linked for a post.
 	 *
 	 * @since 0.2.0
 	 *
@@ -62,9 +62,14 @@ final class Markdown_Alternate {
 	 */
 	public function url_for( \WP_Post $post ): string {
 
+		// Query canonicals need composition, never a suffix in a query value.
+		if ( get_option( 'permalink_structure' ) === '' ) {
+			return add_query_arg( 'format', 'markdown', $this->canonical_url_for( $post ) );
+		}
+
 		// Reserve /index.md for the home. Ordinary index leaves append another
 		// index segment, so repeated index paths remain distinct at every depth.
-		$permalink = rtrim( $this->permalink_for( $post ), '/' );
+		$permalink = rtrim( $this->canonical_url_for( $post ), '/' );
 		return $this->is_front( $post ) || $this->key_for( $post ) === 'index' || str_ends_with( $permalink, '/index' )
 			? $permalink . '/index.md'
 			: $permalink . '.md';
@@ -110,12 +115,18 @@ final class Markdown_Alternate {
 	 */
 	private function key_for( \WP_Post $post ): string {
 
+		// Plain canonicals carry source identity in their query, not their path.
+		// Only the stored numeric post ID enters this internal filesystem key.
+		if ( get_option( 'permalink_structure' ) === '' ) {
+			return 'plain/' . $post->ID;
+		}
+
 		// The key is the permalink path relative to the WordPress home, without
 		// surrounding slashes; the slug-less home maps to the 'index' key the
 		// router serves at /index.md. Keeping the key home-relative means the same
 		// key is derived on root and subdirectory installs. Ordinary index leaves
 		// append one segment too, preventing collisions with a home or a parent.
-		$path = $this->home_relative( (string) wp_parse_url( $this->permalink_for( $post ), PHP_URL_PATH ) );
+		$path = $this->home_relative( (string) wp_parse_url( $this->canonical_url_for( $post ), PHP_URL_PATH ) );
 		$key = trim( $path, '/' );
 
 		return $key === '' || $this->is_front( $post ) || str_ends_with( '/' . $key, '/index' )
@@ -125,14 +136,14 @@ final class Markdown_Alternate {
 	}
 
 	/**
-	 * Resolves a front-page permalink before Bogo's home_url filter is active.
+	 * Returns the source canonical URL, including Bogo's front-page language.
 	 *
 	 * @since 0.5.2
 	 *
 	 * @param \WP_Post $post The source post, whose locale determines the URL.
 	 * @return string The permalink with the site's configured language policy.
 	 */
-	private function permalink_for( \WP_Post $post ): string {
+	public function canonical_url_for( \WP_Post $post ): string {
 
 		// Bogo leaves the selected front page's permalink unchanged until
 		// template_redirect. HTTP discovery runs earlier, on send_headers.
