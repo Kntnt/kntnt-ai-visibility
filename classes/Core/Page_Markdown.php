@@ -33,12 +33,15 @@ interface Page_Markdown {
 	 * Pure of HTTP and caching: it renders, converts, builds front-matter and
 	 * assembles. Used directly by the Markdown module and concatenated by the
 	 * llms.txt module.
+	 * All content and metadata filters run as an anonymous WordPress user with
+	 * visitor credentials and request data hidden. Mutable caller state is
+	 * restored after success or failure; private previews are never rendered.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param \WP_Post $post The post to render.
 	 * @return string The assembled Markdown document.
-	 * @throws \DomainException When the source has a stored password.
+	 * @throws \DomainException When a password, preview or content cache veto prevents public rendering.
 	 */
 	public function for_post( \WP_Post $post ): string;
 
@@ -57,7 +60,7 @@ interface Page_Markdown {
 	 * @param Identity $identity The cache identity to materialise under.
 	 * @param \WP_Post $post     The post to render on a miss.
 	 * @return Materialisation The valid bytes and independent persistence outcome.
-	 * @throws \DomainException When the source has a stored password, even on a hit.
+	 * @throws \DomainException When a password, preview or content cache veto prevents public publication.
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): Materialisation;
 

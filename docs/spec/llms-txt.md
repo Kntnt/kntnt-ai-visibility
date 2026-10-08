@@ -259,6 +259,8 @@ Markdown index of {site name} for AI agents. Full text: /llms-full.txt
 
 `Full_Builder` assembles `llms-full.txt` by concatenating each selected page's per-page Markdown — never a second render (decision 2).
 
+Both aggregate builders run their entire selection, metadata, per-page materialisation and final document filters in Core's anonymous rendering scope. An authenticated first request therefore cannot personalise either aggregate, including through its final escape-hatch filter. Nested page renders restore the aggregate's anonymous context; the outer scope then restores the original caller even on failure. Preview and content cacheability vetoes propagate before the aggregate producer can publish a file; the HTTP handler returns a no-store plain-text 403. Page-level public publication follows §4.3 of the Markdown specification.
+
 - A minimal site header first: `# {site name}` and the tagline blockquote (same as the index head), so the file identifies its origin.
 - Then, for each post in `Core\Eligibility::enumerate( types_for('llms_full') )` (the same per-type order as the index), the page's Markdown via `Page_Markdown::materialise( Core\Markdown_Alternate::identity_for( $post ), $post )` — which serves the per-page cache file when warm and renders+caches it once when cold (the inner cache that softens the O(site) cold start, ADR-0007).
 - **Separator** — each per-page `.md` opens with its `---` YAML front-matter, which is the natural record boundary; entries are joined with a blank line. An HR `---` separator is deliberately avoided because it collides with the front-matter fence.
