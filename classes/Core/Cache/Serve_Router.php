@@ -99,7 +99,7 @@ final class Serve_Router {
 	private $cache_version;
 
 	/**
-	 * Returns the canonical origin (scheme://host) for the `.md` back-link.
+	 * Returns the canonical origin (scheme://host[:port]) for the back-link.
 	 *
 	 * @since 0.2.3
 	 *
@@ -121,7 +121,7 @@ final class Serve_Router {
 	 *                                                                      subdirectory install; defaults to '' (root install).
 	 * @param (callable(): int)|null                      $cache_version    Returns the cache version for version-stamped exact
 	 *                                                                      paths; invoked only on an exact-versioned match. Defaults to 1.
-	 * @param (callable(): string)|null                   $canonical_origin Returns the canonical origin (scheme://host) for the
+	 * @param (callable(): string)|null                   $canonical_origin Returns the canonical origin (scheme://host[:port]) for the
 	 *                                                                      `.md` back-link; defaults to reading HTTP_HOST.
 	 */
 	public function __construct(
@@ -249,7 +249,7 @@ final class Serve_Router {
 
 		// Build the response from the matched pattern: its Content-Type, and a
 		// canonical back-link only when the pattern declares one (i.e. for `.md`).
-		$canonical = $resolved->pattern->canonical ? $this->canonical_for( $request->path, $resolved->path ) : '';
+		$canonical = $resolved->pattern->canonical ? $this->canonical_for( $resolved->path ) : '';
 		$response = $this->headers_for( $resolved->path, $request, $resolved->pattern->content_type, $canonical );
 		http_response_code( $response['status'] );
 		foreach ( $response['headers'] as $name => $value ) {
@@ -482,51 +482,66 @@ final class Serve_Router {
 	}
 
 	/**
-	 * Best-effort reconstruction of the HTML canonical URL for a `.md` path.
+	 * Reads the exact HTML canonical URL from the stored front matter.
 	 *
-	 * The early router has no resolved post, so it rebuilds the canonical from
-	 * the request: the same host and scheme, the path with `.md` stripped and a
-	 * trailing slash (the WordPress default), and `/` for the home. The exact
-	 * canonical also lives in the file's front-matter; this is the header hint.
+	 * The early router has no source post or permalink policy. Missing or invalid
+	 * metadata therefore omits the optional hint rather than inventing a URL from
+	 * an artifact key, which cannot represent every canonical identity.
 	 *
 	 * @since 0.1.0
 	 *
-	 * @param string $path The `.md` request path.
 	 * @param string $cache_path The contained cache file with canonical metadata.
-	 * @return string The reconstructed canonical URL, or '' when unavailable.
+	 * @return string The stored canonical URL, or '' when unavailable.
 	 */
-	private function canonical_for( string $path, string $cache_path ): string {
+	private function canonical_for( string $cache_path ): string {
 
 		// Without a trustworthy origin there is nothing safe to point at.
 		$origin = ( $this->canonical_origin )();
 		if ( $origin === '' ) {
 			return '';
 		}
+		$prefix = $origin . rtrim( ( $this->base_path )(), '/' ) . '/';
 
-		// Prefer the exact canonical stored by WordPress. Path reconstruction
-		// cannot distinguish a translated home from a page named "index", or
-		// honour a site's no-trailing-slash permalink policy.
-		$head = file_get_contents( $cache_path, false, null, 0, 65536 );
-		if ( is_string( $head ) && str_starts_with( $head, "---\n" ) ) {
-			$front = explode( "\n---", $head, 2 )[0];
-			if ( preg_match( '/^canonical_url: ("[^\r\n]*")$/m', $front, $match ) === 1 ) {
-				$url = json_decode( $match[1], true );
-				if ( is_string( $url ) && str_starts_with( $url, $origin . '/' )
-					&& preg_match( '/[\x00-\x20<>]/', $url ) === 0 ) {
-					return $url;
-				}
-			}
+		// Stream only front matter: a valid term list may exceed any fixed prefix.
+		$stream = fopen( $cache_path, 'rb' );
+		if ( $stream === false ) {
+			return '';
 		}
 
-		// Strip the home base and the `.md`, treat the home key specially, re-add
-		// the slash, then re-prepend the base so the canonical is correct on a
-		// subdirectory install too.
-		$base = rtrim( ( $this->base_path )(), '/' );
-		$stripped = $this->strip_base( $path );
-		$key = substr( $stripped, 1, strlen( $stripped ) - 1 - strlen( '.md' ) );
-		$relative = $key === 'index' ? '/' : '/' . $key . '/';
+		try {
 
-		return $origin . $base . $relative;
+			// Accept only the fenced, double-quoted serialisation Core writes.
+			if ( fgets( $stream ) !== "---\n" ) {
+				return '';
+			}
+			$canonical = '';
+			while ( ( $line = fgets( $stream ) ) !== false ) {
+
+				// Require a complete fence and stop before reading the body.
+				if ( $line === "---\n" ) {
+					return $canonical;
+				}
+				if ( preg_match( '/^canonical_url[ \t]*:(.*)$/D', rtrim( $line, "\n" ), $match ) !== 1 ) {
+					continue;
+				}
+
+				// Ambiguous keys, unsafe header bytes and another origin or base
+				// cannot provide a trustworthy canonical hint.
+				$url = json_decode( $match[1], true );
+				if ( $canonical !== '' || ! is_string( $url ) || ! str_starts_with( $url, $prefix )
+					|| preg_match( '/[\x00-\x20\x7f<>"\\\\]/', $url ) !== 0
+					|| preg_match( '~(?:^|/)\.\.?(?:/|$)~', rawurldecode( (string) parse_url( $url, PHP_URL_PATH ) ) ) !== 0 ) {
+					return '';
+				}
+				$canonical = $url;
+
+			}
+
+			return '';
+
+		} finally {
+			fclose( $stream );
+		}
 
 	}
 
