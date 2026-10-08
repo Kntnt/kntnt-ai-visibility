@@ -5,8 +5,8 @@
  * Per-entity, delete-on-change: a page's own `.md` is deleted on save and on
  * every status transition, so the early router — which runs before WordPress
  * auth — can never serve a cached file for content that has become non-public
- * (docs/adr/0007, docs/spec §5). Indirect changes (theme switch, plugin
- * settings) flush the whole file cache and bump the cache-version stamp.
+ * (docs/adr/0007, docs/spec §5). Indirect content and language changes flush the
+ * whole cache and bump its generation. Core owns exposure settings invalidation.
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -58,7 +58,6 @@ final class Invalidation {
 
 		// Whole-cache invalidation on indirect changes.
 		add_action( 'switch_theme', [ $this, 'flush' ] );
-		add_action( 'update_option_kntnt_ai_visibility', [ $this, 'flush' ] );
 		foreach ( [ 'set_object_terms', 'edited_term', 'delete_term' ] as $hook ) {
 			add_action( $hook, [ $this, 'flush' ] );
 		}
