@@ -225,6 +225,7 @@ describe('Request_Handler::inline_response', function (): void {
         expect($response['send_body'])->toBeTrue();
         expect($response['headers']['Content-Type'])->toBe('text/markdown; charset=utf-8');
         expect($response['headers']['Vary'])->toBe('Accept');
+        expect($response['headers']['Cache-Control'])->toBe('private, no-store, no-cache, max-age=0, must-revalidate');
         expect($response['headers']['X-Content-Type-Options'])->toBe('nosniff');
         expect($response['headers']['Content-Length'])->toBe((string) strlen("# Team\n"));
         expect($response['headers']['Link'])->toContain('<https://example.com/about/team/>; rel="canonical"');
@@ -240,6 +241,7 @@ describe('Request_Handler::inline_response', function (): void {
         expect($response['status'])->toBe(304);
         expect($response['send_body'])->toBeFalse();
         expect($response['headers'])->not->toHaveKey('Content-Length');
+        expect($response['headers']['Cache-Control'])->toBe('private, no-store, no-cache, max-age=0, must-revalidate');
     });
 
 });
