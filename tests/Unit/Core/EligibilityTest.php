@@ -142,6 +142,16 @@ describe('Eligibility::enumerate', function (): void {
         expect(kntnt_eligibility()->enumerate(['page', 'post']))->toBe([$post]);
     });
 
+    it('rejects Markdown-excluded posts returned by a WordPress query integration', function (): void {
+        Functions\when('apply_filters')->alias(
+            fn(string $hook, mixed $value): mixed => $hook === 'kntnt_ai_visibility_eligible_post_types' ? ['post'] : $value,
+        );
+        Functions\when('is_post_type_hierarchical')->justReturn(false);
+        Functions\when('get_posts')->justReturn([kntnt_post('page')]);
+
+        expect(kntnt_eligibility()->enumerate(['post']))->toBe([]);
+    });
+
     it('queries one type at a time and concatenates them in the passed order', function (): void {
         $page = kntnt_post('page');
         $post = kntnt_post('post');

@@ -122,7 +122,7 @@ final class Eligibility {
 				],
 			);
 			foreach ( is_array( $found ) ? $found : [] as $post ) {
-				if ( $post instanceof \WP_Post && ! $this->exclusions->is_excluded( $post ) ) {
+				if ( $post instanceof \WP_Post && $this->is_eligible( $post ) ) {
 					$posts[] = $post;
 				}
 			}
