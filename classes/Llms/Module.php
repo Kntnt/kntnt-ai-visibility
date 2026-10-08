@@ -53,7 +53,7 @@ final class Module implements Module_Contract {
 		);
 
 		// Build the type resolver and the two builders over the Core seams.
-		$selected = new Selected_Types( $core->content_types() );
+		$selected = new Selected_Types( $core->content_types(), $core->eligibility() );
 		$index_builder = new Index_Builder( $core->eligibility(), $selected, $core->markdown_alternate() );
 		$full_builder = new Full_Builder( $core->eligibility(), $selected, $core->markdown_alternate(), $core->page_markdown() );
 

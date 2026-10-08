@@ -64,6 +64,7 @@ function kntnt_full_builder(array $posts, array $markdown): Full_Builder
     $types->shouldReceive('types_for')->with('md')->andReturn(['page']);
 
     $eligibility = Mockery::mock(Eligibility::class);
+    $eligibility->shouldReceive('md_types')->andReturn(['page']);
     $eligibility->shouldReceive('enumerate')->with(['page'])->andReturn($posts);
 
     $locator = Mockery::mock(Markdown_Alternate::class);
@@ -72,7 +73,7 @@ function kntnt_full_builder(array $posts, array $markdown): Full_Builder
     $page_markdown = Mockery::mock(Page_Markdown::class);
     $page_markdown->shouldReceive('materialise')->andReturnUsing(fn(Identity $i, WP_Post $p): string => $markdown[$p->ID] ?? '');
 
-    return new Full_Builder($eligibility, new Selected_Types($types), $locator, $page_markdown);
+    return new Full_Builder($eligibility, new Selected_Types($types, $eligibility), $locator, $page_markdown);
 }
 
 describe('Full_Builder::build', function (): void {
