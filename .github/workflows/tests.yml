@@ -143,3 +143,5 @@ jobs:
         run: python3 tests/Integration/playground-exposure-options.py
       - name: Source query, Loop and locale rendering context
         run: python3 tests/Integration/playground-source-context.py
+      - name: Unicode llms.txt description boundaries
+        run: python3 tests/Integration/playground-unicode-descriptions.py
