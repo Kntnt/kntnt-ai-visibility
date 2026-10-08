@@ -5,7 +5,7 @@
  * The front-matter carries parity metadata plus the canonical URL, in a fixed
  * key order: title, canonical_url, date, author, featured_image, categories,
  * tags. featured_image, categories and tags are conditional — omitted when
- * empty. Category and tag URLs point at the term's `.md` path. Double-quoted
+ * empty. Category and tag URLs point at the term's HTML archive. Double-quoted
  * scalars escape quotes. The title is metadata only; it never enters the body.
  *
  * @package Tests\Unit
@@ -63,7 +63,7 @@ describe('Front_Matter', function (): void {
         expect($yaml)->toContain("featured_image: \"https://example.com/img.jpg\"\n");
     });
 
-    it('renders categories and tags as name/.md-url lists', function (): void {
+    it('renders categories and tags as name/HTML-archive-url lists', function (): void {
         $news = new WP_Term();
         $news->name = 'News';
         $tip = new WP_Term();
@@ -85,6 +85,25 @@ describe('Front_Matter', function (): void {
             . "  - name: \"Tips\"\n"
             . "    url: \"https://example.com/tag/tips/\"\n",
         );
+    });
+
+    it('preserves Unicode term names and exact escaped archive URL queries', function (): void {
+        $category = new WP_Term();
+        $category->name = 'Nyheter "Å"\\arkiv';
+        $tag = new WP_Term();
+        $tag->name = 'Råd & tips 😀';
+        Functions\when('get_the_terms')->alias(fn($post, string $taxonomy) => $taxonomy === 'category' ? [$category] : [$tag]);
+        Functions\when('get_term_link')->alias(fn($term): string => $term === $category
+            ? 'https://example.com/category/%C3%A5/?label=%22Nyheter%22&path=%5Carkiv%5C'
+            : 'https://example.com/tag/r%C3%A5d/?source=AI&next=%2F');
+
+        $yaml = (new Front_Matter())->build($this->post);
+
+        expect($yaml)->toContain('  - name: "Nyheter \\"Å\\"\\\\arkiv"');
+        expect($yaml)->toContain('  - name: "Råd & tips 😀"');
+        expect($yaml)->toContain('    url: "https://example.com/category/%C3%A5/?label=%22Nyheter%22&path=%5Carkiv%5C"');
+        expect($yaml)->toContain('    url: "https://example.com/tag/r%C3%A5d/?source=AI&next=%2F"');
+        expect($yaml)->not->toContain('.md');
     });
 
     it('escapes double quotes in a title', function (): void {
