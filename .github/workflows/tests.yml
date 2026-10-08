@@ -121,5 +121,7 @@ jobs:
         run: KNTNT_AUDIT_EXPLICIT=1 bash tests/Integration/playground-audit.sh
       - name: Exercise HTTP methods and downstream forms
         run: python3 tests/Integration/playground-methods.py
+      - name: Exercise complete canonical paths and source-language identities
+        run: python3 tests/Integration/playground-canonical.py
       - name: Negotiated canonical-page cache policy
         run: python3 tests/Integration/playground-negotiated-cache.py

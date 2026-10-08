@@ -83,13 +83,16 @@ final class Markdown_Alternate {
 	 * @since 0.2.0
 	 *
 	 * @param string $path A path that may carry the install's base prefix.
-	 * @return string The path relative to the WordPress home (leading slash kept).
+	 * @return string The home-relative path, or empty when outside the installation.
 	 */
 	public function home_relative( string $path ): string {
 
-		// Remove the base prefix only when the path actually sits under it.
+		// Refuse out-of-installation paths before stripping a configured base.
 		$base = rtrim( (string) wp_parse_url( Site_Url::home( '/' ), PHP_URL_PATH ), '/' );
-		if ( $base !== '' && str_starts_with( $path, $base . '/' ) ) {
+		if ( $base !== '' ) {
+			if ( ! str_starts_with( $path, $base . '/' ) ) {
+				return '';
+			}
 			return substr( $path, strlen( $base ) );
 		}
 

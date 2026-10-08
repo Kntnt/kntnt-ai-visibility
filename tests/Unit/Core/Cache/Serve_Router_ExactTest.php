@@ -76,6 +76,14 @@ function kntnt_exact_get(string $path): Request
 
 describe('Serve_Router::resolve — exact-path singletons', function (): void {
 
+    it('serves the singleton only under its configured installation base', function (): void {
+        $router = new Serve_Router($this->store, kntnt_exact_registry(), null, 0, null, fn(): string => '/blog', fn(): int => 8);
+
+        expect($router->resolve(kntnt_exact_get('/llms.txt')))->toBeNull();
+        expect($router->resolve(kntnt_exact_get('/blog/llms.txt'))?->path)
+            ->toBe(realpath($this->base . '/llms-txt/llms-v8.md'));
+    });
+
     it('resolves /llms.txt to the version-stamped cache file', function (): void {
         $resolved = $this->router->resolve(kntnt_exact_get('/llms.txt'));
 

@@ -51,6 +51,19 @@ describe('Page_Markdown_Provider::serve_pattern', function (): void {
 
 describe('Page_Markdown_Provider::match', function (): void {
 
+    it('rejects a real canonical leaf path outside its configured installation', function (): void {
+        $post = new WP_Post();
+        $post->ID = 30;
+        Functions\when('get_option')->alias(fn(string $name): string => $name === 'home' ? 'https://example.com/blog' : '');
+        Functions\when('url_to_postid')->justReturn(30);
+        Functions\when('get_post')->justReturn($post);
+        Functions\when('get_permalink')->justReturn('https://example.com/blog/about/');
+        $this->eligibility->shouldReceive('is_eligible')->andReturnTrue();
+
+        expect($this->provider->match(new Request('GET', '/about.md')))->toBeNull();
+        expect($this->provider->match(new Request('GET', '/about/')))->toBeNull();
+    });
+
     it('resolves a .md request to an eligible post identity', function (): void {
         $post     = new WP_Post();
         $post->ID = 42;

@@ -87,6 +87,17 @@ describe('Serve_Router::resolve — legitimate requests', function (): void {
 
 describe('Serve_Router::resolve — subdirectory install', function (): void {
 
+    it('refuses an existing artifact outside the configured home base', function (): void {
+        $store = new File_Store(fn(): string => $this->base);
+        $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
+        $registry->shouldReceive('serve_patterns')->andReturn([Serve_Pattern::suffix('markdown-alternate', '.md')]);
+        $router = new Serve_Router($store, $registry, null, 0, null, fn(): string => '/blog');
+
+        expect($router->resolve(kntnt_get('/about/team.md')))->toBeNull();
+        expect($router->resolve(kntnt_get('/index.md')))->toBeNull();
+        expect($router->resolve(kntnt_get('/blog-extra/about/team.md')))->toBeNull();
+    });
+
     it('strips the home base path before deriving the key', function (): void {
         $store = new File_Store(fn(): string => $this->base);
         $registry = Mockery::mock(\Kntnt\Ai_Visibility\Core\Artifact\Registry::class);
