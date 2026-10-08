@@ -100,6 +100,39 @@ describe('Page_Markdown_Service::for_post', function (): void {
         expect(substr_count($markdown, "\n# My Title\n"))->toBe(1);
     });
 
+    it('distinguishes an invalid public renderer from a successful empty body', function (): void {
+        $post = new WP_Post();
+        Functions\when('apply_filters')->alias(static fn(string $hook, mixed $value): mixed =>
+            $hook === 'kntnt_ai_visibility_public_content_html' ? null : $value);
+
+        expect(fn(): string => $this->service->for_post($post))
+            ->toThrow(Kntnt\Ai_Visibility\Core\Public_Content_Rendering_Failed::class);
+    });
+
+    it('reports a thrown public renderer failure without publishing bytes and retries', function (): void {
+        Functions\when('wp_json_encode')->alias(static fn(mixed $value): string|false => json_encode($value));
+        $post = new WP_Post();
+        $identity = new Identity('markdown-alternate', 'renderer-retry', 7);
+        $fails = true;
+        Functions\when('apply_filters')->alias(static function (string $hook, mixed $value) use (&$fails): mixed {
+            if ($hook === 'kntnt_ai_visibility_public_content_html') {
+                if ($fails) {
+                    throw new RuntimeException('private integration diagnostic');
+                }
+                return '<p>PUBLIC-RENDERER-RECOVERED</p>';
+            }
+            return $value;
+        });
+
+        expect(fn(): Materialisation => $this->service->materialise($identity, $post))
+            ->toThrow(Kntnt\Ai_Visibility\Core\Public_Content_Rendering_Failed::class);
+        expect($this->store->has($identity))->toBeFalse();
+        $fails = false;
+        $result = $this->service->materialise($identity, $post);
+        expect($result->bytes)->toContain('PUBLIC-RENDERER-RECOVERED');
+        expect($result->persisted)->toBeTrue();
+    });
+
     it('refuses protected source bytes even when this visitor passes the password gate', function (): void {
         $post = new WP_Post();
         $post->post_password = 'fixture';
