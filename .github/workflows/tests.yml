@@ -149,6 +149,8 @@ jobs:
         run: python3 tests/Integration/playground-public-content.py
       - name: Front-matter taxonomy links and actual HTML archives
         run: python3 tests/Integration/playground-taxonomy-links.py
+      - name: Source-aware relative links and images across canonical URL shapes
+        run: python3 tests/Integration/playground-relative-references.py
       - name: Unicode llms.txt description boundaries
         run: python3 tests/Integration/playground-unicode-descriptions.py
       - name: Exact canonical headers and safe stored front matter
