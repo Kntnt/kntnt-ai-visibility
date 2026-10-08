@@ -6,15 +6,19 @@ port. The server runs in its own process group and is stopped on every exit.
 """
 
 import json
+from http.client import parse_headers
+from io import BytesIO
 import os
 from pathlib import Path
 import re
 import signal
+import socket
 import subprocess
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.parse import urlsplit
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -27,6 +31,8 @@ class NoRedirect(HTTPRedirectHandler):
 
 def request(base, path, method="GET", headers=None, data=None):
     """Return the actual status, headers and body, including HTTP errors."""
+    if method == "HEAD":
+        return head_request(base, path, headers or {})
     outgoing = Request(base + path, data=data, headers=headers or {}, method=method)
     try:
         response = build_opener(NoRedirect).open(outgoing, timeout=15)
@@ -34,6 +40,23 @@ def request(base, path, method="GET", headers=None, data=None):
         response = error
     with response:
         return response.status, response.headers, response.read()
+
+
+def head_request(base, path, headers):
+    """Read HEAD bytes from the socket because HTTP clients discard any body."""
+    address = urlsplit(base)
+    fields = {"Host": address.netloc, "Connection": "close", **headers}
+    outgoing = f"HEAD {path} HTTP/1.1\r\n"
+    outgoing += "".join(f"{name}: {value}\r\n" for name, value in fields.items()) + "\r\n"
+    with socket.create_connection((address.hostname, address.port), timeout=15) as connection:
+        connection.sendall(outgoing.encode("ascii"))
+        chunks = []
+        while chunk := connection.recv(65536):
+            chunks.append(chunk)
+    header_block, separator, body = b"".join(chunks).partition(b"\r\n\r\n")
+    assert separator, header_block
+    status_line, header_fields = header_block.split(b"\r\n", 1)
+    return int(status_line.split()[1]), parse_headers(BytesIO(header_fields)), body
 
 
 def verify(base):

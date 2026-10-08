@@ -247,6 +247,11 @@ final class Request_Handler {
 	 */
 	public function negotiate( Request $request ): ?string {
 
+		// Early cache integrations also consult this seam, before handle() runs.
+		if ( ! $request->is_read() ) {
+			return null;
+		}
+
 		// The cache-grade forms: the advertised `.md` path and its `?format` twin.
 		if ( str_ends_with( $request->path, '.md' ) ) {
 			return 'cache';
