@@ -236,7 +236,8 @@ final class Request_Handler {
 			exit;
 		}
 		$path = $this->cache->path_for( $identity );
-		$is_persisted = $result->persisted && is_file( $path );
+		$snapshot = $result->persisted ? $this->router->snapshot_for( $path ) : null;
+		$is_persisted = $snapshot !== null;
 		if ( ! $is_persisted ) {
 			$this->logger->warning( 'Serving generated artifact without cache', [ 'key' => $identity->key ] );
 		}
@@ -245,26 +246,21 @@ final class Request_Handler {
 		// (e.g. llms-v7.md after a bump to v8); scoped to this kind directory, it
 		// never touches the per-page markdown-alternate cache (spec §5.5).
 		if ( $is_persisted ) {
-			$this->cache->prune_siblings( $identity );
+			$this->cache->prune_siblings( $identity, static fn(): ?Identity => $provider->match( $request ) );
 		}
 
 		// Serve with the matched pattern's Content-Type; the singletons have no
 		// canonical back-link.
 		$response = $is_persisted
-			? $this->router->headers_for( $path, $request, $pattern->content_type )
+			? $this->router->headers_for_snapshot( $snapshot, $request, $pattern->content_type )
 			: $this->router->headers_for_bytes( $result->bytes, time(), $request, $pattern->content_type );
 		status_header( $response['status'] );
 		foreach ( $response['headers'] as $name => $value ) {
 			header( $name . ': ' . $value );
 		}
 		if ( $response['send_body'] ) {
-			if ( $is_persisted ) {
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streaming a Core-owned cache file is the point of the serve path.
-				readfile( $path );
-			} else {
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the generated plain-text artifact must retain its exact bytes.
-				echo $result->bytes;
-			}
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- plain-text response bytes must match the captured metadata.
+			echo $snapshot !== null ? $snapshot->bytes : $result->bytes;
 		}
 
 		exit;
