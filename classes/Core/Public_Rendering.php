@@ -24,6 +24,7 @@ final class Public_Rendering {
 	 *
 	 * @param callable(): string $produce The public artifact producer.
 	 * @param bool               $persistent Whether the result may be published in a shared file.
+	 * @param-immediately-invoked-callable $produce
 	 * @return string The anonymous representation.
 	 * @throws \DomainException When preview or integration signals forbid publication.
 	 */

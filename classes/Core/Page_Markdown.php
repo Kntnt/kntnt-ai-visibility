@@ -44,6 +44,7 @@ interface Page_Markdown {
 	 * @param \WP_Post $post The post to render.
 	 * @return string The assembled Markdown document.
 	 * @throws \DomainException When a password, preview or content cache veto prevents public rendering.
+	 * @throws Markdown_Conversion_Failed When conversion fails; no bytes are valid.
 	 */
 	public function for_post( \WP_Post $post ): string;
 
@@ -63,6 +64,7 @@ interface Page_Markdown {
 	 * @param \WP_Post $post     The post to render on a miss.
 	 * @return Materialisation The valid bytes and independent persistence outcome.
 	 * @throws \DomainException When a password, preview or content cache veto prevents public publication.
+	 * @throws Markdown_Conversion_Failed When a miss cannot generate valid bytes.
 	 */
 	public function materialise( Identity $identity, \WP_Post $post ): Materialisation;
 
