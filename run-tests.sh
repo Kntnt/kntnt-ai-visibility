@@ -133,6 +133,7 @@ run_e2e() {
 		&& bash "$SCRIPT_DIR/tests/Integration/playground-audit.sh" "${args[@]}" \
 		&& KNTNT_AUDIT_EXPLICIT=1 bash "$SCRIPT_DIR/tests/Integration/playground-audit.sh" "${args[@]}" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-negotiated-cache.py" \
+		&& python3 "$SCRIPT_DIR/tests/Integration/playground-methods.py" \
 		&& python3 "$SCRIPT_DIR/tests/Integration/playground-password.py"; then
 		E2E_EXIT=0
 	else

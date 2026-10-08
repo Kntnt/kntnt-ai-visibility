@@ -119,7 +119,8 @@ jobs:
         run: bash tests/Integration/playground-audit.sh
       - name: Exercise Bogo with explicit prefixes for every language
         run: KNTNT_AUDIT_EXPLICIT=1 bash tests/Integration/playground-audit.sh
-
+      - name: Exercise HTTP methods and downstream forms
+        run: python3 tests/Integration/playground-methods.py
       - name: Negotiated canonical-page cache policy
         run: python3 tests/Integration/playground-negotiated-cache.py
       - name: Stored-password public-artifact exclusion

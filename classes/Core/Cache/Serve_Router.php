@@ -161,7 +161,7 @@ final class Serve_Router {
 	public function resolve( Request $request ): ?Resolved {
 
 		// Only idempotent reads are ever served from the cache.
-		if ( $request->method !== 'GET' && $request->method !== 'HEAD' ) {
+		if ( ! $request->is_read() ) {
 			return null;
 		}
 
