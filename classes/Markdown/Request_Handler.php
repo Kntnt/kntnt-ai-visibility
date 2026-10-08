@@ -227,10 +227,14 @@ final class Request_Handler {
 		}
 
 		// Serve the negotiated form.
-		if ( $mode === 'inline' ) {
-			$this->serve_inline( $post, $request );
-		} else {
-			$this->serve_cache_grade( $identity, $post, $request );
+		try {
+			if ( $mode === 'inline' ) {
+				$this->serve_inline( $post, $request );
+			} else {
+				$this->serve_cache_grade( $identity, $post, $request );
+			}
+		} catch ( \DomainException $exception ) {
+			$this->forbidden( 'This content cannot produce a public artifact.' );
 		}
 
 	}
@@ -556,13 +560,15 @@ final class Request_Handler {
 	 *
 	 * @since 0.1.0
 	 *
+	 * @param string $message The plain-text refusal reason.
 	 * @return void
 	 */
-	private function forbidden(): void {
+	private function forbidden( string $message = 'This content is password protected.' ): void {
 		status_header( 403 );
 		nocache_headers();
 		header( 'Content-Type: text/plain; charset=utf-8' );
-		echo 'This content is password protected.';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text response, never HTML.
+		echo $message;
 
 		exit;
 

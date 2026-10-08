@@ -43,6 +43,12 @@ function kntnt_llms_post(string $type, int $id, string $title): WP_Post
  */
 function kntnt_index_stubs(array $titles = [], array $excerpts = []): void
 {
+    Functions\when('add_action')->justReturn(true);
+    Functions\when('remove_action')->justReturn(true);
+    Functions\when('add_filter')->justReturn(true);
+    Functions\when('remove_filter')->justReturn(true);
+    Functions\when('wp_get_current_user')->justReturn((object) ['ID' => 0]);
+    Functions\when('wp_set_current_user')->justReturn((object) ['ID' => 0]);
     Functions\when('apply_filters')->alias(fn(string $hook, mixed $value): mixed => $value);
     Functions\when('get_bloginfo')->alias(fn(string $key): string => match ($key) {
         'name'        => 'My Site',

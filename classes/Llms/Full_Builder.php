@@ -24,6 +24,7 @@ namespace Kntnt\Ai_Visibility\Llms;
 use Kntnt\Ai_Visibility\Core\Eligibility;
 use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Core\Page_Markdown;
+use Kntnt\Ai_Visibility\Core\Public_Rendering;
 
 /**
  * Builds the llms-full.txt full-text Markdown.
@@ -57,6 +58,17 @@ final class Full_Builder {
 	 * @return string
 	 */
 	public function build(): string {
+		return Public_Rendering::run( $this->build_public( ... ), persistent: true );
+	}
+
+	/**
+	 * Assembles all content and integration filters in the anonymous context.
+	 *
+	 * @since 0.5.2
+	 *
+	 * @return string
+	 */
+	private function build_public(): string {
 
 		// The site header identifies the file's origin, like the index head.
 		$parts = [ $this->header() ];
