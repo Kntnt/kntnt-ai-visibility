@@ -48,8 +48,7 @@ interface Page_Markdown {
 	 * Idempotent and single-flight (docs/spec §5.5): concurrent misses do not
 	 * all render. A cache hit returns the cached bytes without rendering. The
 	 * identity is supplied by the caller (the matching provider derives it), so
-	 * this Core service stays free of any one artifact kind's key scheme — a
-	 * refinement of the spec's `materialise( post ): Identity`.
+	 * this Core service stays free of any one artifact kind's key scheme.
 	 * Unavailable persistence returns valid bytes with persisted=false; it does
 	 * not mean generation failed and cannot authorise serving an older file.
 	 *
