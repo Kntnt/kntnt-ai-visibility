@@ -17,6 +17,8 @@ update_option( 'permalink_structure', '/%postname%/' );
 update_option( 'blogname', 'SITE-A' );
 update_option( 'blogdescription', 'TAGLINE-A' );
 wp_update_user( [ 'ID' => 1, 'display_name' => 'AUTHOR-A' ] );
+require_once __DIR__ . '/indirect-helper.php';
+kntnt_indirect_write_catalog( 'CATALOG-A' );
 
 // A declared curated-resource dependency is public body content, not chrome.
 $menu = wp_create_nav_menu( 'Public resources' );
@@ -36,7 +38,7 @@ $id = wp_insert_post( [
 	'post_name' => 'indirect-source',
 	'post_title' => 'Indirect source',
 	'post_author' => 1,
-	'post_content' => '<p>Public indirect body.</p>[indirect_menu]',
+	'post_content' => '<p>Public indirect body.</p>[indirect_menu][indirect_catalog]',
 ] );
 update_option( 'kntnt_indirect_source', $id );
 flush_rewrite_rules();

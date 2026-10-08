@@ -14,6 +14,41 @@ use Kntnt\Ai_Visibility\Core\Cache\File_Store;
 use Kntnt\Ai_Visibility\Core\Markdown_Alternate;
 use Kntnt\Ai_Visibility\Plugin;
 
+/**
+ * Publish a real translation catalogue, then signal its committed dependency.
+ *
+ * @since 0.5.2
+ *
+ * @param string $translation The fixture's public translated phrase.
+ * @return void
+ */
+function kntnt_indirect_write_catalog( string $translation ): void {
+	require_once ABSPATH . WPINC . '/pomo/mo.php';
+	$catalog = new MO();
+	$catalog->set_header( 'Content-Type', 'text/plain; charset=UTF-8' );
+	$catalog->add_entry( new Translation_Entry( [ 'singular' => 'Public catalogue phrase', 'translations' => [ $translation ] ] ) );
+	if ( ! $catalog->export_to_file( WP_CONTENT_DIR . '/kntnt-indirect-catalog.mo' ) ) {
+		throw new RuntimeException( 'The disposable translation catalogue could not be written.' );
+	}
+	do_action( 'kntnt_ai_visibility_indirect_content_changed' );
+}
+
+// Loading translations is an ordinary read and never signals invalidation.
+add_action( 'init', static function (): void {
+	if ( ! load_textdomain( 'kntnt-indirect-fixture', WP_CONTENT_DIR . '/kntnt-indirect-catalog.mo' ) ) {
+		throw new RuntimeException( 'The disposable translation catalogue could not be loaded.' );
+	}
+} );
+add_shortcode( 'indirect_catalog', static function (): string {
+	$phrase = __( 'Public catalogue phrase', 'kntnt-indirect-fixture' );
+	$replacement = get_option( 'kntnt_indirect_during_render' );
+	if ( is_string( $replacement ) && $replacement !== '' ) {
+		delete_option( 'kntnt_indirect_during_render' );
+		kntnt_indirect_write_catalog( $replacement );
+	}
+	return '<p>' . esc_html( $phrase ) . '</p>';
+} );
+
 // This adapter declares only the menu consumed by its curated-resource body.
 add_action( 'wp_update_nav_menu_item', static function ( int $menu_id ): void {
 	if ( $menu_id === (int) get_option( 'kntnt_indirect_menu' ) ) {
@@ -50,8 +85,15 @@ add_action( 'wp_loaded', static function (): void {
 			'menu-item-type' => 'custom',
 			'menu-item-status' => 'publish',
 		] );
+	} elseif ( $action === 'catalog' ) {
+		kntnt_indirect_write_catalog( 'CATALOG-B' );
+	} elseif ( $action === 'during-full' || $action === 'during-page' ) {
+		update_option( 'kntnt_indirect_during_render', $action === 'during-full' ? 'CATALOG-C' : 'CATALOG-D' );
 	}
 	$store = new File_Store( static fn(): string => Plugin::cache_dir() );
+	if ( $action === 'during-full' || $action === 'during-page' ) {
+		$store->flush_all();
+	}
 	$version = ( new Cache_Version() )->current();
 	$post = get_post( (int) get_option( 'kntnt_indirect_source' ) );
 	$identities = [

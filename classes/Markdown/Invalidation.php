@@ -77,6 +77,9 @@ final class Invalidation {
 		}
 		add_action( 'profile_update', [ $this, 'on_profile_update' ], 10, 2 );
 
+		// Integrations signal committed indirect public-body dependency changes.
+		add_action( 'kntnt_ai_visibility_indirect_content_changed', [ $this, 'flush' ] );
+
 	}
 
 	/**
