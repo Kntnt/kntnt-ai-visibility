@@ -130,6 +130,18 @@ describe('Eligibility::is_eligible', function (): void {
 
 describe('Eligibility::enumerate', function (): void {
 
+    it('cannot enumerate a type removed by the effective Markdown policy even when requested explicitly', function (): void {
+        $page = kntnt_post('page');
+        $post = kntnt_post('post');
+        Functions\when('apply_filters')->alias(
+            fn(string $hook, mixed $value): mixed => $hook === 'kntnt_ai_visibility_eligible_post_types' ? ['post'] : $value,
+        );
+        Functions\when('is_post_type_hierarchical')->justReturn(false);
+        Functions\when('get_posts')->alias(fn(array $args): array => $args['post_type'] === 'page' ? [$page] : [$post]);
+
+        expect(kntnt_eligibility()->enumerate(['page', 'post']))->toBe([$post]);
+    });
+
     it('queries one type at a time and concatenates them in the passed order', function (): void {
         $page = kntnt_post('page');
         $post = kntnt_post('post');
