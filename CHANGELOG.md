@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - Renamed the domain glossary from `CONTEXT.md` to `GLOSSARY.md` and updated its references.
 - Release notes and distribution files are now taken from the same tagged source tree.
+- Independent HTTP regression groups run in parallel on isolated CI runners; language-mode audits retain their execution order and server-shutdown checks, and a combined gate requires every group to pass.
 
 ### Fixed
 

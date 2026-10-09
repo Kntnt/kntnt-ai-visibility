@@ -84,9 +84,14 @@ jobs:
       - name: Run the unit suite with coverage
         run: vendor/bin/pest --testsuite=Unit --coverage --min=80
 
-  e2e:
-    name: e2e (WordPress Playground, PHP 8.4)
+  e2e_suites:
+    name: Playground (${{ matrix.group }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 9
+      matrix:
+        group: [rendering, canonical, home, posts, plain, lifecycle, publication, dependencies, links]
     steps:
       - uses: actions/checkout@v5
       - name: Set up PHP 8.4
@@ -110,14 +115,19 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
       - name: Boot the plugin in WordPress Playground
+        if: matrix.group == 'rendering'
         run: bash tests/Integration/playground-smoke.sh
       - name: Exercise the Markdown alternate over HTTP
+        if: matrix.group == 'rendering'
         run: bash tests/Integration/playground-e2e.sh
       - name: Exercise a subdirectory install over HTTP
+        if: matrix.group == 'rendering'
         run: bash tests/Integration/playground-e2e-subdir.sh
       - name: Exercise Bogo and cache lifecycle regressions
+        if: matrix.group == 'rendering'
         run: bash tests/Integration/playground-audit.sh
       - name: Verify the implicit-language audit stopped its server
+        if: matrix.group == 'rendering'
         run: |
           if curl --silent --max-time 2 --output /dev/null http://127.0.0.1:9414/; then
             echo "::error::The previous audit server is still serving its mutated fixture."
@@ -125,8 +135,10 @@ jobs:
             exit 1
           fi
       - name: Exercise Bogo with explicit prefixes for every language
+        if: matrix.group == 'rendering'
         run: KNTNT_AUDIT_EXPLICIT=1 bash tests/Integration/playground-audit.sh
       - name: Verify the explicit-language audit stopped its server
+        if: matrix.group == 'rendering'
         run: |
           if curl --silent --max-time 2 --output /dev/null http://127.0.0.1:9414/; then
             echo "::error::The explicit-language audit server is still running."
@@ -134,60 +146,102 @@ jobs:
             exit 1
           fi
       - name: Exercise HTTP methods and downstream forms
+        if: matrix.group == 'canonical'
         run: python3 tests/Integration/playground-methods.py
       - name: Exercise complete canonical paths and source-language identities
+        if: matrix.group == 'canonical'
         run: python3 tests/Integration/playground-canonical.py
       - name: Exercise separate home and actual index page identities
+        if: matrix.group == 'home'
         run: python3 tests/Integration/playground-home-index.py
       - name: Translated posts-page roles and coordinated option turnover
+        if: matrix.group == 'posts'
         run: python3 tests/Integration/playground-posts-page.py
       - name: Exercise plain query identities and pretty/plain transitions
+        if: matrix.group == 'plain'
         run: python3 tests/Integration/playground-plain-permalink.py
       - name: Sequential source, descendant and aggregate lifecycle
+        if: matrix.group == 'lifecycle'
         run: python3 tests/Integration/playground-lifecycle.py
       - name: Native shared-block dependency invalidation
+        if: matrix.group == 'dependencies'
         run: python3 tests/Integration/playground-shared-blocks.py
       - name: Generation-safe aggregate pruning and immutable responses
+        if: matrix.group == 'publication'
         run: python3 tests/Integration/playground-pruning.py
       - name: Concurrent publication, revocation and queued source freshness
+        if: matrix.group == 'publication'
         run: python3 tests/Integration/playground-publication.py
       - name: Declared rendered metadata, final native writes and featured images
+        if: matrix.group == 'dependencies'
         run: python3 tests/Integration/playground-rendered-meta.py
       - name: Site metadata, authors and declared menu/catalogue dependencies
+        if: matrix.group == 'dependencies'
         run: python3 tests/Integration/playground-indirect.py
       - name: Effective TTL, regenerated validators and page/aggregate consistency
+        if: matrix.group == 'dependencies'
         run: python3 tests/Integration/playground-expiry.py
       - name: Bounded installation-scoped stampede locks and uncached fallback
+        if: matrix.group == 'publication'
         run: python3 tests/Integration/playground-stampede.py
       - name: Native deactivation and reactivation rewrite lifecycle
+        if: matrix.group == 'dependencies'
         run: python3 tests/Integration/playground-deactivation.py
       - name: Negotiated canonical-page cache policy
+        if: matrix.group == 'links'
         run: python3 tests/Integration/playground-negotiated-cache.py
       - name: Dynamic inline Markdown validators
+        if: matrix.group == 'links'
         run: python3 tests/Integration/playground-inline-validators.py
       - name: Effective Markdown eligibility and deployment purge
+        if: matrix.group == 'links'
         run: python3 tests/Integration/playground-eligibility.py
       - name: Stored-password public-artifact exclusion
+        if: matrix.group == 'rendering'
         run: python3 tests/Integration/playground-password.py
       - name: Anonymous public artifact rendering
+        if: matrix.group == 'rendering'
         run: python3 tests/Integration/playground-public-rendering.py
       - name: Generated artifact responses when persistence fails
+        if: matrix.group == 'rendering'
         run: python3 tests/Integration/playground-cache-failure.py
       - name: Conversion failure and recovery
+        if: matrix.group == 'rendering'
         run: python3 tests/Integration/playground-conversion-failure.py
       - name: Exposure settings option lifecycle
+        if: matrix.group == 'rendering'
         run: python3 tests/Integration/playground-exposure-options.py
       - name: Source query, Loop and locale rendering context
+        if: matrix.group == 'rendering'
         run: python3 tests/Integration/playground-source-context.py
       - name: Explicit public theme-body rendering and failure recovery
+        if: matrix.group == 'rendering'
         run: python3 tests/Integration/playground-public-content.py
       - name: Front-matter taxonomy links and actual HTML archives
+        if: matrix.group == 'links'
         run: python3 tests/Integration/playground-taxonomy-links.py
       - name: Source-aware relative links and images across canonical URL shapes
+        if: matrix.group == 'links'
         run: python3 tests/Integration/playground-relative-references.py
       - name: Unicode llms.txt description boundaries
+        if: matrix.group == 'links'
         run: python3 tests/Integration/playground-unicode-descriptions.py
       - name: Exact canonical headers and safe stored front matter
+        if: matrix.group == 'canonical'
         run: python3 tests/Integration/playground-canonical-links.py
       - name: Complete safe Markdown trailing-slash redirects
+        if: matrix.group == 'links'
         run: python3 tests/Integration/playground-trailing-slash.py
+
+  e2e:
+    name: e2e (WordPress Playground, PHP 8.4)
+    runs-on: ubuntu-latest
+    needs: e2e_suites
+    if: always()
+    steps:
+      - name: Require every Playground group to pass
+        env:
+          SUITES_RESULT: ${{ needs.e2e_suites.result }}
+        run: |
+          set -euo pipefail
+          [[ "$SUITES_RESULT" == success ]]
