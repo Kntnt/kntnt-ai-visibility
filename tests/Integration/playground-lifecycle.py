@@ -21,7 +21,7 @@ from playground_process import stop_worker
 
 # Cold aggregates convert many sources in CPU-limited PHP-WASM runners.
 # This transport budget does not alter cache, body or invalidation assertions.
-FULL_AGGREGATE_TIMEOUT = 60
+FULL_AGGREGATE_TIMEOUT = 120
 
 
 class NoRedirect(HTTPRedirectHandler):
