@@ -14,7 +14,7 @@ For content-rich websites – corporate sites, online magazines and blogs – th
 
 Kntnt AI Visibility is built around four capabilities, none of which depends on an SEO or e-commerce plugin.
 
-1. **Markdown alternates** – a clean Markdown version of every page, served on its canonical URL through `Accept` negotiation, and also reachable as a `.md` URL or via `?format=markdown`, produced by a high-fidelity HTML-to-Markdown converter and cached to disk for fast serving.
+1. **Markdown alternates** – a clean Markdown version of each eligible page, produced by a high-fidelity HTML-to-Markdown converter. A `.md` URL or `?format=markdown` serves a file-cached alternate; the canonical URL serves fresh, uncached Markdown only when the client's `Accept` header explicitly prefers it to HTML.
 2. **`llms.txt` and `llms-full.txt`** – `/llms.txt`, a curated index of your key content that links to each page's Markdown, and `/llms-full.txt`, your selected pages concatenated into a single Markdown document. Both are generated on first request and rebuilt as your content changes.
 3. **Link headers** – RFC 8288/9727 headers that advertise the Markdown alternates and `llms.txt` so agents can find them.
 4. **Content signals in `robots.txt`** – declare how AI agents may use your content.
@@ -37,6 +37,23 @@ The plugin checks the PHP version on activation and aborts with a clear admin no
 3. Activate the plugin.
 
 The plugin is distributed via GitHub Releases and updates through the standard WordPress plugin-update UI: when a new version is released, it appears on the **Updates** page like any other plugin. (Distribution is GitHub-first by design – see [`docs/adr/0003`](docs/adr/0003-github-is-the-1-0-distribution-channel.md).)
+
+## Content negotiation and cache protection
+
+On an eligible page's canonical URL, `GET` and `HEAD` requests select Markdown only when an explicit `text/markdown` or `text/x-markdown` media range has a positive quality weight (`q`) strictly greater than the effective weight of either HTML alternative (`text/html` and `application/xhtml+xml`). An omitted weight means `q=1`. Equal weights keep HTML; wildcard ranges alone never select Markdown, and malformed or zero Markdown weights do not select it.
+
+| `Accept` header | Canonical response |
+|---|---|
+| `text/markdown` | Markdown |
+| `text/html;q=0.8, text/markdown;q=0.9` | Markdown |
+| `text/html, text/markdown;q=0.9` | HTML |
+| `text/html, text/markdown` | HTML |
+| `*/*` | HTML |
+| `text/markdown;q=0` | HTML |
+
+Negotiated Markdown is rendered for an anonymous visitor and is never written to the artifact cache. Its `200` and `304` responses send `Cache-Control: private, no-store, no-cache, max-age=0, must-revalidate` and `Vary: Accept`, preserving other existing `Vary` values. The plugin also sets WordPress's `DONOTCACHEPAGE` convention early in the request. This protection is independent of any particular cache plugin.
+
+An explicit `.md` URL or `?format=markdown` request takes precedence over `Accept` negotiation and retains its separate, cacheable representation. With plain permalinks, use the query form. When reactivating the plugin after the earlier negotiation bug, purge shared page caches and verify the affected URLs; a cache that serves before WordPress needs its own bypass rule. The [cache deployment guide](docs/operations/negotiated-cache.md) describes this verification and the optional integration hooks.
 
 ## Serving cached Markdown directly (optional)
 
@@ -85,9 +102,13 @@ Found a bug or want to request a feature? Please [open an issue](https://github.
 
 ## Extending
 
-Everything the plugin produces – the Markdown alternates, `/llms.txt`, `/llms-full.txt` and the `robots.txt` content signals – needs no configuration and can also be customised in code through optional WordPress filters, all prefixed `kntnt_ai_visibility_`. You can, for example, add a custom post type to the Markdown alternates and the `llms.txt` index, rewrite an entry's title and description from your SEO plugin or set the `robots.txt` content-signal policy.
+Everything the plugin produces – the Markdown alternates, `/llms.txt`, `/llms-full.txt` and the `robots.txt` content signals – can be customised through optional WordPress filters and actions, all prefixed `kntnt_ai_visibility_`. You can add a custom post type, rewrite an index entry's title and description from your SEO plugin or set the `robots.txt` content-signal policy.
 
-The full reference – every filter, what it receives and worked examples – is in [`docs/EXTENSIBILITY.md`](docs/EXTENSIBILITY.md).
+For themes that build their visible body from fields such as ACF, a site adapter can supply that public HTML through `kntnt_ai_visibility_public_content_html`. The same body pipeline feeds explicit alternates, negotiated Markdown and `llms-full.txt`. The adapter declares rendered field dependencies through `kntnt_ai_visibility_public_content_meta_keys` and signals committed indirect changes through `kntnt_ai_visibility_indirect_content_changed`; arbitrary metadata is never automatically exposed.
+
+Cache adapters can listen to `kntnt_ai_visibility_cache_bypass` and veto private content during rendering through `kntnt_ai_visibility_public_content_nocache`. Vendor-specific API calls belong in the site's own plugin. For example, SafeTeam's optional Sceleton and LiteSpeed integrations live in `kntnt-safeteam`; AI Visibility has no dependency on that plugin or LiteSpeed.
+
+The full reference – hook signatures, rendering and invalidation contracts and worked examples – is in [`docs/EXTENSIBILITY.md`](docs/EXTENSIBILITY.md).
 
 ## Development
 
@@ -122,11 +143,13 @@ The script runs `composer install --no-dev --optimize-autoloader` in a staging d
 
 ### Releasing
 
-Pushing a version tag `X.Y.Z` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds the ZIP and publishes it as `kntnt-ai-visibility.zip` on the GitHub release. The version-less asset name is what makes the `latest/download` link above permanent (see [`docs/adr/0005`](docs/adr/0005-automated-tag-release-stable-asset.md)). The `Version:` header must match the tag.
+Pushing a version tag `vX.Y.Z` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds the ZIP and publishes it as `kntnt-ai-visibility.zip` on the GitHub release. The version-less asset name is what makes the `latest/download` link above permanent (see [`docs/adr/0005`](docs/adr/0005-automated-tag-release-stable-asset.md)). The `Version:` header must match the tag without its `v` prefix.
 
 ### Technical documentation
 
-The [`docs/`](docs/) directory is the authoritative technical record: [`docs/Charter.md`](docs/Charter.md) for the product brief, market analysis and four-step plan; the Architecture Decision Records in [`docs/adr/`](docs/adr/) for the decisions behind the design; and [`agents.d/coding-standard/`](agents.d/coding-standard/) for the coding standard. [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) are the entry point for AI coding assistants: `CLAUDE.md` bridges to `AGENTS.md`, which holds the always-loaded canon – authoritative ground rules plus the non-obvious project facts – and a References index that points on demand to the coding standard in [`agents.d/`](agents.d/) and to the documents above. Both are equally readable for human contributors.
+Start with [`docs/architecture.md`](docs/architecture.md) for the module boundaries, [`docs/spec/markdown-alternate.md`](docs/spec/markdown-alternate.md) for request negotiation and public rendering contracts, [`docs/EXTENSIBILITY.md`](docs/EXTENSIBILITY.md) for integration hooks and [`docs/operations/negotiated-cache.md`](docs/operations/negotiated-cache.md) for shared-cache deployment checks. [`docs/Charter.md`](docs/Charter.md) records the product plan and [`docs/adr/`](docs/adr/) records the design decisions.
+
+[`CLAUDE.md`](CLAUDE.md) bridges to [`AGENTS.md`](AGENTS.md), the entry point for AI coding assistants. Its ground rules, references and the actual code/state define the authoritative project context; [`agents.d/`](agents.d/) contains the coding, writing, testing and release instructions. Human contributors can use the same references.
 
 ## How you can contribute
 

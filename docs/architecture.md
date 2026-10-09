@@ -87,10 +87,7 @@ focused interface slices so it never becomes a god-object. See
 
 - **Kernel** – the `Plugin` singleton, the `Module` boot contract, and
   dependency-ordered boot.
-- **Page-Markdown provider** – renders a page to HTML, converts it to Markdown
-  (the `kntnt/html-to-markdown` converter is an *internal* collaborator, not a
-  public seam) and caches the result. Shared by the Markdown module (serves it)
-  and the llms.txt module (concatenates it into `llms-full.txt`).
+- **Page-Markdown provider** – renders a source's public body inside an anonymous post/query/Loop/locale context and converts it to Markdown. An optional site adapter can replace or extend the default HTML before conversion; the `kntnt/html-to-markdown` converter remains an internal collaborator. The Markdown module and `llms-full.txt` share this pipeline; persistent alternates cache the result, while negotiated inline responses render fresh.
 - **Artifact-provider registry** – described above.
 - **File cache + early serve router** – described below.
 - **Settings registry** – modules register settings sections; Core composes one
@@ -111,21 +108,15 @@ focused interface slices so it never becomes a god-object. See
    inner cache (skip render+convert) and the outer cache (skip bootstrap next
    time).
 
-**An HTML request** is never short-circuited, so module (c) decorates it through
-normal hooks – adding `Link: <…>.md; rel="alternate"; type="text/markdown"` and
-advertising site-wide artifacts.
+**A canonical Accept-negotiated request** selects Markdown only when an explicit positive Markdown quality weight strictly exceeds both HTML alternatives; ties and wildcard-only ranges keep HTML. Dedicated artifact forms take precedence. Before ordinary `plugins_loaded` callbacks, the Markdown module sets `DONOTCACHEPAGE` and emits the generic cache-bypass action. WordPress then resolves eligibility and renders a fresh anonymous public body. Negotiated `200` and `304` responses use private/no-store/no-cache headers and `Vary: Accept`; they never read or write the persistent artifact cache. See the [request and response contracts](spec/markdown-alternate.md#42-request-forms-routing-and-precedence-adr-0009).
+
+**An HTML request** follows the normal WordPress workflow, so module (c) decorates it through normal hooks – adding `Link: <…>.md; rel="alternate"; type="text/markdown"` and advertising site-wide artifacts.
 
 See [ADR-0007](adr/0007-file-cached-artifacts-early-contained-router.md).
 
 ### Caching
 
-Markdown artifacts are cached **as files** under the uploads directory, owned by
-Core. Generation is **lazy** (on first request; no cron pre-render). Only
-**public, published** content is cached, since the early serve runs before WP
-auth – status transitions invalidate. Invalidation is delete-on-change: a
-per-entity artifact (a page's own `.md`) regenerates immediately after the
-editor's response; aggregate artifacts (`llms.txt`, `llms-full.txt`) and
-bulk/global changes regenerate lazily, because their cost is O(site).
+Markdown artifacts are cached **as files** under the uploads directory, owned by Core. Generation is **lazy** (on first request; no cron pre-render). Only **public, published** content is cached, since the early serve runs before WP auth – status transitions invalidate. Invalidation removes stale page files and advances aggregate generations on change; all rebuilding waits for a later request. Declared public metadata and committed indirect dependency changes also invalidate caches and revoke in-flight publication selected before the change. See the [invalidation contract](spec/markdown-alternate.md#5-caching-and-invalidation-adr-0007).
 
 The earliest plugin hook is the built-in default; a webserver `try_files` tier
 (zero PHP) is left to whoever owns the server – the files are already on disk for
@@ -148,9 +139,7 @@ A page's Markdown alternate is reachable four ways
 
 1. **`.md` suffix** on a slugged URL – the cache-grade, advertised path.
 2. **`?format=markdown`** – fallback, same provider/cache.
-3. **`Accept: text/markdown`** on the canonical URL – the standards-correct form,
-   but the *uncached* PHP path, emitting `Vary: Accept` and a `rel="alternate"`
-   Link that steers agents to the cacheable URL.
+3. **Explicit Markdown preference in `Accept`** on the canonical URL – the uncached PHP path, requiring a positive Markdown quality strictly greater than HTML's effective quality. It emits private/no-store/no-cache headers, `Vary: Accept` and an alternate Link to the dedicated representation.
 4. **`/index.md`** for the slug-less root/home.
 
 The HTML stays `rel="canonical"`; the `.md` is advertised as `rel="alternate"`
@@ -161,6 +150,12 @@ and carries `rel="canonical"` back, avoiding duplicate-content confusion.
 narrower `publicly_queryable`) gets an alternate; the home gets `/index.md` if
 and only if the front page is a static page; blog index, archives and search get
 none by default (widening is a later opt-in).
+
+## Optional site integrations
+
+Core owns anonymous public rendering and state restoration. A site adapter owns the theme-specific selection of visible body content, its field schema and the writer events for indirect dependencies. The public-body filter runs in the same source context for `.md`, query alternates, negotiated Markdown and each source in `llms-full.txt`; it does not expose arbitrary ACF metadata or replay the canonical HTTP lifecycle. Rendering failures and private-content vetoes abort publication, including a full aggregate, rather than producing a partial document. The [generation contract](spec/markdown-alternate.md#43-generation-pipeline-core-page-markdown) defines these boundaries.
+
+HTTP cache protection and `DONOTCACHEPAGE` are provided by AI Visibility. Optional vendor-specific cache controls belong in the site's plugin, connected through the generic transport-bypass and public-content-veto actions. For example, SafeTeam owns the Sceleton renderer and LiteSpeed bridge in `kntnt-safeteam`; neither plugin requires the other, and AI Visibility contains no LiteSpeed API calls. See the [hook reference](EXTENSIBILITY.md) and [cache deployment guide](operations/negotiated-cache.md).
 
 ## Configuration
 

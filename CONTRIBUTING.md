@@ -20,6 +20,12 @@ composer install
 
 The plugin requires **PHP 8.4** – the floor comes from the bundled `kntnt/html-to-markdown` converter (see [`docs/adr/0001-php-8-4-floor.md`](docs/adr/0001-php-8-4-floor.md)). The end-to-end tests additionally need Node.js for the WordPress Playground harness.
 
+## Request and integration contracts
+
+Before changing Markdown routing, rendering or cache integration, read the [architecture](docs/architecture.md), [Markdown contract](docs/spec/markdown-alternate.md), [hook reference](docs/EXTENSIBILITY.md) and [cache deployment guide](docs/operations/negotiated-cache.md). The canonical URL selects Markdown only when an explicit positive Markdown weight strictly exceeds both HTML alternatives; ties retain HTML. Explicit alternate URLs have their own cacheable representation.
+
+Public-body adapters select actual public template content inside Core's anonymous source context and declare the fields and indirect dependencies that invalidate it. Cache integrations use the generic bypass and content-veto actions; vendor-specific code belongs in a site plugin. Keep transport cache protection distinct from a content-publication refusal. The [testing guide](agents.d/testing.md) points to the regression suites for these contracts.
+
 ## Quality gates
 
 Every change must pass the same gates CI enforces. Run them locally before opening a pull request:
@@ -41,7 +47,7 @@ bash run-tests.sh  # Level 1 (Pest) + Level 2 (Playground e2e)
 
 ## Pre-1.0 policy
 
-While the major version is `0`, the project makes **no backwards-compatibility commitments**. There are no installations in the wild, so pick the cleanest end state and ship the breaking change rather than carrying migrations or deprecations. This policy sunsets automatically when the version crosses `1.0.0`.
+While the major version is `0`, the project makes **no backwards-compatibility commitments**. Pick the cleanest end state and ship the breaking change rather than carrying migrations or deprecations. This policy sunsets automatically when the version crosses `1.0.0`.
 
 ## Pull-request process
 

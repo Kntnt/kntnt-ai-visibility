@@ -5,7 +5,7 @@
 Precedence over any conflicting skill, README or other doc unless the user overrides in the moment.
 
 - Authoritative: only this file, the files it references and the actual code/state. Ignore `README*` and other narrative docs unless referenced here.
-- Pre-1.0 (major `0`): ignore backwards-compat – no migrations, deprecations or saved-data/option-shape concerns; no installs exist. Push back if asked for them. Sunsets at `1.0.0`.
+- Pre-1.0 (major `0`): ignore backwards-compat – no migrations, deprecations or saved-data/option-shape concerns. Push back if asked for them. Sunsets at `1.0.0`.
 - Playground e2e only; NEVER auto-fall-back to DDEV (ADR-0004). If Playground cannot exercise a behaviour (e.g. a missing PHP extension or php-wasm limitation), STOP and raise to the maintainer.
 
 ## Non-obvious
@@ -25,8 +25,10 @@ Precedence over any conflicting skill, README or other doc unless the user overr
 - `agents.d/releasing.md` — when cutting a release
 - `agents.d/testing.md` — when running or changing the test suites
 - `docs/architecture.md` — designed architecture: Core plus four deep modules, artifact model, request lifecycle
-- `docs/spec/markdown-alternate.md` — concrete Release-1 contracts (Core slice + Markdown module); read before implementing
+- `docs/spec/markdown-alternate.md` — read before changing the Core slice or Markdown module: §4.2 defines Accept preference and explicit-form precedence, §4.3–4.4 define public rendering and cache protection and §5 defines invalidation
+- `docs/EXTENSIBILITY.md` — read before adding, changing or using integration hooks; public-body adapters, metadata dependencies and generic cache actions are optional, and vendor-specific code belongs in site plugins
+- `docs/operations/negotiated-cache.md` — read before deploying or verifying negotiated Markdown with a shared page cache, including purge and before-WordPress bypass checks
 - `docs/spec/llms-txt.md` — concrete Release-2 contracts (llms.txt module + Core extensions: content-type matrix, exact-path router); read before implementing
 - `docs/Charter.md` — product brief, market and the four-step plan
-- `docs/adr/` — the authoritative decisions (ADR-0001 … 0010)
+- `docs/adr/` — the authoritative decisions (ADR-0001 … 0012)
 - `GLOSSARY.md` — domain glossary
