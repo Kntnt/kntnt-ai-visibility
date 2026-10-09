@@ -65,7 +65,8 @@ final class Public_Rendering {
 		$veto = static function () use ( &$cache_veto ): void {
 			$cache_veto = true;
 		};
-		add_action( 'litespeed_control_set_nocache', $veto );
+		// Integrations emit this action while producing non-public content.
+		add_action( 'kntnt_ai_visibility_public_content_nocache', $veto );
 		$nocache = static function ( array $policy ) use ( &$cache_veto ): array {
 			$cache_veto = true;
 			return $policy;
@@ -120,7 +121,7 @@ final class Public_Rendering {
 		} finally {
 
 			// Remove only this rendering scope's observer and header side effects.
-			remove_action( 'litespeed_control_set_nocache', $veto );
+			remove_action( 'kntnt_ai_visibility_public_content_nocache', $veto );
 			remove_filter( 'nocache_headers', $nocache );
 			if ( ! headers_sent() ) {
 				header_remove();

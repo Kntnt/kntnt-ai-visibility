@@ -43,6 +43,9 @@ def main():
     reader.start()
     print("Playground cache regression worker process group: " + str(worker.pid), flush=True)
     try:
+        cleanup = os.environ.get("KNTNT_SESSION_CLEANUP_SCRIPT")
+        if cleanup:
+            subprocess.run(["uv", "run", cleanup, "add", "pid", str(worker.pid), "negotiated-cache Playground regression"], check=True)
         deadline = time.monotonic() + 180
         while worker.poll() is None and time.monotonic() < deadline:
             try:

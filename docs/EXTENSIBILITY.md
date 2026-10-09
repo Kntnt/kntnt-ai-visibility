@@ -1,6 +1,6 @@
 # Extensibility
 
-Kntnt AI Visibility works zero-config: every artifact it produces – the Markdown alternates, `/llms.txt`, `/llms-full.txt` and the `robots.txt` content signals – is generated from sensible defaults with no setup. When you want to shape that output in code, the plugin exposes a small, stable surface of WordPress filters. Every filter is optional and the plugin behaves correctly when none is attached.
+Kntnt AI Visibility works zero-config: every artifact it produces – the Markdown alternates, `/llms.txt`, `/llms-full.txt` and the `robots.txt` content signals – is generated from sensible defaults with no setup. When you want to shape that output or connect site integrations, the plugin exposes WordPress filters and actions. These hooks are optional; the plugin needs no particular cache plugin or site adapter.
 
 All filters share the `kntnt_ai_visibility_` prefix and are attached with the standard `add_filter()`. Each one receives the value the plugin is about to use and must return a replacement of the same shape. Where a malformed return would corrupt the output the plugin revalidates it and falls back to the safe default for that value, so a filter can never produce an invalid artifact.
 
@@ -10,6 +10,17 @@ All filters share the `kntnt_ai_visibility_` prefix and are attached with the st
 |---|---|---|
 | `kntnt_ai_visibility_eligible_post_types` | `string[]` of post-type slugs | The post types that get a Markdown alternate. Defaults to the types enabled for the Markdown (`.md`) column on the settings page. |
 | `kntnt_ai_visibility_markdown_frontmatter` | `string[]` of YAML lines, plus `WP_Post $post` | The front-matter lines (`title`, `canonical_url`, `date`, `author` and the conditional `featured_image`, `categories`, `tags`) before they are serialised. Add, remove or rewrite lines; non-scalar entries are dropped. |
+
+## Cache integrations and public-content vetoes
+
+Negotiated Markdown receives private/no-store HTTP headers and the WordPress `DONOTCACHEPAGE` convention independently of any adapter. Cache-specific code belongs in the site's own plugin. Two parameterless actions connect that code to AI Visibility:
+
+| Action | Direction | Contract |
+|---|---|---|
+| `kntnt_ai_visibility_cache_bypass` | Emitted by AI Visibility | Requests a cache bypass for canonical Accept-negotiated Markdown. Register the listener before `plugins_loaded`, for example from an MU plugin; the adapter handles its cache API's readiness and reapplies the bypass if necessary. Ordinary HTML and dedicated artifact requests do not emit it. |
+| `kntnt_ai_visibility_public_content_nocache` | Emitted by a content or cache integration | Refuses the current public render when its content cannot be shared. Emit during content production; Core fails closed and restores the caller's mutable state. The action has no effect outside an active public render. |
+
+The transport bypass and content veto are distinct: an anonymous Markdown response can contain public content while still needing an uncacheable canonical URL. Forward private-content signals to the veto action, never back into the transport action. These hooks do not control a cache that serves before WordPress; see the [deployment verification procedure](operations/negotiated-cache.md).
 
 ## llms.txt and llms-full.txt
 

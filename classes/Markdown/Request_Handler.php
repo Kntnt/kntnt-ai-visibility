@@ -89,7 +89,6 @@ final class Request_Handler {
 	 */
 	public function register(): void {
 		add_action( 'plugins_loaded', [ $this, 'protect_negotiated_request' ], PHP_INT_MIN );
-		add_action( 'litespeed_init', [ $this, 'protect_negotiated_request' ] );
 		add_filter( 'wp_headers', [ $this, 'vary_canonical_headers' ] );
 		add_action( 'init', [ self::class, 'register_rewrite_rules' ] );
 		add_filter( 'query_vars', [ $this, 'register_query_vars' ] );
@@ -99,8 +98,8 @@ final class Request_Handler {
 	/**
 	 * Prevents page-cache integrations from storing a negotiated representation.
 	 *
-	 * Runs before ordinary plugins_loaded callbacks and again when LiteSpeed's
-	 * API is ready. Caches serving before WordPress require server configuration.
+	 * Runs before ordinary plugins_loaded callbacks. Caches serving before
+	 * WordPress require server configuration.
 	 *
 	 * @since 0.5.2
 	 *
@@ -117,7 +116,15 @@ final class Request_Handler {
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
 			define( 'DONOTCACHEPAGE', true );
 		}
-		do_action( 'litespeed_control_set_nocache', 'Kntnt AI Visibility negotiated Markdown' );
+		/**
+		 * Lets site integrations apply their cache's request bypass.
+		 *
+		 * Register before plugins_loaded; adapters own cache-specific API timing.
+		 * This transport signal does not make the rendered content private.
+		 *
+		 * @since 0.7.0
+		 */
+		do_action( 'kntnt_ai_visibility_cache_bypass' );
 
 	}
 

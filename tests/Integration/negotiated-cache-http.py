@@ -56,7 +56,7 @@ policy = headers.get("Cache-Control", "").lower()
 check("negotiated 200 forbids shared storage", "private" in policy and "no-store" in policy)
 check("negotiated 200 preserves all Vary values", vary_values(headers) == {"accept", "cookie", "accept-encoding"})
 check("bypass exists before ordinary plugins_loaded callbacks", headers.get("X-Kntnt-Early-Bypass") == "1")
-check("LiteSpeed API is told not to cache", headers.get("X-Kntnt-LiteSpeed-Bypass") == "1")
+check("site integrations receive the cache bypass", headers.get("X-Kntnt-Integration-Bypass") == "1")
 
 status, headers, body = request(canonical, "text/markdown", markdown[1].get("ETag"))
 check("negotiated conditional returns bodyless 304", status == 304 and body == b"")
@@ -73,7 +73,7 @@ html = cache.get(canonical) or request(canonical, "text/html")
 status, headers, body = html
 check("URL-only cache cannot replay preceding Markdown to an HTML visitor", status == 200 and headers.get_content_type() == "text/html" and b"<!DOCTYPE html>" in body and b"# Ordinary page" not in body)
 check("HTML coherently varies on Accept and preserves existing Vary", vary_values(headers) == {"accept", "cookie", "accept-encoding"})
-check("ordinary HTML does not inherit Markdown cache bypass", headers.get("X-Kntnt-Early-Bypass") == "0" and headers.get("X-Kntnt-LiteSpeed-Bypass") == "0")
+check("ordinary HTML does not inherit Markdown cache bypass", headers.get("X-Kntnt-Early-Bypass") == "0" and headers.get("X-Kntnt-Integration-Bypass") == "0")
 
 status, headers, body = request(canonical + "?cache_vary_star=1", "text/markdown")
 check("a pre-existing Vary wildcard survives", "*" in vary_values(headers))

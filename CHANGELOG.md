@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.7.0] – 2026-10-09
+
+### Added
+
+- Generic cache-integration actions let site adapters request transport bypasses and veto private-content publication.
+
+### Changed
+
+- Removed vendor-specific cache hooks from the public plugin while retaining HTTP cache protection and `DONOTCACHEPAGE` independently of site adapters.
+
 ## [0.6.0] – 2026-10-09
 
 ### Added

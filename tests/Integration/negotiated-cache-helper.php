@@ -2,8 +2,8 @@
 /**
  * Observes cache bypass timing and competing Vary headers in Playground.
  *
- * This fixture exercises the documented LiteSpeed hook contract, not the
- * LiteSpeed server or the customer's production configuration.
+ * This fixture exercises the public cache-integration action without a
+ * particular cache plugin or the customer's production configuration.
  *
  * @package Tests\Integration
  * @since 0.5.2
@@ -17,13 +17,10 @@ add_action( 'plugins_loaded', static function (): void {
 	$GLOBALS['kntnt_cache_fixture_early_bypass'] = defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE;
 }, -100 );
 
-// Observe the public cache-plugin API when it becomes ready.
-add_action( 'litespeed_control_set_nocache', static function (): void {
-	$GLOBALS['kntnt_cache_fixture_litespeed_bypass'] = true;
+// A site adapter can receive the bypass before ordinary plugins initialise.
+add_action( 'kntnt_ai_visibility_cache_bypass', static function (): void {
+	$GLOBALS['kntnt_cache_fixture_integration_bypass'] = true;
 } );
-add_action( 'plugins_loaded', static function (): void {
-	do_action( 'litespeed_init' );
-}, 100 );
 
 // A later integration can append another Vary field before inline serving.
 add_action( 'template_redirect', static function (): void {
@@ -32,7 +29,7 @@ add_action( 'template_redirect', static function (): void {
 		header( 'Vary: *', false );
 	}
 	header( 'X-Kntnt-Early-Bypass: ' . ( empty( $GLOBALS['kntnt_cache_fixture_early_bypass'] ) ? '0' : '1' ) );
-	header( 'X-Kntnt-LiteSpeed-Bypass: ' . ( empty( $GLOBALS['kntnt_cache_fixture_litespeed_bypass'] ) ? '0' : '1' ) );
+	header( 'X-Kntnt-Integration-Bypass: ' . ( empty( $GLOBALS['kntnt_cache_fixture_integration_bypass'] ) ? '0' : '1' ) );
 }, -100 );
 
 // Reset only this disposable site's artifact store for a genuinely cold probe.

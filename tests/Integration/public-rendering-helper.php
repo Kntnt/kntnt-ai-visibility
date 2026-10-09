@@ -30,8 +30,8 @@ add_shortcode( 'public_render_signal', static function (): string {
 		nocache_headers();
 	} elseif ( $signal === 'constant' ) {
 		define( 'DONOTCACHEPAGE', true );
-	} elseif ( $signal === 'litespeed' ) {
-		do_action( 'litespeed_control_set_nocache', 'private fixture content' );
+	} elseif ( $signal === 'integration' ) {
+		do_action( 'kntnt_ai_visibility_public_content_nocache' );
 	} elseif ( $signal === 'cookie' ) {
 		setcookie( 'private_content', 'fixture' );
 	}

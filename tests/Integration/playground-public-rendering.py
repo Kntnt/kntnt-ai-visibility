@@ -97,7 +97,7 @@ def verify(base):
     fetch(anonymous, base, "/?public_fixture=reset")
     assert b"MEMBER-PRIVATE" not in fetch(member, base, "/llms-full.txt")[2]
     print("PASS actual password cookie cannot publish protected page or aggregate bytes", flush=True)
-    for signal in ["headers", "constant", "litespeed", "cookie", "headers-preexisting", "constant-preexisting"]:
+    for signal in ["headers", "constant", "integration", "cookie", "headers-preexisting", "constant-preexisting"]:
         fetch(anonymous, base, "/?public_fixture=reset")
         fetch(anonymous, base, "/?public_fixture=signal-" + signal)
         status, headers, body = fetch(anonymous, base, "/uncacheable.md")
