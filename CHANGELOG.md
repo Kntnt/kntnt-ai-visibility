@@ -6,33 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
-Preliminary Bogo and cache corrections; further correctness and security work remains tracked in [#3](https://github.com/Kntnt/kntnt-ai-visibility/issues/3).
-
 ### Added
 
-- Bogo regression fixtures covering implicit and explicit language prefixes, translated front pages, source rendering and public-cache lifecycle changes, wired into the local test runner and CI.
-- A record of the Bogo and cache investigation, its verification and remaining limits in `docs/bogo-cache-correctness.md`.
+- Optional public-content integration hooks let a site adapter supply its theme's visible body, declare rendered metadata dependencies and signal committed changes to indirect content. Without an adapter, ordinary blocks and shortcodes retain the standard WordPress rendering pipeline.
+- Regression coverage for content negotiation, public rendering, Bogo language paths, cache lifecycle, concurrent publication and failure recovery, exercised with WordPress Playground on PHP 8.4.
+- Operational guidance for excluding negotiated Markdown from shared page caches and purging previously polluted HTML entries.
 
 ### Changed
 
 - Renamed the domain glossary from `CONTEXT.md` to `GLOSSARY.md` and updated its references.
+- Release notes and distribution files are now taken from the same tagged source tree.
 
 ### Fixed
 
-- Keep Bogo language prefixes in per-page cache identities and use the configured installation URL for site-wide artifact links, routing and exclusions.
-- Require slug-resolution candidates to match the complete canonical path, preventing unrelated or wrong-language paths from resolving to the same leaf slug.
-- Resolve translated static-front-page alternates using the source locale and prefer cached canonical metadata when serving warm Markdown files.
-- Supply the source post's globals and Bogo locale during Markdown rendering, restoring the caller's state afterwards.
-- Invalidate old permalink files before post updates or deletion, flush affected cache state on hierarchical, taxonomy, front-page, permalink and Bogo metadata changes and invalidate aggregates on permanent deletion.
-- Enforce the configured cache lifetime in the inner materialiser as well as the early router, allowing expired files to be regenerated.
-- Match exact supported Markdown media types and respect zero quality and an explicitly higher HTML quality during Accept negotiation.
-- Avoid duplicating the installation or language prefix when redirecting a trailing-slashed `.md` URL.
-- Truncate llms.txt excerpts by characters, preserving valid UTF-8.
-- Link category and tag metadata to their existing HTML archives.
+- Normal page requests retain HTML unless the client explicitly prefers Markdown; equal quality values, zero-quality Markdown and unsupported media types no longer select Markdown accidentally.
+- Negotiated Markdown responses are private and uncacheable by shared page caches. Their validators describe the freshly rendered body, and date-only conditions cannot produce a stale `304` response.
+- Public artifacts render anonymously in the source post's isolated main query, active Loop and Bogo locale, with the caller's state restored afterwards.
+- Static front pages, actual index pages and assigned posts pages have distinct publication roles and identities, including translated and subdirectory installations.
+- Plain-permalink alternates retain the complete source query identity and continue to resolve correctly when switching between pretty and plain permalinks.
+- Canonical path resolution, cached canonical links and trailing-slash redirects preserve complete installation and language paths without accepting unrelated leaf-slug matches or duplicating prefixes.
+- Relative links and images resolve against each source's canonical URL, including root-relative, query-only and fragment-only references.
+- Page and aggregate caches invalidate after native post, taxonomy, permalink, language, featured-image and shared-block changes, as well as writes to declared rendered metadata and indirect dependencies.
+- Content-type selections, exclusions and exposure settings stay effective across option creation, updates and deletion, with the same eligibility rules applied to singular and aggregate artifacts.
+- Cache lifetime applies to both early responses and inner materialisation. Immutable response snapshots keep body bytes and HTTP validators consistent while obsolete aggregate generations are pruned.
+- Successfully generated documents remain available when cache persistence or lock acquisition fails; conversion and public-template failures no longer publish incomplete success documents.
+- Stampede lock families remain bounded and scoped to the installation. Deactivation removes the plugin's rewrite rules before flushing, and reactivation restores them.
+- HEAD responses contain no body, and unsupported artifact methods continue through the normal WordPress request lifecycle.
+- llms.txt descriptions truncate by Unicode characters, preserving valid UTF-8, and front-matter category and tag links point to their existing HTML archives.
 
 ### Security
 
-- Refuse public Markdown requests for posts with a stored password even when the current visitor has satisfied the password gate.
+- Posts with a stored password never enter public Markdown or aggregate artifacts, even when the visitor has satisfied the password gate.
+- Revoked sources and obsolete generation work cannot republish public artifacts; queued producers verify source freshness before publishing.
 
 ## [0.5.1] – 2026-07-16
 
