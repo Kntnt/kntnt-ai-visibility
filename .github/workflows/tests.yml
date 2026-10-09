@@ -117,8 +117,22 @@ jobs:
         run: bash tests/Integration/playground-e2e-subdir.sh
       - name: Exercise Bogo and cache lifecycle regressions
         run: bash tests/Integration/playground-audit.sh
+      - name: Verify the implicit-language audit stopped its server
+        run: |
+          if curl --silent --max-time 2 --output /dev/null http://127.0.0.1:9414/; then
+            echo "::error::The previous audit server is still serving its mutated fixture."
+            ps -eo pid,ppid,pgid,args | rg 'wp-playground|playground-audit|npm exec' || true
+            exit 1
+          fi
       - name: Exercise Bogo with explicit prefixes for every language
         run: KNTNT_AUDIT_EXPLICIT=1 bash tests/Integration/playground-audit.sh
+      - name: Verify the explicit-language audit stopped its server
+        run: |
+          if curl --silent --max-time 2 --output /dev/null http://127.0.0.1:9414/; then
+            echo "::error::The explicit-language audit server is still running."
+            ps -eo pid,ppid,pgid,args | rg 'wp-playground|playground-audit|npm exec' || true
+            exit 1
+          fi
       - name: Exercise HTTP methods and downstream forms
         run: python3 tests/Integration/playground-methods.py
       - name: Exercise complete canonical paths and source-language identities
