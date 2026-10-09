@@ -6,16 +6,22 @@ tracer slice; KNTNT_LIFECYCLE_ROOT_ONLY limits historical setup to one base.
 Worker groups are always stopped.
 """
 
+from http.client import RemoteDisconnected
 import json
 import os
 from pathlib import Path
 import re
-import signal
 import subprocess
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+from playground_process import stop_worker
+
+# Cold aggregates convert many sources in CPU-limited PHP-WASM runners.
+# This transport budget does not alter cache, body or invalidation assertions.
+FULL_AGGREGATE_TIMEOUT = 60
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -29,7 +35,10 @@ class NoRedirect(HTTPRedirectHandler):
 def request(base, path, headers=None):
     """Read actual status, headers and source bytes from the public endpoint."""
     try:
-        response = build_opener(NoRedirect).open(Request(base + path, headers=headers or {}), timeout=20)
+        response = build_opener(NoRedirect).open(
+            Request(base + path, headers=headers or {}),
+            timeout=FULL_AGGREGATE_TIMEOUT if path == "/llms-full.txt" else 20,
+        )
     except HTTPError as error:
         response = error
     with response:
@@ -341,7 +350,7 @@ def run(subpath):
                     ids = control(base, "state")
                     if "rename" in ids.get("posts", {}):
                         break
-                except (URLError, TimeoutError, AssertionError, json.JSONDecodeError):
+                except (URLError, RemoteDisconnected, TimeoutError, AssertionError, json.JSONDecodeError):
                     pass
                 time.sleep(2)
             else:
@@ -352,15 +361,7 @@ def run(subpath):
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            try:
-                os.killpg(worker.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                worker.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(worker.pid, signal.SIGKILL)
-                worker.wait()
+            stop_worker(worker)
 
 
 if __name__ == "__main__":

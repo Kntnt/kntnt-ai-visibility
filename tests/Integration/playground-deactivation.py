@@ -1,14 +1,16 @@
 """Verify native deactivation removes persisted artifact rewrites, PHP 8.4 only."""
 
+from http.client import RemoteDisconnected
 import json
 import os
 from pathlib import Path
 import re
-import signal
 import subprocess
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+from playground_process import stop_worker
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = int(os.environ.get('KNTNT_DEACTIVATION_PORT', '9451'))
@@ -203,22 +205,14 @@ def run(subpath):
             try:
                 if control(base, 'state').get('sources'):
                     break
-            except (URLError, TimeoutError, AssertionError, json.JSONDecodeError):
+            except (URLError, RemoteDisconnected, TimeoutError, AssertionError, json.JSONDecodeError):
                 pass
             time.sleep(2)
         else:
             raise RuntimeError('Deactivation fixture readiness timeout')
         verify(base)
     finally:
-        try:
-            os.killpg(worker.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        try:
-            worker.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            os.killpg(worker.pid, signal.SIGKILL)
-            worker.wait()
+        stop_worker(worker)
         print(f'Stopped Playground process group {worker.pid}', flush=True)
 
 

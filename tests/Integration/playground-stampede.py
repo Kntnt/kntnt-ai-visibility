@@ -5,9 +5,9 @@ Independent concurrent producers are covered by the approved native seam;
 this WASM fixture reports its process capabilities without a DDEV fallback.
 """
 
+from http.client import RemoteDisconnected
 import os
 from pathlib import Path
-import signal
 import subprocess
 import tempfile
 import time
@@ -16,6 +16,8 @@ from urllib.error import URLError
 import json
 import runpy
 from types import SimpleNamespace
+
+from playground_process import stop_worker
 
 source = Path(__file__).with_name("playground-publication.py")
 helpers = runpy.run_path(str(source))
@@ -83,7 +85,7 @@ def run(subpath):
                 try:
                     if http.control(base, "state").get("ready"):
                         break
-                except (URLError, TimeoutError, AssertionError, json.JSONDecodeError):
+                except (URLError, RemoteDisconnected, TimeoutError, AssertionError, json.JSONDecodeError):
                     pass
                 time.sleep(2)
             else:
@@ -94,15 +96,7 @@ def run(subpath):
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            try:
-                os.killpg(worker.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                worker.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(worker.pid, signal.SIGKILL)
-                worker.wait()
+            stop_worker(worker)
 
 
 if __name__ == "__main__":

@@ -127,7 +127,8 @@ run_e2e() {
 	echo "═══ Level 2: Playground e2e (boot smoke + behavioural + subdirectory) ═══"
 	local args=()
 	[[ "$VERBOSE" == true ]] && args+=(--verbose)
-	if bash "$SCRIPT_DIR/tests/Integration/playground-smoke.sh" "${args[@]}" \
+	if python3 "$SCRIPT_DIR/tests/Integration/playground-readiness.py" \
+		&& bash "$SCRIPT_DIR/tests/Integration/playground-smoke.sh" "${args[@]}" \
 		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e.sh" "${args[@]}" \
 		&& bash "$SCRIPT_DIR/tests/Integration/playground-e2e-subdir.sh" "${args[@]}" \
 		&& bash "$SCRIPT_DIR/tests/Integration/playground-audit.sh" "${args[@]}" \

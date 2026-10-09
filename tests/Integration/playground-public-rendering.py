@@ -5,6 +5,7 @@ worker uses KNTNT_PUBLIC_PORT (default 9427), records its process group and stop
 all children on exit. No DDEV fallback is attempted.
 """
 
+from http.client import RemoteDisconnected
 from http.cookiejar import CookieJar
 import json
 import os
@@ -17,6 +18,8 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 from urllib.parse import urlencode
+
+from playground_process import stop_worker
 
 
 def fetch(client, base, path, headers=None, data=None):
@@ -130,7 +133,7 @@ def main():
                     if fetch(build_opener(), base, "/?public_fixture=state")[0] == 200:
                         verify(base)
                         return
-                except (URLError, TimeoutError):
+                except (URLError, RemoteDisconnected, TimeoutError):
                     pass
                 time.sleep(2)
             raise RuntimeError("Playground fixture did not become ready; raise the runtime obstacle")
@@ -139,13 +142,7 @@ def main():
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            if worker.poll() is None:
-                os.killpg(worker.pid, signal.SIGTERM)
-                try:
-                    worker.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    os.killpg(worker.pid, signal.SIGKILL)
-                    worker.wait()
+            stop_worker(worker, grace_seconds=10)
 
 
 if __name__ == "__main__":

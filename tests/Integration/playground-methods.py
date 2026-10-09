@@ -5,13 +5,13 @@ and the installed Composer dependencies. KNTNT_METHODS_PORT selects the HTTP
 port. The server runs in its own process group and is stopped on every exit.
 """
 
+from http.client import RemoteDisconnected
 import json
 from http.client import parse_headers
 from io import BytesIO
 import os
 from pathlib import Path
 import re
-import signal
 import socket
 import subprocess
 import tempfile
@@ -19,6 +19,8 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from urllib.parse import urlsplit
+
+from playground_process import stop_worker
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -158,7 +160,7 @@ def main():
                     status, _, body = request(base, "/ordinary/")
                     if status == 200 and b"PUBLIC-ARTIFACT-CONTENT" in body:
                         break
-                except (URLError, TimeoutError):
+                except (URLError, RemoteDisconnected, TimeoutError):
                     pass
                 time.sleep(2)
             else:
@@ -169,13 +171,7 @@ def main():
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            if server.poll() is None:
-                os.killpg(server.pid, signal.SIGTERM)
-                try:
-                    server.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(server.pid, signal.SIGKILL)
-                    server.wait()
+            stop_worker(server)
 
 
 if __name__ == "__main__":

@@ -8,13 +8,14 @@ Exit 0 means every HTTP assertion passed. No DDEV fallback is attempted.
 
 import os
 from pathlib import Path
-import signal
 import subprocess
 import sys
 import threading
 import time
 import urllib.error
 import urllib.request
+
+from playground_process import stop_worker
 
 
 def run_probe(base):
@@ -56,15 +57,7 @@ def main():
         return 1
     finally:
         # Stop the complete CLI process group, including its server children.
-        try:
-            os.killpg(worker.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        try:
-            worker.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            os.killpg(worker.pid, signal.SIGKILL)
-            worker.wait()
+        stop_worker(worker, grace_seconds=10)
         reader.join(timeout=2)
 
 

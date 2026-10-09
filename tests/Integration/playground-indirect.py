@@ -5,10 +5,10 @@ KNTNT_INDIRECT_SUBPATH selects one installation; default runs root and /sub.
 KNTNT_SESSION_CLEANUP_SCRIPT registers its process group immediately.
 """
 
+from http.client import RemoteDisconnected
 import json
 import os
 from pathlib import Path
-import signal
 import subprocess
 import tempfile
 import time
@@ -18,6 +18,8 @@ from urllib.request import Request, urlopen
 
 
 from http_fixture import raw_head
+
+from playground_process import stop_worker
 
 
 def request(base, path, method="GET", headers=None):
@@ -161,7 +163,7 @@ def run(subpath):
                 try:
                     if control(base).get("php", "").startswith("8.4."):
                         break
-                except (URLError, TimeoutError, AssertionError, json.JSONDecodeError):
+                except (URLError, RemoteDisconnected, TimeoutError, AssertionError, json.JSONDecodeError):
                     pass
                 time.sleep(1)
             else:
@@ -172,15 +174,7 @@ def run(subpath):
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            try:
-                os.killpg(worker.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                worker.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(worker.pid, signal.SIGKILL)
-                worker.wait()
+            stop_worker(worker)
 
 
 if __name__ == "__main__":

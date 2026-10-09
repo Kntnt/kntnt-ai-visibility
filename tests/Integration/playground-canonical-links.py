@@ -4,17 +4,19 @@ KNTNT_CANONICAL_LINKS_PORT selects a worker, default9443. Every worker owns a
 tracked process group and is stopped even when a regression assertion fails.
 """
 
+from http.client import RemoteDisconnected
 import json
 import os
 from pathlib import Path
 import re
-import signal
 import subprocess
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import Request, urlopen
+
+from playground_process import stop_worker
 
 
 def request(base, path, method='GET', headers=None):
@@ -155,15 +157,16 @@ def run(subpath):
         ], stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             tracker = Path.home() / '.agents/skills/kntnt/features/session-cleanup/scripts/session_cleanup.py'
-            subprocess.run(['uv', 'run', str(tracker), 'add', 'pid', str(worker.pid), '#23 exact canonical links Playground'], check=True, stdout=subprocess.DEVNULL)
-            print(f'Recorded Playground process group {worker.pid}', flush=True)
+            if tracker.exists():
+                subprocess.run(['uv', 'run', str(tracker), 'add', 'pid', str(worker.pid), '#23 exact canonical links Playground'], check=True, stdout=subprocess.DEVNULL)
+            print(f'Playground process group {worker.pid}', flush=True)
             for _ in range(90):
                 if worker.poll() is not None:
                     raise RuntimeError('Playground exited during fixture setup')
                 try:
                     if control(base, 'state').get('ids'):
                         break
-                except (URLError, TimeoutError, AssertionError, json.JSONDecodeError):
+                except (URLError, RemoteDisconnected, TimeoutError, AssertionError, json.JSONDecodeError):
                     pass
                 time.sleep(2)
             else:
@@ -174,15 +177,7 @@ def run(subpath):
             print(log.read().decode(errors='replace'), flush=True)
             raise
         finally:
-            try:
-                os.killpg(worker.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                worker.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(worker.pid, signal.SIGKILL)
-                worker.wait()
+            stop_worker(worker)
 
 
 if __name__ == '__main__':

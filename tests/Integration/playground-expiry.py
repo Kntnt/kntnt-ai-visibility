@@ -4,12 +4,12 @@ KNTNT_EXPIRY_PORT selects the disposable worker (default 9449).
 KNTNT_SESSION_CLEANUP_SCRIPT registers its process group immediately.
 """
 
+from http.client import RemoteDisconnected
 from http.client import parse_headers
 from io import BytesIO
 import json
 import os
 from pathlib import Path
-import signal
 import socket
 import subprocess
 import tempfile
@@ -17,6 +17,8 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
+
+from playground_process import stop_worker
 
 
 def request(base, path, method="GET", headers=None):
@@ -139,7 +141,7 @@ def main():
                 try:
                     if control(base).get("php", "").startswith("8.4."):
                         break
-                except (URLError, TimeoutError, AssertionError, json.JSONDecodeError):
+                except (URLError, RemoteDisconnected, TimeoutError, AssertionError, json.JSONDecodeError):
                     pass
                 time.sleep(1)
             else:
@@ -150,15 +152,7 @@ def main():
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            try:
-                os.killpg(worker.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                worker.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(worker.pid, signal.SIGKILL)
-                worker.wait()
+            stop_worker(worker)
 
 
 if __name__ == "__main__":

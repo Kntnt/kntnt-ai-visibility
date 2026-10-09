@@ -1,11 +1,11 @@
 """Verify immutable response bytes while two real generations prune each other."""
 
+from http.client import RemoteDisconnected
 from email.utils import formatdate
 import hashlib
 import json
 import os
 from pathlib import Path
-import signal
 import subprocess
 import tempfile
 import time
@@ -13,6 +13,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from http_fixture import raw_head
+
+from playground_process import stop_worker
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -130,7 +132,7 @@ def run(subpath):
                     ids = control(base, "state")
                     if ids.get("ready"):
                         break
-                except (URLError, TimeoutError, AssertionError, json.JSONDecodeError):
+                except (URLError, RemoteDisconnected, TimeoutError, AssertionError, json.JSONDecodeError):
                     pass
                 time.sleep(2)
             else:
@@ -141,15 +143,7 @@ def run(subpath):
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            try:
-                os.killpg(worker.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                worker.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(worker.pid, signal.SIGKILL)
-                worker.wait()
+            stop_worker(worker)
 
 
 if __name__ == "__main__":

@@ -8,13 +8,14 @@ KNTNT_SESSION_CLEANUP_SCRIPT optionally registers the local worker for cleanup.
 import json
 import os
 from pathlib import Path
-import signal
 import subprocess
 import sys
 import threading
 import time
 import urllib.error
 import urllib.request
+
+from playground_process import stop_worker
 
 
 def request(base, path):
@@ -130,15 +131,7 @@ def main():
         print("Playground fixture did not become ready; raise the runtime obstacle to the maintainer.", file=sys.stderr)
         return 1
     finally:
-        try:
-            os.killpg(worker.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        try:
-            worker.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            os.killpg(worker.pid, signal.SIGKILL)
-            worker.wait()
+        stop_worker(worker, grace_seconds=10)
         reader.join(timeout=2)
 
 

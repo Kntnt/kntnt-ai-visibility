@@ -6,11 +6,11 @@ run by default; KNTNT_POSTS_PAGE_SUBPATH restricts one installation for diagnosi
 KNTNT_POSTS_PAGE_STYLES can restrict diagnosis to pretty or plain.
 """
 
+from http.client import RemoteDisconnected
 import json
 import os
 from pathlib import Path
 import re
-import signal
 import subprocess
 import tempfile
 import time
@@ -19,6 +19,8 @@ from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from http_fixture import raw_head
+
+from playground_process import stop_worker
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -208,7 +210,7 @@ def run(subpath):
                 try:
                     if control(base)["sources"]:
                         break
-                except (URLError, HTTPError, TimeoutError, ValueError, KeyError, AssertionError):
+                except (URLError, RemoteDisconnected, HTTPError, TimeoutError, ValueError, KeyError, AssertionError):
                     pass
                 time.sleep(2)
             else:
@@ -219,15 +221,7 @@ def run(subpath):
             print(log.read().decode(errors="replace"), flush=True)
             raise
         finally:
-            try:
-                os.killpg(worker.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                worker.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                os.killpg(worker.pid, signal.SIGKILL)
-                worker.wait()
+            stop_worker(worker, grace_seconds=10)
 
 
 if __name__ == "__main__":

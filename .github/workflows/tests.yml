@@ -114,6 +114,9 @@ jobs:
           restore-keys: ${{ runner.os }}-composer-
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
+      - name: Check HTTP startup and complete worker shutdown
+        if: matrix.group == 'rendering'
+        run: python3 tests/Integration/playground-readiness.py
       - name: Boot the plugin in WordPress Playground
         if: matrix.group == 'rendering'
         run: bash tests/Integration/playground-smoke.sh
