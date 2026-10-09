@@ -14,7 +14,7 @@ SERVER_PID=""
 # Stop the owned server and remove this run's request captures on every exit.
 cleanup() {
 	if [[ -n "$SERVER_PID" ]]; then
-		kill "$SERVER_PID" 2>/dev/null || true
+		kill -- "-$SERVER_PID" 2>/dev/null || true
 		wait "$SERVER_PID" 2>/dev/null || true
 	fi
 	rm -f "$SCRATCH/log" "$SCRATCH/body" "$SCRATCH/headers"
@@ -22,11 +22,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# npm can leave its CLI child alive when only the npm launcher is stopped.
+# Give the complete server tree its own job group for the exit trap to stop.
+set -m
 npx --yes @wp-playground/cli@3.1.36 server --php=8.4 --wp=latest --workers=1 \
 	--port="$PORT" --site-url="$BASE" \
 	--mount="$PLUGIN_ROOT:/wordpress/wp-content/plugins/kntnt-ai-visibility" \
 	--blueprint="$SCRIPT_DIR/audit-blueprint.json" >"$SCRATCH/log" 2>&1 &
 SERVER_PID=$!
+set +m
 ready=false
 for _ in $(seq 1 90); do
 	if curl -fsS -o /dev/null "$BASE/" 2>/dev/null; then ready=true; break; fi

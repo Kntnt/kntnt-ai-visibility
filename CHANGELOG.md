@@ -33,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Stampede lock families remain bounded and scoped to the installation. Deactivation removes the plugin's rewrite rules before flushing, and reactivation restores them.
 - HEAD responses contain no body, and unsupported artifact methods continue through the normal WordPress request lifecycle.
 - llms.txt descriptions truncate by Unicode characters, preserving valid UTF-8, and front-matter category and tag links point to their existing HTML archives.
+- Sequential Bogo audits stop the complete Playground server process tree, preventing Linux CI runs from reusing a previous test's mutated installation.
 
 ### Security
 

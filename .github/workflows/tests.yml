@@ -121,7 +121,7 @@ jobs:
         run: |
           if curl --silent --max-time 2 --output /dev/null http://127.0.0.1:9414/; then
             echo "::error::The previous audit server is still serving its mutated fixture."
-            ps -eo pid,ppid,pgid,args | rg 'wp-playground|playground-audit|npm exec' || true
+            ps -eo pid,ppid,pgid,args | grep -E 'wp-playground|playground-audit|npm exec' || true
             exit 1
           fi
       - name: Exercise Bogo with explicit prefixes for every language
@@ -130,7 +130,7 @@ jobs:
         run: |
           if curl --silent --max-time 2 --output /dev/null http://127.0.0.1:9414/; then
             echo "::error::The explicit-language audit server is still running."
-            ps -eo pid,ppid,pgid,args | rg 'wp-playground|playground-audit|npm exec' || true
+            ps -eo pid,ppid,pgid,args | grep -E 'wp-playground|playground-audit|npm exec' || true
             exit 1
           fi
       - name: Exercise HTTP methods and downstream forms
