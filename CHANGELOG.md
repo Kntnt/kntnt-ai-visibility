@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.6.0] – 2026-10-09
+
 ### Added
 
 - Optional public-content integration hooks let a site adapter supply its theme's visible body, declare rendered metadata dependencies and signal committed changes to indirect content. Without an adapter, ordinary blocks and shortcodes retain the standard WordPress rendering pipeline.
