@@ -52,7 +52,7 @@
         "stan": "phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G",
         "phpcs": "phpcs --standard=phpcs.xml.dist",
         "phpcbf": "phpcbf --standard=phpcs.xml.dist",
-        "build": "bash build-release-zip.sh --output ."
+        "build": "bash bin/build-release-assets --output ."
     },
     "minimum-stability": "stable",
     "prefer-stable": true

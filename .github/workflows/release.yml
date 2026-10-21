@@ -44,7 +44,7 @@ jobs:
       - name: Build the runtime zip, create the release, and upload the asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # build-release-zip.sh runs `composer install --no-dev --optimize-autoloader`
+        # bin/build-release-assets runs `composer install --no-dev --optimize-autoloader`
         # in a staging directory, strips to the runtime keep-list (incl. vendor/),
         # and uploads kntnt-ai-visibility.zip — the version-less, stable asset name.
-        run: bash build-release-zip.sh --tag "${GITHUB_REF_NAME}" --create
+        run: bash bin/build-release-assets --tag "${GITHUB_REF_NAME}" --create

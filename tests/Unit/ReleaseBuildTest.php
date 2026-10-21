@@ -24,7 +24,8 @@ describe('Tagged release build', function (): void {
         mkdir($this->release_repo, 0700, true);
         mkdir($this->release_capture, 0700);
         mkdir($this->release_root . '/staging', 0700);
-        copy(dirname(__DIR__, 2) . '/build-release-zip.sh', $this->release_repo . '/build-release-zip.sh');
+        mkdir($this->release_repo . '/bin', 0700);
+        copy(dirname(__DIR__, 2) . '/bin/build-release-assets', $this->release_repo . '/bin/build-release-assets');
 
         // Intercept only external dependency installation and GitHub publishing.
         $this->release_environment = [
@@ -99,7 +100,7 @@ CHANGELOG
         file_put_contents($this->release_repo . '/CHANGELOG.md', "## [1.2.3]\n\nWORKTREE-NOTES\n");
 
         // Build through the CLI; the stub captures exactly what gh would receive.
-        ($this->release_run)(['bash', 'build-release-zip.sh', '--tag', 'v1.2.3', '--create']);
+        ($this->release_run)(['bash', 'bin/build-release-assets', '--tag', 'v1.2.3', '--create']);
         $expected = "\n### Fixed\n\n- TAGGED-NOTES\n  continuation with `code` and a literal \\n.\n\n"
             . "\n**Full changelog:** https://github.com/Kntnt/kntnt-ai-visibility/blob/v1.2.3/CHANGELOG.md\n";
         expect(file_get_contents($this->release_capture . '/notes.md'))->toBe($expected);
@@ -121,7 +122,7 @@ CHANGELOG
         file_put_contents($this->release_repo . '/CHANGELOG.md', "## [1.2.3]\n\nWORKTREE-NOTES\n");
 
         // Preserve the body literally and omit all reference definitions.
-        ($this->release_run)(['bash', 'build-release-zip.sh', '--tag', 'v1.2.3', '--create']);
+        ($this->release_run)(['bash', 'bin/build-release-assets', '--tag', 'v1.2.3', '--create']);
         expect(file_get_contents($this->release_capture . '/notes.md'))->toBe(
             "\n### Fixed\n\n- TAGGED-NOTES\n\n"
             . "\n**Full changelog:** https://github.com/Kntnt/kntnt-ai-visibility/blob/v1.2.3/CHANGELOG.md\n",
@@ -140,7 +141,7 @@ CHANGELOG
         file_put_contents($this->release_repo . '/CHANGELOG.md', "## [1.2.3]\n\nWORKTREE-NOTES\n");
 
         // The documented fallback is gh's generated release body.
-        ($this->release_run)(['bash', 'build-release-zip.sh', '--tag', 'v1.2.3', '--create']);
+        ($this->release_run)(['bash', 'bin/build-release-assets', '--tag', 'v1.2.3', '--create']);
         $arguments = explode("\n", file_get_contents($this->release_capture . '/arguments'));
         expect($arguments)->toContain('--generate-notes')->not->toContain('--notes-file');
         expect(file_exists($this->release_capture . '/notes.md'))->toBeFalse();
@@ -153,7 +154,7 @@ CHANGELOG
     it('builds local runtime bytes from the working copy without publishing', function (): void {
         // Local builds intentionally use current files without a tag or changelog.
         file_put_contents($this->release_repo . '/kntnt-ai-visibility.php', 'WORKTREE-CONTENT');
-        ($this->release_run)(['bash', 'build-release-zip.sh', '--output', $this->release_capture]);
+        ($this->release_run)(['bash', 'bin/build-release-assets', '--output', $this->release_capture]);
 
         // Check the delivered ZIP and absence of any GitHub publishing request.
         expect(($this->release_run)([

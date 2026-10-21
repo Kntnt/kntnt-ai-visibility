@@ -25,7 +25,7 @@ set -euo pipefail
 REPO="Kntnt/kntnt-ai-visibility"
 PLUGIN_DIR="kntnt-ai-visibility"
 ZIP_NAME="${PLUGIN_DIR}.zip"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Print usage and exit with the given code (default 0).
 usage() {
