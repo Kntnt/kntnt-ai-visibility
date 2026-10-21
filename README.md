@@ -144,7 +144,7 @@ The script builds from the committed state at `HEAD` – uncommitted changes are
 
 ### Releasing
 
-Releases are cut with Kntnt's `/release` Skill. It promotes `[Unreleased]` in `CHANGELOG.md`, bumps the `Version:` header, pushes the tag `vX.Y.Z`, creates the GitHub release with that version's changelog section as its notes, runs `bin/build-release-assets` and uploads `release-assets/kntnt-ai-visibility.zip` to the release. Pushing a tag on its own builds nothing. The version-less asset name is what makes the `latest/download` link above permanent (see [`docs/adr/0013`](docs/adr/0013-release-skill-cuts-releases-build-only-builds.md)).
+Releases are cut with Kntnt's `/release` Skill. It promotes `[Unreleased]` in `CHANGELOG.md`, bumps the `Version:` header, tags the release `vX.Y.Z`, runs `bin/build-release-assets`, and then pushes the tag and creates the GitHub release with that version's changelog section as its notes and `release-assets/kntnt-ai-visibility.zip` attached, in one step. Pushing a tag on its own builds nothing. The version-less asset name is what makes the `latest/download` link above permanent (see [`docs/adr/0013`](docs/adr/0013-release-skill-cuts-releases-build-only-builds.md)).
 
 ### Technical documentation
 
