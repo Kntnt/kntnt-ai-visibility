@@ -1,5 +1,5 @@
 # Dependencies — restored by `composer install`; the release zip ships its own
-# production vendor/ built by build-release-zip.sh.
+# production vendor/ built by bin/build-release-assets.
 /vendor/
 /node_modules/
 
@@ -9,10 +9,9 @@
 /coverage/
 *.log
 
-# Release artefact emitted by ./build-release-zip.sh — uploaded to the GitHub
-# release as an asset, not committed. dist/ is the default output directory.
-/kntnt-ai-visibility.zip
-/dist/
+# Release assets written by bin/build-release-assets — attached to the GitHub
+# release, not committed.
+/release-assets/
 
 # Local test-environment overrides.
 .env

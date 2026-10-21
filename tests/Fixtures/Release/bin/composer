@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
-# Offline Composer boundary: the release-notes regression needs no packages.
-# Accepts the builder's install arguments and returns success.
+# Offline Composer boundary for release-build tests. Records its arguments under
+# KNTNT_RELEASE_CAPTURE and writes a stand-in production vendor/ into the
+# directory it runs in; never contacts Packagist. It fails when the manifests it
+# would install from are missing, and when KNTNT_RELEASE_COMPOSER_FAIL is set.
 set -euo pipefail
+
+printf '%s\n' "$@" > "$KNTNT_RELEASE_CAPTURE/composer-arguments"
+[[ -z "${KNTNT_RELEASE_COMPOSER_FAIL:-}" ]] || exit 1
+[[ "${1:-}" == 'install' && -f composer.json && -f composer.lock ]] || exit 2
+
+mkdir -p vendor/composer
+printf '%s\n' '<?php // VENDOR-AUTOLOAD' > vendor/autoload.php
+printf '%s\n' '<?php // VENDOR-CLASSMAP' > vendor/composer/autoload_classmap.php

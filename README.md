@@ -135,15 +135,16 @@ Level 2 boots the plugin in [WordPress Playground](https://wordpress.github.io/w
 ### Building a release ZIP locally
 
 ```bash
-bash build-release-zip.sh --output .   # → kntnt-ai-visibility.zip in the current dir
-bash build-release-zip.sh --help
+bin/build-release-assets          # → release-assets/kntnt-ai-visibility.zip
+composer build                    # the same
+bin/build-release-assets --help
 ```
 
-The script runs `composer install --no-dev --optimize-autoloader` in a staging directory and packages only the runtime files (main file, `autoloader.php`, `classes/`, `vendor/`, `languages/`, `install.php`, `uninstall.php`, `README.md`, `LICENSE`). Your working tree is untouched.
+The script builds from the committed state at `HEAD` – uncommitted changes are not included. It runs `composer install --no-dev --optimize-autoloader` in a temporary directory and packages only the runtime files (main file, `autoloader.php`, `classes/`, `vendor/`, `languages/`, `install.php`, `uninstall.php`, `README.md`, `LICENSE`). If `HEAD` carries a version tag, the `Version:` header must match it or the build fails. Your working tree is untouched, and the script never publishes anything.
 
 ### Releasing
 
-Pushing a version tag `vX.Y.Z` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds the ZIP and publishes it as `kntnt-ai-visibility.zip` on the GitHub release. The version-less asset name is what makes the `latest/download` link above permanent (see [`docs/adr/0005`](docs/adr/0005-automated-tag-release-stable-asset.md)). The `Version:` header must match the tag without its `v` prefix.
+Releases are cut with Kntnt's `/release` Skill. It promotes `[Unreleased]` in `CHANGELOG.md`, bumps the `Version:` header, pushes the tag `vX.Y.Z`, creates the GitHub release with that version's changelog section as its notes, runs `bin/build-release-assets` and uploads `release-assets/kntnt-ai-visibility.zip` to the release. Pushing a tag on its own builds nothing. The version-less asset name is what makes the `latest/download` link above permanent (see [`docs/adr/0013`](docs/adr/0013-release-skill-cuts-releases-build-only-builds.md)).
 
 ### Technical documentation
 

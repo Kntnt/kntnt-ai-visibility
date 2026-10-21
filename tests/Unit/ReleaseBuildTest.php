@@ -1,9 +1,11 @@
 <?php
 /**
- * Exercises the build CLI with an isolated git repository and offline tools.
+ * Exercises bin/build-release-assets with an isolated git repository and
+ * offline tools.
  *
- * Notes and runtime bytes must describe the same tagged commit, even when the
- * checkout has moved on and has additional uncommitted edits.
+ * The zip must describe the committed HEAD, hold only runtime files under one
+ * top-level plugin directory and refuse a tagged HEAD whose header disagrees.
+ * Publishing is the release's job, so the build never calls gh.
  *
  * @package Tests\Unit
  * @since 0.5.1
@@ -13,7 +15,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Process\Process;
 
-describe('Tagged release build', function (): void {
+describe('Release asset build', function (): void {
 
     beforeEach(function (): void {
         // Keep the repository, captured outputs and builder staging isolated.
@@ -21,15 +23,27 @@ describe('Tagged release build', function (): void {
         $this->release_root = $test_root . '/kntnt-release-' . bin2hex(random_bytes(8));
         $this->release_repo = $this->release_root . '/repo';
         $this->release_capture = $this->release_root . '/capture';
-        mkdir($this->release_repo, 0700, true);
+        $this->release_zip = $this->release_repo . '/release-assets/kntnt-ai-visibility.zip';
+        mkdir($this->release_repo . '/bin', 0700, true);
         mkdir($this->release_capture, 0700);
         mkdir($this->release_root . '/staging', 0700);
-        mkdir($this->release_repo . '/bin', 0700);
-        copy(dirname(__DIR__, 2) . '/bin/build-release-assets', $this->release_repo . '/bin/build-release-assets');
+        mkdir($this->release_root . '/tripwire', 0700);
+        $source = dirname(__DIR__, 2);
+        copy($source . '/bin/build-release-assets', $this->release_repo . '/bin/build-release-assets');
+        chmod($this->release_repo . '/bin/build-release-assets', 0755);
 
-        // Intercept only external dependency installation and GitHub publishing.
+        // Any gh call is a failure: record it and refuse.
+        file_put_contents($this->release_root . '/tripwire/gh', <<<'GH'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$KNTNT_RELEASE_CAPTURE/gh"
+exit 1
+GH
+        );
+        chmod($this->release_root . '/tripwire/gh', 0755);
+
+        // Intercept dependency installation and GitHub; keep git configuration out.
         $this->release_environment = [
-            'PATH' => dirname(__DIR__) . '/Fixtures/Release/bin:' . getenv('PATH'),
+            'PATH' => $this->release_root . '/tripwire:' . dirname(__DIR__) . '/Fixtures/Release/bin:' . getenv('PATH'),
             'KNTNT_RELEASE_CAPTURE' => $this->release_capture,
             'TMPDIR' => $this->release_root . '/staging',
             'GIT_CONFIG_GLOBAL' => '/dev/null',
@@ -44,16 +58,57 @@ describe('Tagged release build', function (): void {
             $process->mustRun();
             return $process->getOutput();
         };
+        $this->release_build = function (array $environment = []): Process {
+            $process = new Process(
+                ['bin/build-release-assets'],
+                $this->release_repo,
+                $environment + $this->release_environment,
+            );
+            $process->run();
+            return $process;
+        };
+        $this->release_header = function (string $version, string $marker = 'COMMITTED'): void {
+            file_put_contents(
+                $this->release_repo . '/kntnt-ai-visibility.php',
+                "<?php\n/**\n * Plugin Name:       Kntnt AI Visibility\n * Version:           {$version}\n */\n// {$marker}\n",
+            );
+        };
+
+        // Seed a minimal plugin: every runtime name, plus files that must not ship.
+        $files = [
+            'autoloader.php' => "<?php\n",
+            'classes/Plugin.php' => "<?php\n",
+            'composer.json' => "{}\n",
+            'composer.lock' => "{}\n",
+            'install.php' => "<?php\n",
+            'languages/kntnt-ai-visibility.pot' => "msgid \"\"\n",
+            'LICENSE' => "GPL\n",
+            'README.md' => "# Kntnt AI Visibility\n",
+            'uninstall.php' => "<?php\n",
+            'CHANGELOG.md' => "# Changelog\n",
+            'docs/adr/0001-example.md' => "# Example\n",
+            'tests/Unit/ExampleTest.php' => "<?php\n",
+            'phpunit.xml' => "<phpunit/>\n",
+        ];
+        foreach ($files as $path => $content) {
+            if (!is_dir(dirname($this->release_repo . '/' . $path))) {
+                mkdir(dirname($this->release_repo . '/' . $path), 0700, true);
+            }
+            file_put_contents($this->release_repo . '/' . $path, $content);
+        }
+        copy($source . '/.gitattributes', $this->release_repo . '/.gitattributes');
+        ($this->release_header)('1.2.3');
+
         ($this->release_run)(['git', 'init', '--quiet']);
+        ($this->release_run)(['git', 'add', '.']);
+        ($this->release_run)(['git', 'commit', '--quiet', '-m', 'Plugin source']);
     });
 
     afterEach(function (): void {
-        // Verify the builder cleans its own staging tree before fixture cleanup.
+        // Verify the builder cleans its own staging tree and never publishes.
         try {
             expect(scandir($this->release_root . '/staging'))->toBe(['.', '..']);
-            if (file_exists($this->release_capture . '/notes-path')) {
-                expect(file_exists(trim(file_get_contents($this->release_capture . '/notes-path'))))->toBeFalse();
-            }
+            expect(file_exists($this->release_capture . '/gh'))->toBeFalse();
         } finally {
 
             // Remove only this test's fixture tree, including on assertion failure.
@@ -62,105 +117,79 @@ describe('Tagged release build', function (): void {
                 RecursiveIteratorIterator::CHILD_FIRST,
             );
             foreach ($files as $file) {
-                $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
+                $file->isDir() && !$file->isLink() ? rmdir($file->getPathname()) : unlink($file->getPathname());
             }
             rmdir($this->release_root);
         }
     });
 
-    it('publishes notes and runtime bytes from the tag despite a newer dirty checkout', function (): void {
-        // Tag the independently expected body, including significant formatting.
-        file_put_contents($this->release_repo . '/CHANGELOG.md', <<<'CHANGELOG'
-# Changelog
+    it('ships only runtime files and a production vendor/ under the plugin directory', function (): void {
+        // Build an untagged HEAD and list the zip's files, leaving out directory entries.
+        $process = ($this->release_build)();
+        expect($process->getExitCode())->toBe(0, $process->getErrorOutput());
+        expect(realpath(trim($process->getOutput())))->toBe(realpath($this->release_zip));
+        $entries = array_values(array_filter(
+            explode("\n", trim(($this->release_run)(['unzip', '-Z1', $this->release_zip]))),
+            static fn (string $entry): bool => !str_ends_with($entry, '/'),
+        ));
+        sort($entries);
 
-## [1.2.3] – 2026-10-08
-
-### Fixed
-
-- TAGGED-NOTES
-  continuation with `code` and a literal \n.
-
-## [1.2.2] – 2026-10-07
-
-- PREVIOUS-NOTES
-
-[1.2.3]: https://example.test/tag
-CHANGELOG
-        );
-        file_put_contents($this->release_repo . '/kntnt-ai-visibility.php', 'TAGGED-CONTENT');
-        ($this->release_run)(['git', 'add', '.']);
-        ($this->release_run)(['git', 'commit', '--quiet', '-m', 'Tagged source']);
-        ($this->release_run)(['git', 'tag', 'v1.2.3']);
-
-        // Move HEAD and leave a further dirty edit for the same release section.
-        file_put_contents($this->release_repo . '/CHANGELOG.md', "## [1.2.3]\n\nCOMMITTED-WORKTREE-NOTES\n");
-        file_put_contents($this->release_repo . '/kntnt-ai-visibility.php', 'WORKTREE-CONTENT');
-        ($this->release_run)(['git', 'add', '.']);
-        ($this->release_run)(['git', 'commit', '--quiet', '-m', 'Newer checkout']);
-        file_put_contents($this->release_repo . '/CHANGELOG.md', "## [1.2.3]\n\nWORKTREE-NOTES\n");
-
-        // Build through the CLI; the stub captures exactly what gh would receive.
-        ($this->release_run)(['bash', 'bin/build-release-assets', '--tag', 'v1.2.3', '--create']);
-        $expected = "\n### Fixed\n\n- TAGGED-NOTES\n  continuation with `code` and a literal \\n.\n\n"
-            . "\n**Full changelog:** https://github.com/Kntnt/kntnt-ai-visibility/blob/v1.2.3/CHANGELOG.md\n";
-        expect(file_get_contents($this->release_capture . '/notes.md'))->toBe($expected);
-        expect(($this->release_run)([
-            'unzip', '-p', $this->release_capture . '/release.zip', 'kntnt-ai-visibility/kntnt-ai-visibility.php',
-        ]))->toBe('TAGGED-CONTENT');
-
+        // Dev files, bin/ and the Composer manifests stay out; vendor/ comes in.
+        expect($entries)->toBe([
+            'kntnt-ai-visibility/LICENSE',
+            'kntnt-ai-visibility/README.md',
+            'kntnt-ai-visibility/autoloader.php',
+            'kntnt-ai-visibility/classes/Plugin.php',
+            'kntnt-ai-visibility/install.php',
+            'kntnt-ai-visibility/kntnt-ai-visibility.php',
+            'kntnt-ai-visibility/languages/kntnt-ai-visibility.pot',
+            'kntnt-ai-visibility/uninstall.php',
+            'kntnt-ai-visibility/vendor/autoload.php',
+            'kntnt-ai-visibility/vendor/composer/autoload_classmap.php',
+        ]);
+        $arguments = explode("\n", trim(file_get_contents($this->release_capture . '/composer-arguments')));
+        expect($arguments)->toContain('install')->toContain('--no-dev')->toContain('--optimize-autoloader');
     });
 
-    it('stops the tagged notes at the reference-link block', function (): void {
-        // Put references directly after the final version's formatted body.
-        file_put_contents($this->release_repo . '/CHANGELOG.md',
-            "## [1.2.3]\n\n### Fixed\n\n- TAGGED-NOTES\n\n[1.2.3]: https://example.test/tag\nREFERENCE-TAIL\n",
-        );
-        file_put_contents($this->release_repo . '/kntnt-ai-visibility.php', 'TAGGED-CONTENT');
-        ($this->release_run)(['git', 'add', '.']);
-        ($this->release_run)(['git', 'commit', '--quiet', '-m', 'Tagged source']);
-        ($this->release_run)(['git', 'tag', 'v1.2.3']);
-        file_put_contents($this->release_repo . '/CHANGELOG.md', "## [1.2.3]\n\nWORKTREE-NOTES\n");
+    it('builds from the committed HEAD, not the working tree', function (): void {
+        // Leave a modified tracked file and an untracked file inside a runtime directory.
+        ($this->release_header)('1.2.3', 'WORKTREE');
+        file_put_contents($this->release_repo . '/classes/Untracked.php', "<?php\n");
 
-        // Preserve the body literally and omit all reference definitions.
-        ($this->release_run)(['bash', 'bin/build-release-assets', '--tag', 'v1.2.3', '--create']);
-        expect(file_get_contents($this->release_capture . '/notes.md'))->toBe(
-            "\n### Fixed\n\n- TAGGED-NOTES\n\n"
-            . "\n**Full changelog:** https://github.com/Kntnt/kntnt-ai-visibility/blob/v1.2.3/CHANGELOG.md\n",
-        );
+        // The zip carries the committed bytes, and the build says what it left out.
+        $process = ($this->release_build)();
+        expect($process->getExitCode())->toBe(0, $process->getErrorOutput());
+        expect($process->getErrorOutput())->toContain('uncommitted changes are not included');
+        expect(($this->release_run)([
+            'unzip', '-p', $this->release_zip, 'kntnt-ai-visibility/kntnt-ai-visibility.php',
+        ]))->toContain('// COMMITTED')->not->toContain('WORKTREE');
+        expect(($this->release_run)(['unzip', '-Z1', $this->release_zip]))->not->toContain('Untracked.php');
     });
 
-    it('uses generated notes when the tagged section has no content', function (?string $changelog): void {
-        // A populated working-copy section must not override a missing/empty tag.
-        if ($changelog !== null) {
-            file_put_contents($this->release_repo . '/CHANGELOG.md', $changelog);
-        }
-        file_put_contents($this->release_repo . '/kntnt-ai-visibility.php', 'TAGGED-CONTENT');
-        ($this->release_run)(['git', 'add', '.']);
-        ($this->release_run)(['git', 'commit', '--quiet', '-m', 'Tagged source']);
-        ($this->release_run)(['git', 'tag', 'v1.2.3']);
-        file_put_contents($this->release_repo . '/CHANGELOG.md', "## [1.2.3]\n\nWORKTREE-NOTES\n");
+    it('builds a tagged HEAD whose header matches the tag', function (string $tag): void {
+        ($this->release_run)(['git', 'tag', $tag]);
 
-        // The documented fallback is gh's generated release body.
-        ($this->release_run)(['bash', 'bin/build-release-assets', '--tag', 'v1.2.3', '--create']);
-        $arguments = explode("\n", file_get_contents($this->release_capture . '/arguments'));
-        expect($arguments)->toContain('--generate-notes')->not->toContain('--notes-file');
-        expect(file_exists($this->release_capture . '/notes.md'))->toBeFalse();
-    })->with([
-        'missing changelog' => [null],
-        'missing version section' => ["## [1.2.2]\n\nPREVIOUS-NOTES\n"],
-        'whitespace-only version section' => ["## [1.2.3]\n\n \t\n## [1.2.2]\n\nPREVIOUS-NOTES\n"],
-    ]);
+        $process = ($this->release_build)();
+        expect($process->getExitCode())->toBe(0, $process->getErrorOutput());
+        expect(file_exists($this->release_zip))->toBeTrue();
+    })->with(['v-prefixed tag' => ['v1.2.3'], 'bare tag' => ['1.2.3']]);
 
-    it('builds local runtime bytes from the working copy without publishing', function (): void {
-        // Local builds intentionally use current files without a tag or changelog.
-        file_put_contents($this->release_repo . '/kntnt-ai-visibility.php', 'WORKTREE-CONTENT');
-        ($this->release_run)(['bash', 'bin/build-release-assets', '--output', $this->release_capture]);
+    it('refuses a tagged HEAD whose header has another version', function (): void {
+        ($this->release_run)(['git', 'tag', 'v1.2.4']);
 
-        // Check the delivered ZIP and absence of any GitHub publishing request.
-        expect(($this->release_run)([
-            'unzip', '-p', $this->release_capture . '/kntnt-ai-visibility.zip', 'kntnt-ai-visibility/kntnt-ai-visibility.php',
-        ]))->toBe('WORKTREE-CONTENT');
-        expect(file_exists($this->release_capture . '/created'))->toBeFalse();
+        // A mismatch is a build failure, reported before anything is built.
+        $process = ($this->release_build)();
+        expect($process->getExitCode())->toBe(3);
+        expect($process->getErrorOutput())->toContain('HEAD is tagged v1.2.4, but kntnt-ai-visibility.php has Version: 1.2.3.');
+        expect(file_exists($this->release_zip))->toBeFalse();
+        expect(file_exists($this->release_capture . '/composer-arguments'))->toBeFalse();
+    });
+
+    it('fails without a zip when the dependency install fails', function (): void {
+        $process = ($this->release_build)(['KNTNT_RELEASE_COMPOSER_FAIL' => '1']);
+        expect($process->getExitCode())->toBe(3);
+        expect($process->getErrorOutput())->toContain('Preparing the plugin files failed.');
+        expect(file_exists($this->release_zip))->toBeFalse();
     });
 
 });

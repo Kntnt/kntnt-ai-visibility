@@ -1,6 +1,6 @@
 # GitHub, not wordpress.org, is the 1.0 distribution channel
 
-The Charter's Objectives line names wordpress.org, but that is a long-term **vision**, not the 1.0 plan. 1.0 is built to live on GitHub and work well in that environment, mirroring the `kntnt-gpx-blocks` template: self-hosted updates via a GitHub-release `Updater` (ported from gpx-blocks), releases shipped as a GitHub-release `.zip` asset built by `build-release-zip.sh`. No wordpress.org machinery is added — no `readme.txt`, no `.wordpress-org/` assets, no SVN deploy.
+The Charter's Objectives line names wordpress.org, but that is a long-term **vision**, not the 1.0 plan. 1.0 is built to live on GitHub and work well in that environment, mirroring the `kntnt-gpx-blocks` template: self-hosted updates via a GitHub-release `Updater` (ported from gpx-blocks), releases shipped as a GitHub-release `.zip` asset built by `bin/build-release-assets` (`build-release-zip.sh` until [ADR-0013](0013-release-skill-cuts-releases-build-only-builds.md)). No wordpress.org machinery is added — no `readme.txt`, no `.wordpress-org/` assets, no SVN deploy.
 
 ## Consequences
 

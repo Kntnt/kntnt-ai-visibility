@@ -5,11 +5,11 @@
 *.sh   text eol=lf
 *.php  text eol=lf
 
-# Development-only paths excluded from `git archive` exports. The release zip is
-# built by bin/build-release-assets, which additionally strips everything outside
-# its runtime keep-list; these export-ignore rules keep source tarballs clean
-# too. composer.json / composer.lock are deliberately NOT ignored — the build's
-# --tag path runs `composer install` against them in a staging directory.
+# Development-only paths excluded from `git archive` exports, so source
+# tarballs stay clean. The release zip does not depend on them:
+# bin/build-release-assets limits its export to the runtime keep-list.
+# composer.json / composer.lock are deliberately NOT ignored — the build
+# exports them to run `composer install --no-dev` and removes them afterwards.
 /.github            export-ignore
 /docs               export-ignore
 /tests              export-ignore
