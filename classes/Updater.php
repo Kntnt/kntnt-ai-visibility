@@ -6,7 +6,7 @@
  * plugin's GitHub repository and present them in the admin UI. The target
  * repository is derived from the Plugin URI header, so this class is pointed at
  * Kntnt/kntnt-ai-visibility without any hard-coded slug (see docs/adr/0003 and
- * docs/adr/0005 — the release asset is identified by content type, not name).
+ * docs/adr/0013 — the release asset is identified by content type, not name).
  *
  * @package Kntnt\Ai_Visibility
  * @since   0.1.0
@@ -161,7 +161,7 @@ final class Updater {
 	 * objects.githubusercontent.com) — the Updater then skips advertising the
 	 * update rather than offering a broken or untrusted package URL. The match
 	 * is by content type, not filename, so the version-less asset name
-	 * (docs/adr/0005) stays compatible with self-update.
+	 * (docs/adr/0013) stays compatible with self-update.
 	 *
 	 * @since 0.1.0
 	 *

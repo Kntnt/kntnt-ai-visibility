@@ -1,4 +1,10 @@
+---
+status: superseded by ADR-0013
+---
+
 # Releases are automated on version tags, with a stable-named asset
+
+Superseded by [ADR-0013](0013-release-skill-cuts-releases-build-only-builds.md): releases are cut by Kntnt's `/release` Skill, not by a workflow, and the build script no longer publishes or builds from the working copy. The version-less asset name, the `v` tag prefix, the header-must-match-tag check and the runtime-only zip with a production `vendor/` still stand, as ADR-0013 records.
 
 Pushing a version tag (`vX.Y.Z`) triggers a GitHub Actions workflow that builds the distribution ZIP and attaches it to that tag's GitHub release — no manual release step. The asset is named after the repository with **no version segment** (`kntnt-ai-visibility.zip`), so the README can link once to `…/releases/latest/download/kntnt-ai-visibility.zip` and that URL forever resolves to the newest release. This deviates from the reference repos (gpx-blocks, ad-attribution-gads), which release manually with `gh`.
 

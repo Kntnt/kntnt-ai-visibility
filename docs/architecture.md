@@ -174,8 +174,9 @@ the programmatic escape hatch. See
   ([ADR-0002](adr/0002-vendor-converter-unscoped.md)).
 - **GitHub distribution** with a self-update `Updater`
   ([ADR-0003](adr/0003-github-is-the-1-0-distribution-channel.md)); releases are
-  automated on version tags
-  ([ADR-0005](adr/0005-automated-tag-release-stable-asset.md)).
+  cut by Kntnt's `/release` Skill, which attaches the zip
+  `bin/build-release-assets` builds
+  ([ADR-0013](adr/0013-release-skill-cuts-releases-build-only-builds.md)).
 
 ## Testability
 
@@ -200,11 +201,12 @@ These are settled for **Release 1** (the Markdown alternate) in [`docs/spec/mark
 | [0002](adr/0002-vendor-converter-unscoped.md) | Bundle the converter unscoped |
 | [0003](adr/0003-github-is-the-1-0-distribution-channel.md) | GitHub is the 1.0 channel |
 | [0004](adr/0004-playground-e2e-no-auto-ddev-fallback.md) | Playground e2e, no auto-DDEV |
-| [0005](adr/0005-automated-tag-release-stable-asset.md) | Automated tag release |
+| [0005](adr/0005-automated-tag-release-stable-asset.md) | Automated tag release (superseded by 0013) |
 | [0006](adr/0006-deep-module-architecture.md) | Core + four deep modules |
 | [0007](adr/0007-file-cached-artifacts-early-contained-router.md) | File-cached artifacts, contained router |
 | [0008](adr/0008-artifact-provider-registry.md) | Artifact-provider registry |
 | [0009](adr/0009-markdown-alternate-serving-strategy.md) | Markdown serving strategy |
 | [0010](adr/0010-zero-config-settings-registry.md) | Zero-config settings registry |
-| [0011](adr/0011-release-notes-from-changelog.md) | Release notes come from the CHANGELOG |
+| [0011](adr/0011-release-notes-from-changelog.md) | Release notes come from the CHANGELOG (superseded by 0013) |
 | [0012](adr/0012-content-signals-tri-state-defaults.md) | Content signals: site-wide tri-state declaration, mission-coherent defaults |
+| [0013](adr/0013-release-skill-cuts-releases-build-only-builds.md) | Releases are cut by `/release`; the build only builds the asset |

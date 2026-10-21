@@ -1,4 +1,10 @@
+---
+status: superseded by ADR-0013
+---
+
 # Release notes come from the CHANGELOG
+
+Superseded by [ADR-0013](0013-release-skill-cuts-releases-build-only-builds.md) in how the notes are made: Kntnt's `/release` Skill passes the changelog section to `gh release create`, and the extraction below is gone with `build-release-zip.sh`. That the notes are the matching `CHANGELOG.md` section, not GitHub's generated digest, still stands.
 
 The GitHub release created on a version tag takes its body from the matching `CHANGELOG.md` section, not from GitHub's `--generate-notes` (the commit-and-PR digest used until now). The changelog is hand-curated, user-facing and already grouped into *Added* / *Changed* / *Removed*; auto-generated notes are a raw commit list that repeats the changelog's raw material in a worse form. Sourcing the release body from the changelog gives one authoritative, reader-quality account of each release and keeps the tag, the release and the changelog telling the same story. This refines [ADR-0005](0005-automated-tag-release-stable-asset.md), which established the automated tag-to-release build but left the notes auto-generated.
 

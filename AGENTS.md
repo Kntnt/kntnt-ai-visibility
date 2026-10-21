@@ -30,5 +30,5 @@ Precedence over any conflicting skill, README or other doc unless the user overr
 - `docs/operations/negotiated-cache.md` — read before deploying or verifying negotiated Markdown with a shared page cache, including purge and before-WordPress bypass checks
 - `docs/spec/llms-txt.md` — concrete Release-2 contracts (llms.txt module + Core extensions: content-type matrix, exact-path router); read before implementing
 - `docs/Charter.md` — product brief, market and the four-step plan
-- `docs/adr/` — the authoritative decisions (ADR-0001 … 0012)
+- `docs/adr/` — the authoritative decisions (ADR-0001 … 0013)
 - `GLOSSARY.md` — domain glossary
